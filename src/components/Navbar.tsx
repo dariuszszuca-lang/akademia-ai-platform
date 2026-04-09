@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 
 const tabs = [
   { name: "Społeczność", href: "/community" },
-  { name: "Kursy", href: "/classroom" },
+  { name: "Materiały", href: "/classroom" },
   { name: "Kalendarz", href: "/calendar" },
   { name: "Członkowie", href: "/members" },
   { name: "O nas", href: "/about" },
