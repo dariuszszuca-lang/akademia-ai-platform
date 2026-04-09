@@ -11,7 +11,7 @@ export default function MembersPage() {
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Search members..."
+          placeholder="Szukaj członków..."
           className="w-full bg-white rounded-xl border border-border px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gold/30 shadow-sm"
         />
       </div>

@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 
-const categories = ["All", "Ogłoszenia", "Strategie i Narzędzia", "Aktualności AI", "Zwycięstwa i Case Studies"];
+const categories = ["Wszystkie", "Ogłoszenia", "Strategie i Narzędzia", "Aktualności AI", "Zwycięstwa i Case Studies"];
 
 const mockPosts = [
   {
@@ -47,7 +47,7 @@ export default function CommunityPage() {
           </div>
           <input
             type="text"
-            placeholder="Write something..."
+            placeholder="Napisz coś..."
             className="flex-1 bg-slate-light rounded-full px-5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold/30 transition-all cursor-pointer text-gray-500"
             readOnly
           />
@@ -94,7 +94,7 @@ export default function CommunityPage() {
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M7.5 2a1 1 0 0 0-1 1v2.293L4.854 6.94a1 1 0 0 0-.354.707V9.5a1 1 0 0 0 1 1h4v6.5a.5.5 0 0 0 1 0V10.5h4a1 1 0 0 0 1-1V7.647a1 1 0 0 0-.354-.707L13.5 5.293V3a1 1 0 0 0-1-1h-5Z"/>
                     </svg>
-                    Pinned
+                    Przypięty
                   </span>
                 )}
               </div>
@@ -141,7 +141,7 @@ export default function CommunityPage() {
             <div className="grid grid-cols-3 border-t border-border pt-4 text-center">
               <div>
                 <p className="text-lg font-bold text-navy">1</p>
-                <p className="text-xs text-gray-400">Members</p>
+                <p className="text-xs text-gray-400">Członków</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-navy">1</p>
@@ -149,21 +149,21 @@ export default function CommunityPage() {
               </div>
               <div>
                 <p className="text-lg font-bold text-navy">1</p>
-                <p className="text-xs text-gray-400">Admins</p>
+                <p className="text-xs text-gray-400">Adminów</p>
               </div>
             </div>
           </div>
 
           <div className="px-5 pb-5">
             <button className="w-full bg-navy hover:bg-navy-light text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
-              INVITE PEOPLE
+              ZAPROŚ OSOBY
             </button>
           </div>
         </div>
 
         {/* Leaderboard */}
         <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
-          <h3 className="font-semibold text-navy text-sm mb-4">Leaderboard (30-day)</h3>
+          <h3 className="font-semibold text-navy text-sm mb-4">Ranking (30 dni)</h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold text-xs">1</span>
