@@ -1,5 +1,5 @@
-const REGION = process.env.NEXT_PUBLIC_COGNITO_REGION!;
-const CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
+const REGION = (process.env.NEXT_PUBLIC_COGNITO_REGION || "eu-central-1").trim();
+const CLIENT_ID = (process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "fp5e0m207kg7sqe98p22c4p5f").trim();
 // USER_POOL_ID will be needed for JWT verification on the server side
 // const USER_POOL_ID = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
 
