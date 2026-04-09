@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 const tabs = [
-  { name: "Community", href: "/community" },
-  { name: "Classroom", href: "/classroom" },
-  { name: "Calendar", href: "/calendar" },
-  { name: "Members", href: "/members" },
-  { name: "About", href: "/about" },
+  { name: "Społeczność", href: "/community" },
+  { name: "Kursy", href: "/classroom" },
+  { name: "Kalendarz", href: "/calendar" },
+  { name: "Członkowie", href: "/members" },
+  { name: "O nas", href: "/about" },
 ];
 
 export default function Navbar() {
