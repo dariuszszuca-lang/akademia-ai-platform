@@ -106,12 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await cognito.signUp(email, password, name);
     } catch (e) {
       const msg = (e as Error).message;
+      console.error("Registration error:", msg);
       if (msg.includes("UsernameExistsException")) {
         setError("Konto z tym adresem email już istnieje");
       } else if (msg.includes("InvalidPasswordException")) {
         setError("Hasło musi mieć min. 8 znaków, wielką literę, cyfrę i znak specjalny");
       } else {
-        setError("Błąd rejestracji. Spróbuj ponownie.");
+        setError(msg || "Błąd rejestracji. Spróbuj ponownie.");
       }
       throw e;
     }
