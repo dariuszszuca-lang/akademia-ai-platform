@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
-import Sidebar from "@/components/Sidebar";
+import Navbar from "@/components/Navbar";
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -29,12 +29,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-6xl mx-auto p-8">
-          {children}
-        </div>
+    <div className="min-h-screen bg-slate-light">
+      <Navbar />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {children}
       </main>
     </div>
   );
