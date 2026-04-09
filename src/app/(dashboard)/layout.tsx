@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import Navbar from "@/components/Navbar";
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-3 border-gold border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">Ładowanie...</p>
+          <p className="text-sm text-foreground/50">Ładowanie...</p>
         </div>
       </div>
     );
@@ -29,7 +30,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-slate-light">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {children}
@@ -44,8 +45,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthProvider>
-      <DashboardGuard>{children}</DashboardGuard>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <DashboardGuard>{children}</DashboardGuard>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

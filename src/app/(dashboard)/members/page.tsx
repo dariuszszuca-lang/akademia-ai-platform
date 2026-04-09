@@ -12,12 +12,12 @@ export default function MembersPage() {
         <input
           type="text"
           placeholder="Szukaj członków..."
-          className="w-full bg-white rounded-xl border border-border px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gold/30 shadow-sm"
+          className="w-full bg-card rounded-xl border border-border px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gold/30 shadow-sm"
         />
       </div>
 
       {/* Members list */}
-      <div className="bg-white rounded-xl border border-border shadow-sm divide-y divide-border">
+      <div className="bg-card rounded-xl border border-border shadow-sm divide-y divide-border">
         {user && (
           <div className="flex items-center gap-4 p-4 hover:bg-slate-light/50 transition-colors cursor-pointer">
             <div className="relative">
@@ -31,7 +31,7 @@ export default function MembersPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <p className="font-semibold text-sm text-navy">{user.name}</p>
+                <p className="font-semibold text-sm text-foreground">{user.name}</p>
                 <span className="px-2 py-0.5 bg-gold/10 text-gold-dark text-[10px] font-semibold rounded-full uppercase">Admin</span>
               </div>
               <p className="text-xs text-gray-400">{user.email}</p>

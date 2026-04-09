@@ -13,14 +13,14 @@ export default function ClassroomPage() {
         {courses.map((course) => (
           <div
             key={course.id}
-            className="bg-white rounded-xl border border-border p-5 shadow-sm hover:shadow-md hover:border-gold/30 transition-all cursor-pointer group"
+            className="bg-card rounded-xl border border-border p-5 shadow-sm hover:shadow-md hover:border-gold/30 transition-all cursor-pointer group"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-slate-light flex items-center justify-center text-2xl flex-shrink-0">
                 {course.emoji}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-navy group-hover:text-gold-dark transition-colors">
+                <h3 className="font-semibold text-foreground group-hover:text-gold-dark transition-colors">
                   {course.title}
                 </h3>
                 <p className="text-sm text-gray-400 mt-0.5">

@@ -41,7 +41,7 @@ export default function CommunityPage() {
       {/* Left column — posts */}
       <div className="flex-1 min-w-0">
         {/* Write something */}
-        <div className="bg-white rounded-xl border border-border p-4 mb-4 flex items-center gap-3 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-4 mb-4 flex items-center gap-3 shadow-sm">
           <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold font-semibold text-sm flex-shrink-0">
             {user?.name.charAt(0).toUpperCase()}
           </div>
@@ -60,8 +60,8 @@ export default function CommunityPage() {
               key={cat}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 i === 0
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 border border-border hover:bg-gray-50"
+                  ? "bg-foreground text-background"
+                  : "bg-card text-gray-600 border border-border hover:bg-gray-50"
               }`}
             >
               {cat}
@@ -72,7 +72,7 @@ export default function CommunityPage() {
         {/* Posts */}
         <div className="space-y-4">
           {mockPosts.map((post) => (
-            <div key={post.id} className="bg-white rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <div key={post.id} className="bg-card rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
               {/* Header */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -85,7 +85,7 @@ export default function CommunityPage() {
                     </span>
                   </div>
                   <div>
-                    <p className="font-semibold text-sm text-navy">{post.author}</p>
+                    <p className="font-semibold text-sm text-foreground">{post.author}</p>
                     <p className="text-xs text-gray-400">{post.time} · {post.category}</p>
                   </div>
                 </div>
@@ -100,7 +100,7 @@ export default function CommunityPage() {
               </div>
 
               {/* Content */}
-              <h3 className="font-semibold text-navy mb-1.5">{post.title}</h3>
+              <h3 className="font-semibold text-foreground mb-1.5">{post.title}</h3>
               <p className="text-sm text-gray-600 leading-relaxed">{post.excerpt}</p>
 
               {/* Footer */}
@@ -111,7 +111,7 @@ export default function CommunityPage() {
                   </svg>
                   {post.likes}
                 </button>
-                <button className="flex items-center gap-1.5 text-gray-400 hover:text-navy transition-colors text-sm">
+                <button className="flex items-center gap-1.5 text-gray-400 hover:text-foreground transition-colors text-sm">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
                   </svg>
@@ -126,12 +126,12 @@ export default function CommunityPage() {
       {/* Right column — info panel */}
       <div className="w-80 flex-shrink-0 hidden lg:block space-y-4">
         {/* Group info */}
-        <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="h-24 bg-gradient-to-r from-navy to-navy-light flex items-center justify-center">
             <span className="font-heading text-2xl text-gold font-bold">Akademia AI</span>
           </div>
           <div className="p-5">
-            <h3 className="font-semibold text-navy">Akademia AI — Warsztaty</h3>
+            <h3 className="font-semibold text-foreground">Akademia AI — Warsztaty</h3>
             <p className="text-xs text-gray-400 mt-0.5 mb-3">Platforma szkoleniowa</p>
             <p className="text-sm text-gray-600 leading-relaxed mb-4">
               Praktyczne warsztaty AI dla agentów nieruchomości. Kursy, materiały, społeczność.
@@ -140,15 +140,15 @@ export default function CommunityPage() {
             {/* Stats */}
             <div className="grid grid-cols-3 border-t border-border pt-4 text-center">
               <div>
-                <p className="text-lg font-bold text-navy">1</p>
+                <p className="text-lg font-bold text-foreground">1</p>
                 <p className="text-xs text-gray-400">Członków</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-navy">1</p>
+                <p className="text-lg font-bold text-foreground">1</p>
                 <p className="text-xs text-gray-400">Online</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-navy">1</p>
+                <p className="text-lg font-bold text-foreground">1</p>
                 <p className="text-xs text-gray-400">Adminów</p>
               </div>
             </div>
@@ -162,13 +162,13 @@ export default function CommunityPage() {
         </div>
 
         {/* Leaderboard */}
-        <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
-          <h3 className="font-semibold text-navy text-sm mb-4">Ranking (30 dni)</h3>
+        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+          <h3 className="font-semibold text-foreground text-sm mb-4">Ranking (30 dni)</h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="w-6 h-6 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold text-xs">1</span>
               <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold font-semibold text-xs">D</div>
-              <span className="text-sm font-medium text-navy flex-1">Dariusz Szuca</span>
+              <span className="text-sm font-medium text-foreground flex-1">Dariusz Szuca</span>
               <span className="text-sm font-semibold text-gold">+10</span>
             </div>
           </div>

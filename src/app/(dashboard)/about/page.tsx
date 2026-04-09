@@ -1,7 +1,7 @@
 export default function AboutPage() {
   return (
     <div className="max-w-4xl">
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         {/* Banner */}
         <div className="h-32 bg-gradient-to-r from-navy to-navy-light flex items-center justify-center">
           <div className="text-center">
@@ -13,7 +13,7 @@ export default function AboutPage() {
         <div className="p-8 space-y-8">
           {/* Description */}
           <div>
-            <h3 className="font-semibold text-navy mb-3">O warsztatach</h3>
+            <h3 className="font-semibold text-foreground mb-3">O warsztatach</h3>
             <p className="text-sm text-gray-600 leading-relaxed">
               Akademia AI to intensywny, 4-dniowy program szkoleniowy. Uczymy jak wykorzystać
               sztuczną inteligencję w codziennej pracy — od automatyzacji ofert, przez tworzenie
@@ -23,26 +23,26 @@ export default function AboutPage() {
 
           {/* Format */}
           <div>
-            <h3 className="font-semibold text-navy mb-3">Format warsztatu</h3>
+            <h3 className="font-semibold text-foreground mb-3">Format warsztatu</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-slate-light rounded-lg p-4 text-center">
                 <p className="text-xs text-gray-400 mb-1">Środa</p>
-                <p className="font-semibold text-navy text-sm">Online wstępne</p>
+                <p className="font-semibold text-foreground text-sm">Online wstępne</p>
                 <p className="text-xs text-gray-400 mt-1">9:00</p>
               </div>
               <div className="bg-slate-light rounded-lg p-4 text-center">
                 <p className="text-xs text-gray-400 mb-1">Czwartek</p>
-                <p className="font-semibold text-navy text-sm">Warsztat</p>
+                <p className="font-semibold text-foreground text-sm">Warsztat</p>
                 <p className="text-xs text-gray-400 mt-1">9:00–15:00</p>
               </div>
               <div className="bg-slate-light rounded-lg p-4 text-center">
                 <p className="text-xs text-gray-400 mb-1">Piątek</p>
-                <p className="font-semibold text-navy text-sm">Warsztat</p>
+                <p className="font-semibold text-foreground text-sm">Warsztat</p>
                 <p className="text-xs text-gray-400 mt-1">9:00–15:00</p>
               </div>
               <div className="bg-slate-light rounded-lg p-4 text-center">
                 <p className="text-xs text-gray-400 mb-1">Sobota</p>
-                <p className="font-semibold text-navy text-sm">Online Q&A</p>
+                <p className="font-semibold text-foreground text-sm">Online Q&A</p>
                 <p className="text-xs text-gray-400 mt-1">9:00</p>
               </div>
             </div>
@@ -50,13 +50,13 @@ export default function AboutPage() {
 
           {/* Instructor */}
           <div>
-            <h3 className="font-semibold text-navy mb-3">Instruktor</h3>
+            <h3 className="font-semibold text-foreground mb-3">Instruktor</h3>
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-gold/20 flex items-center justify-center text-gold font-heading font-bold text-xl">
                 D
               </div>
               <div>
-                <p className="font-semibold text-navy">Dariusz Szuca</p>
+                <p className="font-semibold text-foreground">Dariusz Szuca</p>
                 <p className="text-sm text-gray-400">Specjalista AI &amp; Marketing</p>
               </div>
             </div>
@@ -64,7 +64,7 @@ export default function AboutPage() {
 
           {/* Links */}
           <div>
-            <h3 className="font-semibold text-navy mb-3">Linki</h3>
+            <h3 className="font-semibold text-foreground mb-3">Linki</h3>
             <div className="space-y-2">
               <a href="https://ai-team.pl" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gold-dark hover:underline">
                 <span>🔗</span> ai-team.pl

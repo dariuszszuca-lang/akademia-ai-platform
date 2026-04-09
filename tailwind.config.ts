@@ -6,11 +6,12 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        background: "#FFFDF9",
-        foreground: "#1a1a2e",
+        background: "var(--bg)",
+        foreground: "var(--fg)",
         gold: {
           DEFAULT: "#C9A030",
           light: "#E8D48B",
@@ -23,10 +24,10 @@ const config: Config = {
           600: "#3a3a5c",
         },
         slate: {
-          light: "#f1f5f9",
+          light: "var(--slate-light)",
         },
-        border: "#e2e0db",
-        card: "#ffffff",
+        border: "var(--border)",
+        card: "var(--card)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

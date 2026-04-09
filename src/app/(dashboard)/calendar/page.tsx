@@ -16,15 +16,15 @@ export default function CalendarPage() {
         {events.map((event) => (
           <div
             key={event.id}
-            className="bg-white rounded-xl border border-border p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+            className="bg-card rounded-xl border border-border p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="w-14 h-14 rounded-xl bg-slate-light flex flex-col items-center justify-center flex-shrink-0">
               <span className="text-[10px] font-semibold text-gray-400 uppercase">{event.month}</span>
-              <span className="text-xl font-bold text-navy leading-tight">{event.date}</span>
+              <span className="text-xl font-bold text-foreground leading-tight">{event.date}</span>
               <span className="text-[10px] text-gray-400">{event.day}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm text-navy">{event.title}</h3>
+              <h3 className="font-semibold text-sm text-foreground">{event.title}</h3>
               <p className="text-xs text-gray-400 mt-0.5">{event.time}</p>
             </div>
             <span
