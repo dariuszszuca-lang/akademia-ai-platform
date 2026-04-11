@@ -34,7 +34,7 @@ function RegisterForm() {
     try {
       await confirmRegistration(email, code);
       await login(email, password);
-      router.push("/community");
+      router.push("/home");
     } catch {
       // Error handled by context
     } finally {

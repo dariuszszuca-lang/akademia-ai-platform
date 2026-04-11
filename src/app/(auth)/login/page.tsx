@@ -17,7 +17,7 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      router.push("/community");
+      router.push("/home");
     } catch {
       // Error is handled by auth context
     } finally {
