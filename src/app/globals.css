@@ -2,27 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  --bg: #FAFAF7;
+  --bg: #F5F4F0;
   --fg: #1a1a2e;
   --card: #ffffff;
-  --border: #e8e6e1;
-  --slate-light: #f3f1ed;
+  --border: #e2e0db;
+  --slate-light: #eeece7;
   --gold-glow: rgba(201, 160, 48, 0.08);
+  --sidebar-bg: #1a1a2e;
+  --sidebar-fg: #a8a5b8;
+  --sidebar-active: #C9A030;
+  --sidebar-hover: rgba(201, 160, 48, 0.08);
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 72px;
+  --grain-opacity: 0.03;
 }
 
 .dark {
-  --bg: #141418;
+  --bg: #0e0e12;
   --fg: #e0ddd8;
-  --card: #1e1e24;
-  --border: #2a2a32;
-  --slate-light: #24242c;
+  --card: #18181f;
+  --border: #26262e;
+  --slate-light: #1e1e26;
   --gold-glow: rgba(201, 160, 48, 0.06);
+  --sidebar-bg: #111116;
+  --sidebar-fg: #6b6880;
+  --sidebar-active: #C9A030;
+  --sidebar-hover: rgba(201, 160, 48, 0.06);
+  --grain-opacity: 0.04;
 }
 
 body {
   color: var(--fg);
   background: var(--bg);
+}
+
+/* Grain texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
 }
 
 /* Smooth transitions for theme switching */
@@ -39,7 +69,7 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -74,6 +104,11 @@ body {
   100% { background-position: 200% 0; }
 }
 
+@keyframes goldPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
 .animate-fade-in-up {
   animation: fadeInUp 0.4s ease-out both;
 }
@@ -97,7 +132,7 @@ body {
 
 /* Gold shimmer effect on hover */
 .gold-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(201, 160, 48, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(201, 160, 48, 0.06), transparent);
   background-size: 200% 100%;
 }
 .gold-shimmer:hover {
@@ -110,14 +145,163 @@ body {
   background: linear-gradient(90deg, transparent, #C9A030, transparent);
 }
 
+/* Thin gold accent — used as left border */
+.gold-accent-left {
+  position: relative;
+}
+.gold-accent-left::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #C9A030, rgba(201, 160, 48, 0.2));
+}
+
 /* Card hover lift */
 .card-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.08);
 }
 .dark .card-hover:hover {
   box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
+}
+
+/* Sidebar nav styles */
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  margin: 2px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sidebar-fg);
+  transition: all 0.15s ease;
+  position: relative;
+}
+.sidebar-nav-item:hover {
+  color: #e0ddd8;
+  background: var(--sidebar-hover);
+}
+.sidebar-nav-item.active {
+  color: var(--sidebar-active);
+  background: rgba(201, 160, 48, 0.08);
+}
+.sidebar-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: #C9A030;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Editorial post style */
+.editorial-post {
+  position: relative;
+  padding-left: 0;
+  border-left: none;
+}
+.editorial-post::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 5%;
+  right: 5%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+/* Course row gradient accent */
+.course-row-accent {
+  position: relative;
+  overflow: hidden;
+}
+.course-row-accent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Module chip */
+.module-chip {
+  white-space: nowrap;
+  padding: 8px 20px;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.15s ease;
+  color: var(--fg);
+  opacity: 0.4;
+}
+.module-chip:hover {
+  opacity: 0.7;
+}
+.module-chip.active {
+  opacity: 1;
+  border-bottom-color: #C9A030;
+  color: #C9A030;
+}
+
+/* Calendar grid */
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.cal-day.has-event {
+  background: rgba(201, 160, 48, 0.06);
+  position: relative;
+}
+.cal-day.has-event::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #C9A030;
+}
+
+/* Member card horizontal */
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  transition: all 0.2s;
+}
+.member-card:hover {
+  border-color: rgba(201, 160, 48, 0.3);
+  box-shadow: 0 4px 16px -4px rgba(201, 160, 48, 0.08);
+}
+
+/* Dark mode gold glow */
+.dark .gold-glow-text {
+  text-shadow: 0 0 20px rgba(201, 160, 48, 0.3);
 }

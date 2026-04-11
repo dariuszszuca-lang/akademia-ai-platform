@@ -1,114 +1,222 @@
+"use client";
+
+type CalendarEvent = {
+  id: number;
+  date: number;
+  month: string;
+  day: string;
+  title: string;
+  time: string;
+  type: "online" | "onsite";
+  edition: number;
+};
+
+const events: CalendarEvent[] = [
+  { id: 1, date: 15, month: "KWI", day: "ŚR", title: "Online wstępne", time: "9:00", type: "online", edition: 1 },
+  { id: 2, date: 16, month: "KWI", day: "CZ", title: "Warsztat dzień 1", time: "9:00–15:00", type: "onsite", edition: 1 },
+  { id: 3, date: 17, month: "KWI", day: "PT", title: "Warsztat dzień 2", time: "9:00–15:00", type: "onsite", edition: 1 },
+  { id: 4, date: 18, month: "KWI", day: "SO", title: "Online Q&A", time: "9:00", type: "online", edition: 1 },
+  { id: 5, date: 22, month: "KWI", day: "ŚR", title: "Online wstępne", time: "9:00", type: "online", edition: 2 },
+  { id: 6, date: 23, month: "KWI", day: "CZ", title: "Warsztat dzień 1", time: "9:00–15:00", type: "onsite", edition: 2 },
+  { id: 7, date: 24, month: "KWI", day: "PT", title: "Warsztat dzień 2", time: "9:00–15:00", type: "onsite", edition: 2 },
+  { id: 8, date: 25, month: "KWI", day: "SO", title: "Online Q&A", time: "9:00", type: "online", edition: 2 },
+];
+
+const dayNames = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
+
+// April 2026 starts on Wednesday (index 2), has 30 days
+const aprilStartDay = 2; // 0=Monday
+const aprilDays = 30;
+
 export default function CalendarPage() {
-  const events = [
-    { id: 1, date: "15", month: "KWI", day: "ŚR", title: "Edycja #1 — Online wstępne", time: "9:00", type: "online" },
-    { id: 2, date: "16", month: "KWI", day: "CZ", title: "Edycja #1 — Warsztat dzień 1", time: "9:00–15:00", type: "onsite" },
-    { id: 3, date: "17", month: "KWI", day: "PT", title: "Edycja #1 — Warsztat dzień 2", time: "9:00–15:00", type: "onsite" },
-    { id: 4, date: "18", month: "KWI", day: "SO", title: "Edycja #1 — Online Q&A", time: "9:00", type: "online" },
-    { id: 5, date: "22", month: "KWI", day: "ŚR", title: "Edycja #2 — Online wstępne", time: "9:00", type: "online" },
-    { id: 6, date: "23", month: "KWI", day: "CZ", title: "Edycja #2 — Warsztat dzień 1", time: "9:00–15:00", type: "onsite" },
-    { id: 7, date: "24", month: "KWI", day: "PT", title: "Edycja #2 — Warsztat dzień 2", time: "9:00–15:00", type: "onsite" },
-    { id: 8, date: "25", month: "KWI", day: "SO", title: "Edycja #2 — Online Q&A", time: "9:00", type: "online" },
-  ];
+  const eventDates = new Map<number, CalendarEvent[]>();
+  events.forEach((e) => {
+    const arr = eventDates.get(e.date) || [];
+    arr.push(e);
+    eventDates.set(e.date, arr);
+  });
 
-  // Group by edition
-  const edition1 = events.filter((e) => e.id <= 4);
-  const edition2 = events.filter((e) => e.id > 4);
+  // Build calendar grid
+  const calendarCells: (number | null)[] = [];
+  for (let i = 0; i < aprilStartDay; i++) calendarCells.push(null);
+  for (let d = 1; d <= aprilDays; d++) calendarCells.push(d);
+  while (calendarCells.length % 7 !== 0) calendarCells.push(null);
 
-  const renderEvent = (event: typeof events[0], isLast: boolean) => (
-    <div
-      key={event.id}
-      className="flex gap-5 group cursor-pointer"
-    >
-      {/* Date column with timeline */}
-      <div className="flex flex-col items-center w-16 flex-shrink-0">
-        <div className="bg-card rounded-xl border border-border p-2 text-center w-full group-hover:border-gold/30 transition-colors">
-          <span className="text-[9px] font-semibold text-foreground/30 uppercase tracking-wider block">{event.month}</span>
-          <span className="text-2xl font-bold text-foreground leading-tight block tabular-nums">{event.date}</span>
-          <span className="text-[10px] text-foreground/30 block">{event.day}</span>
-        </div>
-        {/* Timeline connector */}
-        {!isLast && (
-          <div className="w-px flex-1 bg-border my-1" />
-        )}
-      </div>
-
-      {/* Event card */}
-      <div className="flex-1 bg-card rounded-2xl border border-border p-5 mb-3 card-hover group-hover:border-gold/20 transition-all">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1">
-            <h3 className="font-semibold text-sm text-foreground group-hover:text-gold-dark transition-colors">
-              {event.title}
-            </h3>
-            <div className="flex items-center gap-3 mt-2">
-              <div className="flex items-center gap-1.5 text-foreground/35">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <span className="text-xs">{event.time}</span>
-              </div>
-            </div>
-          </div>
-          <span
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${
-              event.type === "online"
-                ? "bg-blue-500/8 text-blue-500 dark:text-blue-400"
-                : "bg-gold/8 text-gold-dark"
-            }`}
-          >
-            {event.type === "online" ? (
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                Online
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-gold" />
-                Stacjonarnie
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+  // Group events by week for agenda below
+  const week1Events = events.filter((e) => e.date >= 15 && e.date <= 18);
+  const week2Events = events.filter((e) => e.date >= 22 && e.date <= 25);
 
   return (
-    <div className="max-w-3xl animate-fade-in">
+    <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="font-heading text-2xl font-semibold text-foreground tracking-wide">Kalendarz warsztatów</h2>
-        <p className="text-sm text-foreground/40 mt-1">Harmonogram spotkań i sesji</p>
-      </div>
-
-      {/* Edition 1 */}
       <div className="mb-10">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center">
-            <span className="text-white font-bold text-xs">1</span>
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground text-sm">Edycja #1</h3>
-            <p className="text-[11px] text-foreground/30">15–18 kwietnia 2026</p>
-          </div>
-        </div>
-        <div className="stagger-children">
-          {edition1.map((event, i) => renderEvent(event, i === edition1.length - 1))}
-        </div>
+        <h2 className="font-heading text-4xl font-bold text-foreground tracking-wide gold-glow-text">
+          Kalendarz
+        </h2>
+        <p className="text-sm text-foreground/35 mt-2 font-light tracking-wide">Harmonogram spotkań i sesji</p>
+        <div className="w-24 h-px bg-gradient-to-r from-gold to-transparent mt-4" />
       </div>
 
-      {/* Edition 2 */}
-      <div>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-navy to-navy-light flex items-center justify-center">
-            <span className="text-gold font-bold text-xs">2</span>
+      <div className="max-w-4xl">
+        {/* Calendar grid */}
+        <div className="bg-card border border-border p-6 mb-10" style={{ borderRadius: "0" }}>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-heading text-lg font-semibold text-foreground tracking-wider">
+              Kwiecień 2026
+            </h3>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-[10px] text-foreground/30">
+                <span className="w-2 h-2" style={{ background: "rgba(201, 160, 48, 0.4)" }} />
+                Stacjonarnie
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] text-foreground/30">
+                <span className="w-2 h-2" style={{ background: "rgba(59, 130, 246, 0.4)" }} />
+                Online
+              </span>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-foreground text-sm">Edycja #2</h3>
-            <p className="text-[11px] text-foreground/30">22–25 kwietnia 2026</p>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 mb-2">
+            {dayNames.map((name) => (
+              <div key={name} className="text-center text-[10px] font-semibold text-foreground/25 uppercase tracking-wider py-2">
+                {name}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar cells */}
+          <div className="grid grid-cols-7">
+            {calendarCells.map((day, idx) => {
+              const dayEvents = day ? eventDates.get(day) : undefined;
+              return (
+                <div
+                  key={idx}
+                  className={`relative border border-border/30 p-2 min-h-[72px] transition-colors ${
+                    day ? "hover:bg-slate-light/50 cursor-pointer" : ""
+                  } ${dayEvents ? "bg-gold/[0.03]" : ""}`}
+                >
+                  {day && (
+                    <>
+                      <span className={`text-sm tabular-nums ${dayEvents ? "font-bold text-foreground" : "text-foreground/30"}`}>
+                        {day}
+                      </span>
+                      {dayEvents && (
+                        <div className="mt-1 space-y-0.5">
+                          {dayEvents.map((ev) => (
+                            <div
+                              key={ev.id}
+                              className="text-[9px] px-1 py-0.5 truncate font-medium"
+                              style={{
+                                background: ev.type === "onsite" ? "rgba(201, 160, 48, 0.1)" : "rgba(59, 130, 246, 0.08)",
+                                color: ev.type === "onsite" ? "#C9A030" : "#60a5fa",
+                                borderLeft: `2px solid ${ev.type === "onsite" ? "#C9A030" : "#60a5fa"}`,
+                              }}
+                            >
+                              {ev.title}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-        <div className="stagger-children">
-          {edition2.map((event, i) => renderEvent(event, i === edition2.length - 1))}
+
+        {/* Agenda cards grouped by week */}
+        <div className="space-y-8">
+          {/* Week 1 */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-7 h-7 flex items-center justify-center" style={{ background: "rgba(201, 160, 48, 0.15)" }}>
+                <span className="text-gold font-bold text-xs">1</span>
+              </div>
+              <div>
+                <h3 className="font-heading text-sm font-semibold text-foreground tracking-wider uppercase">Edycja #1</h3>
+                <p className="text-[10px] text-foreground/25">15–18 kwietnia 2026</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 stagger-children">
+              {week1Events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-4 bg-card border border-border p-4 transition-all hover:border-gold/20"
+                  style={{
+                    borderLeft: `3px solid ${event.type === "onsite" ? "#C9A030" : "#60a5fa"}`,
+                    borderRadius: "0",
+                  }}
+                >
+                  <div className="text-center flex-shrink-0 w-10">
+                    <span className="text-xl font-bold text-foreground tabular-nums">{event.date}</span>
+                    <span className="block text-[9px] text-foreground/25 uppercase">{event.day}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {event.title}
+                    </p>
+                    <p className="text-[11px] text-foreground/30 mt-0.5">{event.time}</p>
+                  </div>
+                  <span
+                    className="text-[9px] font-semibold uppercase tracking-wider px-2 py-1 flex-shrink-0"
+                    style={{
+                      background: event.type === "onsite" ? "rgba(201, 160, 48, 0.08)" : "rgba(59, 130, 246, 0.06)",
+                      color: event.type === "onsite" ? "#C9A030" : "#60a5fa",
+                    }}
+                  >
+                    {event.type === "online" ? "Online" : "Na miejscu"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Week 2 */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-7 h-7 flex items-center justify-center" style={{ background: "rgba(59, 130, 246, 0.1)" }}>
+                <span className="text-blue-400 font-bold text-xs">2</span>
+              </div>
+              <div>
+                <h3 className="font-heading text-sm font-semibold text-foreground tracking-wider uppercase">Edycja #2</h3>
+                <p className="text-[10px] text-foreground/25">22–25 kwietnia 2026</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 stagger-children">
+              {week2Events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-4 bg-card border border-border p-4 transition-all hover:border-gold/20"
+                  style={{
+                    borderLeft: `3px solid ${event.type === "onsite" ? "#C9A030" : "#60a5fa"}`,
+                    borderRadius: "0",
+                  }}
+                >
+                  <div className="text-center flex-shrink-0 w-10">
+                    <span className="text-xl font-bold text-foreground tabular-nums">{event.date}</span>
+                    <span className="block text-[9px] text-foreground/25 uppercase">{event.day}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {event.title}
+                    </p>
+                    <p className="text-[11px] text-foreground/30 mt-0.5">{event.time}</p>
+                  </div>
+                  <span
+                    className="text-[9px] font-semibold uppercase tracking-wider px-2 py-1 flex-shrink-0"
+                    style={{
+                      background: event.type === "onsite" ? "rgba(201, 160, 48, 0.08)" : "rgba(59, 130, 246, 0.06)",
+                      color: event.type === "onsite" ? "#C9A030" : "#60a5fa",
+                    }}
+                  >
+                    {event.type === "online" ? "Online" : "Na miejscu"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -26,7 +26,7 @@ const courseData: Record<string, { title: string; modules: Module[] }> = {
         id: 1,
         title: "Powitanie i Orientacja",
         lessons: [
-          { id: "s-1", title: "Witaj w Akademii AI!", type: "process", completed: false, content: "Witaj w Akademii AI! To jest Twoja platforma szkoleniowa.\n\nTutaj znajdziesz:\n- Materiały z każdego warsztatu\n- Nagrania sesji\n- Zadania do wykonania\n- Społeczność uczestników\n\nZacznij od przejrzenia zakładek na górze strony." },
+          { id: "s-1", title: "Witaj w Akademii AI!", type: "process", completed: false, content: "Witaj w Akademii AI! To jest Twoja platforma szkoleniowa.\n\nTutaj znajdziesz:\n- Materiały z każdego warsztatu\n- Nagrania sesji\n- Zadania do wykonania\n- Społeczność uczestników\n\nZacznij od przejrzenia zakładek w panelu bocznym." },
           { id: "s-2", title: "Jak korzystać z platformy", type: "process", completed: false, content: "Krótki poradnik jak poruszać się po platformie:\n\n1. Społeczność — posty, pytania, dyskusje\n2. Materiały — kursy, nagrania, zadania\n3. Kalendarz — harmonogram warsztatów\n4. Członkowie — lista uczestników\n5. O nas — informacje o Akademii" },
           { id: "s-3", title: "Zadanie: Przedstaw się", type: "task", completed: false, content: "Wejdź do zakładki Społeczność i napisz krótki post:\n\n- Kim jesteś?\n- Czym się zajmujesz?\n- Co chcesz osiągnąć dzięki AI?\n\nTo pomoże nam lepiej dopasować warsztaty do Twoich potrzeb." },
         ],
@@ -196,13 +196,16 @@ const courseData: Record<string, { title: string; modules: Module[] }> = {
 
 function LessonTypeLabel({ type }: { type: Lesson["type"] }) {
   const config = {
-    process: { label: "Materiał", color: "text-blue-500", bg: "bg-blue-500/10" },
-    recording: { label: "Nagranie", color: "text-red-400", bg: "bg-red-400/10" },
-    task: { label: "Zadanie", color: "text-gold", bg: "bg-gold/10" },
+    process: { label: "Materiał", color: "text-blue-500", borderColor: "#3b82f6" },
+    recording: { label: "Nagranie", color: "text-red-400", borderColor: "#f87171" },
+    task: { label: "Zadanie", color: "text-gold", borderColor: "#C9A030" },
   };
   const c = config[type];
   return (
-    <span className={`text-[10px] font-semibold uppercase tracking-wider ${c.color} ${c.bg} px-2 py-0.5 rounded-md`}>
+    <span
+      className={`text-[10px] font-semibold uppercase tracking-[0.15em] ${c.color} px-3 py-1`}
+      style={{ borderLeft: `2px solid ${c.borderColor}` }}
+    >
       {c.label}
     </span>
   );
@@ -211,7 +214,7 @@ function LessonTypeLabel({ type }: { type: Lesson["type"] }) {
 function LessonIcon({ type, completed }: { type: Lesson["type"]; completed: boolean }) {
   if (completed) {
     return (
-      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center flex-shrink-0">
+      <div className="w-5 h-5 bg-gold flex items-center justify-center flex-shrink-0" style={{ borderRadius: "0" }}>
         <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
         </svg>
@@ -219,29 +222,26 @@ function LessonIcon({ type, completed }: { type: Lesson["type"]; completed: bool
     );
   }
 
-  if (type === "recording") {
-    return (
-      <div className="w-6 h-6 rounded-full bg-red-400/10 flex items-center justify-center flex-shrink-0">
-        <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </div>
-    );
-  }
-  if (type === "task") {
-    return (
-      <div className="w-6 h-6 rounded-full bg-gold/10 flex items-center justify-center flex-shrink-0">
-        <svg className="w-3 h-3 text-gold" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+  const colors = {
+    recording: { bg: "rgba(248, 113, 113, 0.1)", fg: "#f87171" },
+    task: { bg: "rgba(201, 160, 48, 0.1)", fg: "#C9A030" },
+    process: { bg: "rgba(59, 130, 246, 0.1)", fg: "#60a5fa" },
+  };
+  const c = colors[type];
+
+  return (
+    <div className="w-5 h-5 flex items-center justify-center flex-shrink-0" style={{ background: c.bg, borderRadius: "0" }}>
+      {type === "recording" ? (
+        <svg className="w-2.5 h-2.5" fill={c.fg} viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+      ) : type === "task" ? (
+        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={c.fg}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z" />
         </svg>
-      </div>
-    );
-  }
-  return (
-    <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-      <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-      </svg>
+      ) : (
+        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke={c.fg}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+        </svg>
+      )}
     </div>
   );
 }
@@ -251,7 +251,7 @@ export default function CoursePage() {
   const courseId = params.courseId as string;
   const course = courseData[courseId];
 
-  const [openModules, setOpenModules] = useState<number[]>(course ? [course.modules[0]?.id] : []);
+  const [activeModuleId, setActiveModuleId] = useState<number>(course?.modules[0]?.id || 1);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(
     course?.modules[0]?.lessons[0] || null
   );
@@ -260,7 +260,7 @@ export default function CoursePage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-light flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-slate-light flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-foreground/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
             </svg>
@@ -271,12 +271,7 @@ export default function CoursePage() {
     );
   }
 
-  const toggleModule = (id: number) => {
-    setOpenModules((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
-  };
-
+  const activeModule = course.modules.find((m) => m.id === activeModuleId) || course.modules[0];
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedLessons = course.modules.reduce(
     (acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0
@@ -284,106 +279,95 @@ export default function CoursePage() {
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="flex gap-0 -mx-4 sm:-mx-6 -mt-8 animate-fade-in">
-      {/* Left sidebar */}
-      <div className="w-80 flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ maxHeight: "calc(100vh - 120px)" }}>
-        {/* Back + title */}
-        <div className="p-5 border-b border-border">
-          <Link href="/classroom" className="inline-flex items-center gap-1.5 text-xs text-foreground/40 hover:text-gold transition-colors mb-4 group">
-            <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-            </svg>
-            Wróć do materiałów
-          </Link>
-          <h2 className="font-heading text-sm font-semibold text-foreground uppercase tracking-widest leading-relaxed">
-            {course.title}
-          </h2>
-          <div className="mt-4">
-            <div className="flex justify-between text-[11px] mb-2">
-              <span className="text-foreground/40">{progressPercent}% ukończono</span>
-              <span className="text-foreground/30 tabular-nums">{completedLessons}/{totalLessons}</span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-light rounded-full overflow-hidden">
+    <div className="animate-fade-in">
+      {/* Back + Course title */}
+      <div className="mb-6">
+        <Link href="/classroom" className="inline-flex items-center gap-1.5 text-xs text-foreground/30 hover:text-gold transition-colors mb-5 group">
+          <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+          Wróć do materiałów
+        </Link>
+        <h2 className="font-heading text-3xl font-bold text-foreground tracking-wide gold-glow-text">
+          {course.title}
+        </h2>
+        <div className="flex items-center gap-4 mt-3">
+          <div className="flex items-center gap-3 flex-1 max-w-xs">
+            <div className="flex-1 h-1 bg-slate-light overflow-hidden" style={{ borderRadius: "0" }}>
               <div
-                className="h-full bg-gradient-to-r from-gold to-gold-dark rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-gold to-gold-dark transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
+            <span className="text-[11px] text-foreground/30 tabular-nums">{progressPercent}% ({completedLessons}/{totalLessons})</span>
           </div>
         </div>
+      </div>
 
-        {/* Modules */}
-        <div className="py-1">
-          {course.modules.map((mod, modIndex) => {
-            const isOpen = openModules.includes(mod.id);
-            const modCompleted = mod.lessons.filter((l) => l.completed).length;
+      {/* Module chips — horizontal scrollable (docs-site style navigation) */}
+      <div className="border-b border-border mb-8 overflow-x-auto">
+        <div className="flex">
+          {course.modules.map((mod) => {
+            const isActive = mod.id === activeModuleId;
             return (
-              <div key={mod.id} className={modIndex > 0 ? "border-t border-border/50" : ""}>
-                <button
-                  onClick={() => toggleModule(mod.id)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-light/50 transition-colors group"
-                >
-                  <div className="flex-1 min-w-0 pr-3">
-                    <span className="text-[11px] font-semibold text-foreground block truncate leading-relaxed">
-                      {mod.title}
-                    </span>
-                    <span className="text-[10px] text-foreground/30 mt-0.5">
-                      {modCompleted}/{mod.lessons.length} lekcji
-                    </span>
-                  </div>
-                  <svg
-                    className={`w-4 h-4 text-foreground/25 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                    fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {isOpen && (
-                  <div className="pb-2 stagger-children">
-                    {mod.lessons.map((lesson) => {
-                      const isSelected = selectedLesson?.id === lesson.id;
-                      return (
-                        <button
-                          key={lesson.id}
-                          onClick={() => setSelectedLesson(lesson)}
-                          className={`w-full flex items-center gap-3 px-5 pl-7 py-2.5 text-left text-[13px] transition-all duration-150 ${
-                            isSelected
-                              ? "bg-gold/8 text-foreground border-l-2 border-gold ml-0"
-                              : "text-foreground/55 hover:bg-slate-light/70 hover:text-foreground border-l-2 border-transparent ml-0"
-                          }`}
-                        >
-                          <LessonIcon type={lesson.type} completed={lesson.completed} />
-                          <span className="truncate flex-1">{lesson.title}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <button
+                key={mod.id}
+                onClick={() => {
+                  setActiveModuleId(mod.id);
+                  setSelectedLesson(mod.lessons[0] || null);
+                }}
+                className={`module-chip ${isActive ? "active" : ""}`}
+              >
+                {mod.title}
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* Right content */}
-      <div className="flex-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 120px)" }}>
+      {/* Lessons list + Content — stacked vertically */}
+      <div className="max-w-4xl">
+        {/* Lesson picker — horizontal row */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {activeModule.lessons.map((lesson) => {
+            const isSelected = selectedLesson?.id === lesson.id;
+            return (
+              <button
+                key={lesson.id}
+                onClick={() => setSelectedLesson(lesson)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all duration-150 border ${
+                  isSelected
+                    ? "border-gold/40 bg-gold/5 text-foreground"
+                    : "border-border text-foreground/40 hover:border-gold/20 hover:text-foreground/70"
+                }`}
+                style={{ borderRadius: "0" }}
+              >
+                <LessonIcon type={lesson.type} completed={lesson.completed} />
+                <span className="truncate">{lesson.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content area */}
         {selectedLesson ? (
-          <div className="p-8 lg:p-12 max-w-3xl animate-fade-in">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 mb-6">
+          <div className="animate-fade-in" style={{ borderLeft: "2px solid #C9A030", paddingLeft: "32px" }}>
+            {/* Type label */}
+            <div className="mb-4">
               <LessonTypeLabel type={selectedLesson.type} />
             </div>
 
-            <div className="flex items-start justify-between mb-8">
-              <h1 className="text-2xl font-heading font-semibold text-foreground tracking-wide leading-relaxed">
+            <div className="flex items-start justify-between mb-6">
+              <h1 className="font-heading text-2xl font-semibold text-foreground tracking-wide leading-relaxed">
                 {selectedLesson.title}
               </h1>
               <button
-                className={`w-9 h-9 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ml-4 ${
+                className={`w-8 h-8 border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ml-4 ${
                   selectedLesson.completed
-                    ? "bg-gradient-to-br from-gold to-gold-dark border-gold text-white shadow-sm"
+                    ? "bg-gold border-gold text-white"
                     : "border-foreground/15 hover:border-gold hover:bg-gold/5"
                 }`}
+                style={{ borderRadius: "0" }}
                 title={selectedLesson.completed ? "Ukończone" : "Oznacz jako ukończone"}
               >
                 {selectedLesson.completed && (
@@ -394,28 +378,26 @@ export default function CoursePage() {
               </button>
             </div>
 
-            <div className="gold-line mb-8" />
-
             {selectedLesson.content ? (
-              <div className="text-foreground/70 leading-[1.8] text-[15px] whitespace-pre-line">
+              <div className="text-foreground/60 leading-[1.9] text-[15px] whitespace-pre-line font-light">
                 {selectedLesson.content}
               </div>
             ) : (
-              <div className="bg-slate-light rounded-2xl p-8 text-center">
-                <svg className="w-10 h-10 text-foreground/15 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+              <div className="bg-slate-light p-8 text-center" style={{ borderRadius: "0" }}>
+                <svg className="w-10 h-10 text-foreground/10 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
-                <p className="text-foreground/35 text-sm">Treść zostanie dodana wkrótce.</p>
+                <p className="text-foreground/30 text-sm">Treść zostanie dodana wkrótce.</p>
               </div>
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-foreground/30">
+          <div className="flex items-center justify-center py-16 text-foreground/20">
             <div className="text-center">
               <svg className="w-12 h-12 text-foreground/10 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
               </svg>
-              <p className="text-sm">Wybierz lekcję z menu po lewej</p>
+              <p className="text-sm">Wybierz lekcję powyżej</p>
             </div>
           </div>
         )}

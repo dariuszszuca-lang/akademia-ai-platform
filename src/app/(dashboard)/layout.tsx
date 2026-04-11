@@ -21,12 +21,12 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-5">
           <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center shadow-lg">
-              <span className="text-white font-heading font-bold text-lg">AI</span>
+            <div className="w-12 h-12 flex items-center justify-center" style={{ borderLeft: "3px solid #C9A030" }}>
+              <span className="text-foreground font-heading font-bold text-lg pl-2">AI</span>
             </div>
-            <div className="absolute inset-0 w-12 h-12 rounded-xl border-2 border-gold/30 animate-ping" />
+            <div className="absolute inset-0 w-12 h-12 border border-gold/30 animate-ping" />
           </div>
-          <p className="text-sm text-foreground/40 tracking-wide">Ładowanie platformy...</p>
+          <p className="text-sm text-foreground/40 tracking-[0.15em] uppercase font-light">Ładowanie platformy...</p>
         </div>
       </div>
     );
@@ -35,10 +35,12 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {children}
+      <main className="flex-1 min-w-0 overflow-x-hidden">
+        <div className="px-8 lg:px-12 py-8">
+          {children}
+        </div>
       </main>
     </div>
   );
