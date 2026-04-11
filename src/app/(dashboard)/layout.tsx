@@ -19,9 +19,14 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-3 border-gold border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-foreground/50">Ładowanie...</p>
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center shadow-lg">
+              <span className="text-white font-heading font-bold text-lg">AI</span>
+            </div>
+            <div className="absolute inset-0 w-12 h-12 rounded-xl border-2 border-gold/30 animate-ping" />
+          </div>
+          <p className="text-sm text-foreground/40 tracking-wide">Ładowanie platformy...</p>
         </div>
       </div>
     );
@@ -32,7 +37,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {children}
       </main>
     </div>
