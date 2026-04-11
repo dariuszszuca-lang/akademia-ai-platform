@@ -305,3 +305,20 @@ body::before {
 .dark .gold-glow-text {
   text-shadow: 0 0 20px rgba(201, 160, 48, 0.3);
 }
+
+/* Floating bottom nav pill */
+.floating-nav-pill {
+  animation: floatNavIn 0.4s ease-out both;
+  animation-delay: 0.2s;
+}
+
+@keyframes floatNavIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

@@ -35,10 +35,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="flex-1 min-w-0 overflow-x-hidden">
-        <div className="px-8 lg:px-12 py-8">
+      <main className="pt-14 pb-24">
+        <div className="px-5 sm:px-8 lg:px-12 py-8 max-w-6xl mx-auto">
           {children}
         </div>
       </main>

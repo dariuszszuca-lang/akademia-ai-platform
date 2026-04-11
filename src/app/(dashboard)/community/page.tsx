@@ -37,11 +37,10 @@ const mockPosts = [
 export default function CommunityPage() {
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState(0);
-  const [infoExpanded, setInfoExpanded] = useState(false);
 
   return (
     <div className="animate-fade-in">
-      {/* Page header — editorial style */}
+      {/* Page header */}
       <div className="mb-10">
         <h2 className="font-heading text-4xl font-bold text-foreground tracking-wide gold-glow-text">
           Społeczność
@@ -52,67 +51,10 @@ export default function CommunityPage() {
         <div className="w-24 h-px bg-gradient-to-r from-gold to-transparent mt-4" />
       </div>
 
-      {/* Collapsible group info banner */}
-      <button
-        onClick={() => setInfoExpanded(!infoExpanded)}
-        className="w-full mb-8 text-left"
-      >
-        <div className="flex items-center justify-between px-6 py-4 border border-border bg-card/50"
-          style={{ borderLeft: "2px solid #C9A030" }}
-        >
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-8">
-              <div className="text-center">
-                <p className="text-lg font-bold text-foreground tabular-nums">1</p>
-                <p className="text-[9px] text-foreground/30 uppercase tracking-[0.15em]">Członków</p>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div className="text-center">
-                <p className="text-lg font-bold text-foreground tabular-nums">1</p>
-                <p className="text-[9px] text-foreground/30 uppercase tracking-[0.15em]">Online</p>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div className="text-center">
-                <p className="text-lg font-bold text-foreground tabular-nums">1</p>
-                <p className="text-[9px] text-foreground/30 uppercase tracking-[0.15em]">Adminów</p>
-              </div>
-            </div>
-          </div>
-          <svg
-            className={`w-4 h-4 text-foreground/25 transition-transform duration-200 ${infoExpanded ? "rotate-180" : ""}`}
-            fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-          </svg>
-        </div>
-      </button>
-
-      {infoExpanded && (
-        <div className="mb-8 px-6 py-5 bg-card border border-border border-t-0 -mt-8 animate-fade-in">
-          <p className="text-sm text-foreground/50 leading-relaxed mb-4">
-            Praktyczne warsztaty AI dla agentów nieruchomości. Kursy, materiały, społeczność.
-          </p>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 flex items-center justify-center text-xs font-semibold" style={{
-                background: "rgba(201, 160, 48, 0.15)",
-                color: "#C9A030",
-              }}>
-                1
-              </div>
-              <div>
-                <p className="text-xs font-medium text-foreground">Dariusz Szuca</p>
-                <p className="text-[10px] text-foreground/30">Top contributor</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Single centered column — editorial feed */}
-      <div className="max-w-3xl mx-auto">
+      {/* Single centered column */}
+      <div className="max-w-2xl mx-auto">
         {/* Write something */}
-        <div className="mb-8 flex items-center gap-4 px-2">
+        <div className="mb-8 flex items-center gap-4">
           <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-sm font-semibold"
             style={{
               background: "rgba(201, 160, 48, 0.12)",
@@ -131,8 +73,8 @@ export default function CommunityPage() {
           />
         </div>
 
-        {/* Category filters — pill style */}
-        <div className="flex gap-1 mb-10 flex-wrap px-2">
+        {/* Category filters */}
+        <div className="flex gap-1 mb-10 flex-wrap">
           {categories.map((cat, i) => (
             <button
               key={cat}
@@ -148,12 +90,12 @@ export default function CommunityPage() {
           ))}
         </div>
 
-        {/* Posts — editorial article style */}
+        {/* Posts */}
         <div className="stagger-children">
           {mockPosts.map((post) => (
             <article
               key={post.id}
-              className="editorial-post py-8 px-2 cursor-pointer group"
+              className="editorial-post py-8 cursor-pointer group"
             >
               {/* Pinned badge */}
               {post.pinned && (
@@ -170,12 +112,12 @@ export default function CommunityPage() {
                 {post.category}
               </span>
 
-              {/* Title — large editorial */}
+              {/* Title */}
               <h3 className="font-heading text-2xl font-semibold text-foreground mt-2 mb-4 group-hover:text-gold transition-colors duration-200 leading-tight">
                 {post.title}
               </h3>
 
-              {/* Excerpt — generous typography */}
+              {/* Excerpt */}
               <p className="text-base text-foreground/50 leading-[1.9] font-light">
                 {post.excerpt}
               </p>
