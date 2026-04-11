@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 
 type Course = {
@@ -84,116 +83,124 @@ const courses: Course[] = [
 ];
 
 function CourseCard({ course }: { course: Course }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const isClickable = !course.locked;
-
-  return (
+  const cardContent = (
     <div
-      className={`bg-card border border-border overflow-hidden transition-all duration-300 ${
-        course.locked ? "opacity-40" : "card-hover"
+      className={`relative overflow-hidden bg-card border border-border rounded-2xl transition-all duration-300 ${
+        course.locked ? "opacity-40 grayscale" : "card-hover cursor-pointer group"
       }`}
-      style={{ borderLeft: `3px solid ${course.accentColor}` }}
     >
-      {/* Header — always visible, clickable to expand */}
-      <button
-        onClick={() => isClickable && setIsOpen(!isOpen)}
-        className={`w-full text-left p-5 flex items-center gap-4 ${
-          isClickable ? "cursor-pointer hover:bg-slate-light/30" : "cursor-not-allowed"
-        } transition-colors`}
-      >
-        {/* Number */}
+      {/* Colored top accent bar */}
+      <div
+        className="h-1.5 w-full"
+        style={{ background: course.locked ? "#6b7280" : course.accentColor }}
+      />
+
+      {/* Subtle radial glow in top-right */}
+      {!course.locked && (
         <div
-          className="w-10 h-10 flex items-center justify-center flex-shrink-0"
-          style={{ background: `${course.accentColor}12` }}
-        >
-          <span className="font-heading text-sm font-bold" style={{ color: course.accentColor, opacity: 0.7 }}>
-            {course.icon}
-          </span>
-        </div>
+          className="absolute top-0 right-0 w-40 h-40 opacity-[0.06]"
+          style={{ background: `radial-gradient(circle, ${course.accentColor} 0%, transparent 70%)` }}
+        />
+      )}
 
-        {/* Title */}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-heading text-xs font-semibold text-foreground uppercase tracking-[0.1em] truncate">
-            {course.title}
-          </h3>
-          {!course.locked && course.lessons > 0 && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-foreground/25">{course.lessons} lekcji</span>
-              <div className="w-16 h-1 bg-slate-light overflow-hidden">
-                <div
-                  className="h-full"
-                  style={{
-                    width: `${Math.max(course.progress, 3)}%`,
-                    background: course.progress > 0 ? course.accentColor : "var(--border)",
-                  }}
-                />
-              </div>
-              <span className="text-[10px] text-foreground/20">{course.progress}%</span>
-            </div>
-          )}
-        </div>
+      <div className="p-5 sm:p-6">
+        {/* Top row: Number + Lock/Arrow */}
+        <div className="flex items-start justify-between mb-3">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: `${course.accentColor}15` }}
+          >
+            <span
+              className="font-heading text-base font-bold"
+              style={{ color: course.accentColor }}
+            >
+              {course.icon}
+            </span>
+          </div>
 
-        {/* Expand/lock icon */}
-        <div className="flex-shrink-0">
           {course.locked ? (
-            <svg className="w-4 h-4 text-foreground/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <svg className="w-5 h-5 text-foreground/20 mt-1" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
             </svg>
           ) : (
             <svg
-              className={`w-4 h-4 text-foreground/25 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-              fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+              className="w-5 h-5 text-foreground/15 group-hover:text-gold group-hover:translate-x-0.5 transition-all mt-1"
+              fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
             </svg>
           )}
         </div>
-      </button>
 
-      {/* Expanded content */}
-      {isOpen && !course.locked && (
-        <div className="px-5 pb-5 animate-fade-in">
-          <div className="border-t border-border pt-4">
-            <p className="text-sm text-foreground/50 leading-relaxed mb-4">
-              {course.description}
-            </p>
+        {/* Title */}
+        <h3 className="font-heading text-sm font-bold text-foreground uppercase tracking-[0.08em] leading-snug group-hover:text-gold transition-colors">
+          {course.title}
+        </h3>
 
-            {course.external ? (
-              <a
-                href={course.external}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors"
-                style={{
-                  background: `${course.accentColor}10`,
-                  color: course.accentColor,
-                }}
-              >
-                Otwórz stronę
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                </svg>
-              </a>
-            ) : (
-              <Link
-                href={`/classroom/${course.id}`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors"
-                style={{
-                  background: `${course.accentColor}10`,
-                  color: course.accentColor,
-                }}
-              >
-                Wejdź do kursu
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
+        {/* Description */}
+        <p className="text-xs text-foreground/45 mt-2 leading-relaxed line-clamp-2">
+          {course.description}
+        </p>
+
+        {/* Bottom section: progress + lesson count */}
+        {!course.locked && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            {/* Progress bar */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 bg-slate-light rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.max(course.progress, 3)}%`,
+                    background: course.progress > 0
+                      ? `linear-gradient(90deg, ${course.accentColor}, ${course.accentColor}cc)`
+                      : "var(--border)",
+                  }}
+                />
+              </div>
+              <span className="text-xs font-semibold text-foreground/40 tabular-nums w-8 text-right">
+                {course.progress}%
+              </span>
+            </div>
+
+            {/* Lesson count */}
+            {course.lessons > 0 && (
+              <div className="flex items-center justify-between mt-2.5">
+                <span className="text-[11px] text-foreground/30 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                  </svg>
+                  {course.lessons} lekcji
+                </span>
+                {course.external && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: course.accentColor }}>
+                    Zewnętrzne
+                  </span>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
+  );
+
+  if (course.locked) {
+    return cardContent;
+  }
+
+  if (course.external) {
+    return (
+      <a href={course.external} target="_blank" rel="noopener noreferrer">
+        {cardContent}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={`/classroom/${course.id}`}>
+      {cardContent}
+    </Link>
   );
 }
 
@@ -205,12 +212,12 @@ export default function ClassroomPage() {
           Materiały
         </h2>
         <p className="text-sm text-foreground/35 mt-2 font-light tracking-wide">
-          Kliknij na kurs aby zobaczyć szczegóły
+          Wybierz kurs aby rozpocząć naukę
         </p>
         <div className="w-24 h-px bg-gradient-to-r from-gold to-transparent mt-4" />
       </div>
 
-      <div className="space-y-2 max-w-3xl stagger-children">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children pb-24">
         {courses.map((course) => (
           <CourseCard key={course.id} course={course} />
         ))}
