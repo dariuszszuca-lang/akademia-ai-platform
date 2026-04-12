@@ -1,9 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+
+const INVITE_LINK = "https://akademia-ai-platform.vercel.app/register/akademia-ai-2026-edycja1";
 
 export default function MembersPage() {
   const { user } = useAuth();
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(INVITE_LINK);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="animate-fade-in">
@@ -14,6 +24,50 @@ export default function MembersPage() {
         </h2>
         <p className="text-sm text-foreground/35 mt-2 font-light tracking-wide">Uczestnicy Akademii AI</p>
         <div className="w-24 h-px bg-gradient-to-r from-gold to-transparent mt-4" />
+      </div>
+
+      {/* Invite link box */}
+      <div className="mb-8 max-w-2xl bg-card border border-border p-5" style={{ borderLeft: "3px solid #C9A030" }}>
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-gold" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+          </svg>
+          <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Link zaproszeniowy — Edycja #1</span>
+        </div>
+        <p className="text-xs text-foreground/40 mb-3">Wyślij ten link uczestnikom, którzy kupili warsztat. Po kliknięciu mogą się zarejestrować na platformie.</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={INVITE_LINK}
+            readOnly
+            className="flex-1 bg-slate-light border border-border px-3 py-2 text-xs text-foreground/60 font-mono select-all"
+            onClick={(e) => (e.target as HTMLInputElement).select()}
+          />
+          <button
+            onClick={copyLink}
+            className="px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 flex-shrink-0"
+            style={{
+              background: copied ? "rgba(34, 197, 94, 0.1)" : "rgba(201, 160, 48, 0.1)",
+              color: copied ? "#22c55e" : "#C9A030",
+            }}
+          >
+            {copied ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                Skopiowano
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                </svg>
+                Kopiuj
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Search */}
