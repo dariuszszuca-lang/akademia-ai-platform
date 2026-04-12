@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 type Course = {
   id: string;
@@ -12,6 +13,10 @@ type Course = {
   lessons: number;
   locked?: boolean;
   external?: string;
+  // Aby dodać obrazek do kursu, ustaw pole image:
+  // image: "/images/kurs-1.jpg",  // z folderu public/images/
+  // image: "https://example.com/image.jpg",  // lub URL zewnętrzny
+  image?: string;
 };
 
 const courses: Course[] = [
@@ -97,18 +102,35 @@ function CourseCard({ course }: { course: Course }) {
         course.locked ? "opacity-40 grayscale" : "card-hover cursor-pointer group"
       }`}
     >
-      {/* Colored top accent bar */}
-      <div
-        className="h-1.5 w-full"
-        style={{ background: course.locked ? "#6b7280" : course.accentColor }}
-      />
+      {/* Cover image or colored top accent bar */}
+      {course.image ? (
+        <div className="relative h-36 w-full overflow-hidden">
+          <Image
+            src={course.image}
+            alt={course.title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+          {!course.locked && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+          )}
+        </div>
+      ) : (
+        <>
+          <div
+            className="h-1.5 w-full"
+            style={{ background: course.locked ? "#6b7280" : course.accentColor }}
+          />
 
-      {/* Subtle radial glow in top-right */}
-      {!course.locked && (
-        <div
-          className="absolute top-0 right-0 w-40 h-40 opacity-[0.06]"
-          style={{ background: `radial-gradient(circle, ${course.accentColor} 0%, transparent 70%)` }}
-        />
+          {/* Subtle radial glow in top-right */}
+          {!course.locked && (
+            <div
+              className="absolute top-0 right-0 w-40 h-40 opacity-[0.06]"
+              style={{ background: `radial-gradient(circle, ${course.accentColor} 0%, transparent 70%)` }}
+            />
+          )}
+        </>
       )}
 
       <div className="p-5 sm:p-6">

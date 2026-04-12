@@ -57,13 +57,13 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 bg-navy text-white flex flex-col min-h-screen">
+    <aside className="w-64 bg-card text-foreground flex flex-col min-h-screen border-r border-border">
       {/* Logo */}
-      <div className="p-6 border-b border-navy-light">
-        <h1 className="font-heading text-xl font-semibold tracking-wide text-gold">
+      <div className="p-6 border-b border-border">
+        <h1 className="text-xl font-extrabold tracking-tight text-accent">
           Akademia AI
         </h1>
-        <p className="text-xs text-gray-400 mt-1">Platforma szkoleniowa</p>
+        <p className="text-xs text-foreground/40 mt-1">Platforma szkoleniowa</p>
       </div>
 
       {/* Navigation */}
@@ -74,10 +74,10 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                 isActive
-                  ? "bg-gold/20 text-gold"
-                  : "text-gray-300 hover:bg-navy-light hover:text-white"
+                  ? "bg-accent/10 text-accent"
+                  : "text-foreground/50 hover:bg-slate-light hover:text-foreground"
               }`}
             >
               {item.icon}
@@ -89,19 +89,19 @@ export default function Sidebar() {
 
       {/* User section */}
       {user && (
-        <div className="p-4 border-t border-navy-light">
+        <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-gold/20 flex items-center justify-center text-gold font-semibold text-sm">
+            <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center text-accent font-semibold text-sm">
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user.name}</p>
-              <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+              <p className="text-xs text-foreground/40 truncate">{user.email}</p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="w-full text-left text-xs text-gray-400 hover:text-white transition-colors px-2 py-1"
+            className="w-full text-left text-xs text-foreground/40 hover:text-foreground transition-colors px-2 py-1"
           >
             Wyloguj się
           </button>
