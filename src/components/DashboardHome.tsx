@@ -4,33 +4,33 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 
 const currentCourse = {
-  id: "edycja-1",
-  title: "AKADEMIA AI — EDYCJA I",
-  lastLesson: "Proces: AI-First Mindset",
-  progress: 12,
-  completedLessons: 4,
-  totalLessons: 30,
+  id: "dzien-1",
+  title: "DZIEŃ 1: Twój AI Team w Akcji",
+  lastLesson: "Weryfikacja + Konfiguracja projektu",
+  progress: 0,
+  completedLessons: 0,
+  totalLessons: 7,
   accentColor: "#6366f1",
 };
 
 const nextEvent = {
   date: "15 KWI",
   day: "Środa",
-  title: "Online wstępne",
+  title: "Spotkanie online — przygotowanie",
   time: "9:00",
   type: "online" as const,
 };
 
 const latestPosts = [
-  { id: 1, author: "Dariusz Szuca", title: "Witamy w Akademii AI!", time: "1d" },
-  { id: 2, author: "Dariusz Szuca", title: "Jak zacząć korzystać z Claude w nieruchomościach", time: "2d" },
+  { id: 1, author: "Dariusz Szuca", title: "Witamy w Akademii AI — Edycja #1 startuje 15 kwietnia!", time: "1d" },
+  { id: 2, author: "Dariusz Szuca", title: "Przygotowanie do warsztatu — co zrobić przed 15 kwietnia", time: "2d" },
 ];
 
 const quickStats = [
   {
     label: "Ukończone lekcje",
-    value: "4",
-    total: "/30",
+    value: "0",
+    total: "/7",
     accentColor: "#6366f1",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -40,8 +40,8 @@ const quickStats = [
   },
   {
     label: "Zadania wykonane",
-    value: "1",
-    total: "/12",
+    value: "0",
+    total: "/6",
     accentColor: "#10b981",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -137,8 +137,10 @@ export default function DashboardPage() {
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{
-                      width: `${currentCourse.progress}%`,
-                      background: `linear-gradient(90deg, ${currentCourse.accentColor}, ${currentCourse.accentColor}cc)`,
+                      width: `${Math.max(currentCourse.progress, 2)}%`,
+                      background: currentCourse.progress > 0
+                        ? `linear-gradient(90deg, ${currentCourse.accentColor}, ${currentCourse.accentColor}cc)`
+                        : "var(--border)",
                     }}
                   />
                 </div>

@@ -26,112 +26,152 @@ const courseData: Record<string, { title: string; modules: Module[] }> = {
         id: 1,
         title: "Powitanie i Orientacja",
         lessons: [
-          { id: "s-1", title: "Witaj w Akademii AI!", type: "process", completed: false, content: "Witaj w Akademii AI! To jest Twoja platforma szkoleniowa.\n\nTutaj znajdziesz:\n- Materiały z każdego warsztatu\n- Nagrania sesji\n- Zadania do wykonania\n- Społeczność uczestników\n\nZacznij od przejrzenia zakładek w panelu bocznym." },
+          { id: "s-1", title: "Witaj w Akademii AI!", type: "process", completed: false, content: "Witaj w Akademii AI! To jest Twoja platforma szkoleniowa.\n\nTutaj znajdziesz:\n- Materiały z każdego warsztatu\n- Nagrania sesji\n- Zadania do wykonania\n- Społeczność uczestników\n\nZacznij od przejrzenia zakładek w panelu nawigacji." },
           { id: "s-2", title: "Jak korzystać z platformy", type: "process", completed: false, content: "Krótki poradnik jak poruszać się po platformie:\n\n1. Społeczność — posty, pytania, dyskusje\n2. Materiały — kursy, nagrania, zadania\n3. Kalendarz — harmonogram warsztatów\n4. Członkowie — lista uczestników\n5. O nas — informacje o Akademii" },
           { id: "s-3", title: "Zadanie: Przedstaw się", type: "task", completed: false, content: "Wejdź do zakładki Społeczność i napisz krótki post:\n\n- Kim jesteś?\n- Czym się zajmujesz?\n- Co chcesz osiągnąć dzięki AI?\n\nTo pomoże nam lepiej dopasować warsztaty do Twoich potrzeb." },
         ],
       },
     ],
   },
-  "edycja-1": {
-    title: "AKADEMIA AI — EDYCJA I",
+  "przygotowanie": {
+    title: "PRZYGOTOWANIE (Praca domowa)",
     modules: [
       {
         id: 1,
-        title: "WARSZTAT 1: Myślenie AI-First + Narzędzia",
+        title: "Przygotowanie do warsztatu",
         lessons: [
-          { id: "1-1", title: "Proces: AI-First Mindset", type: "process", completed: false, content: "Wprowadzenie do myślenia AI-First. Jak zmienić podejście do pracy z AI — nie jako narzędzie, ale jako partner w biznesie.\n\nKluczowe koncepty:\n- AI jako asystent vs AI jako współpracownik\n- Kiedy AI daje 10x, a kiedy 2x\n- Przykłady z nieruchomości" },
-          { id: "1-2", title: "Nagranie Warsztatu", type: "recording", completed: false, content: "Nagranie zostanie udostępnione po warsztacie." },
-          { id: "1-3", title: "Zadanie 1: Profil Express", type: "task", completed: false, content: "Stwórz swój profil biznesowy w formacie AI-ready.\n\n1. Otwórz Claude lub ChatGPT\n2. Wklej prompt z materiałów (Profil Express)\n3. Odpowiedz na pytania\n4. Zapisz wynik jako PDF\n5. Wrzuć tutaj jako załącznik" },
-          { id: "1-4", title: "Zadanie 2: Konfiguracja narzędzi", type: "task", completed: false, content: "Zainstaluj i skonfiguruj narzędzia:\n\n- Claude.ai (konto darmowe)\n- Google Gemini\n- Notion (opcjonalnie)\n\nSprawdź czy wszystko działa przed warsztatem." },
+          { id: "p-1", title: "Profil przedsiębiorcy", type: "task", completed: false, content: "Materiały zostaną udostępnione przed warsztacie." },
+          { id: "p-2", title: "Persona kupującego", type: "task", completed: false, content: "Materiały zostaną udostępnione przed warsztacie." },
+          { id: "p-3", title: "Persona sprzedającego", type: "task", completed: false, content: "Materiały zostaną udostępnione przed warsztacie." },
+          { id: "p-4", title: "Oferta — Twoja propozycja wartości", type: "task", completed: false, content: "Materiały zostaną udostępnione przed warsztacie." },
+          { id: "p-5", title: "Konfiguracja kont AI (Claude, Gemini)", type: "process", completed: false, content: "Materiały zostaną udostępnione przed warsztacie." },
+          { id: "p-6", title: "Pobranie asystentów (COO, CAO, CNO)", type: "process", completed: false, content: "Materiały zostaną udostępnione przed warsztacie." },
+        ],
+      },
+    ],
+  },
+  "dzien-1": {
+    title: "DZIEŃ 1: Twój AI Team w Akcji",
+    modules: [
+      {
+        id: 1,
+        title: "Blok 1: Weryfikacja + Konfiguracja",
+        lessons: [
+          { id: "d1-1", title: "Weryfikacja + Konfiguracja projektu", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
         id: 2,
-        title: "WARSZTAT 2: Analiza Rynku + Analityka",
+        title: "Blok 2: GHOST — Styl pisania",
         lessons: [
-          { id: "2-1", title: "Proces: Analiza Rynku z AI", type: "process", completed: false, content: "Jak używać AI do analizy rynku nieruchomości w Twojej lokalizacji." },
-          { id: "2-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "2-3", title: "Zadanie 1: Analiza konkurencji", type: "task", completed: false },
+          { id: "d1-2", title: "GHOST — Twój styl pisania z AI", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
         id: 3,
-        title: "WARSZTAT 3: Oferta + Wycena",
+        title: "Blok 3: Wideo, rolki, posty bez kamery",
         lessons: [
-          { id: "3-1", title: "Proces: Tworzenie ofert z AI", type: "process", completed: false },
-          { id: "3-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "3-3", title: "Zadanie 1: Oferta nieruchomości", type: "task", completed: false },
+          { id: "d1-3", title: "Wideo/rolki/posty bez kamery", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
         id: 4,
-        title: "WARSZTAT 4: Budowa Strony Sprzedażowej",
+        title: "Blok 4: Mój AI Team",
         lessons: [
-          { id: "4-1", title: "Proces: Strona z AI", type: "process", completed: false },
-          { id: "4-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "4-3", title: "Zadanie 1: Landing page", type: "task", completed: false },
+          { id: "d1-4", title: "Mój AI Team — budowa zespołu asystentów", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
         id: 5,
-        title: "WARSZTAT 5: Budowa z AI + COO",
+        title: "Blok 5: Narzędzia agenta",
         lessons: [
-          { id: "5-1", title: "Proces: COO — Twój asystent operacyjny", type: "process", completed: false },
-          { id: "5-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "5-3", title: "Zadanie 1: Stwórz COO", type: "task", completed: false },
+          { id: "d1-5", title: "Narzędzia agenta (wycena/CMA/opisy/prospecting)", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
         id: 6,
-        title: "WARSZTAT 6: AI Na Komputerze",
+        title: "Blok 6: Plan działania + Decyzje",
         lessons: [
-          { id: "6-1", title: "Proces: Claude Code + Terminal", type: "process", completed: false },
-          { id: "6-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "6-3", title: "Zadanie 1: Instalacja Claude Code", type: "task", completed: false },
+          { id: "d1-6", title: "Plan działania + decyzje", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
         id: 7,
-        title: "WARSZTAT 7: Sprzedaż i CSO",
+        title: "Nagranie",
         lessons: [
-          { id: "7-1", title: "Proces: CSO — Asystent sprzedaży", type: "process", completed: false },
-          { id: "7-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "7-3", title: "Zadanie 1: Lejek sprzedażowy", type: "task", completed: false },
+          { id: "d1-7", title: "Nagranie warsztatu — Dzień 1", type: "recording", completed: false, content: "Nagranie zostanie udostępnione po warsztacie." },
+        ],
+      },
+    ],
+  },
+  "dzien-2": {
+    title: "DZIEŃ 2: Zaawansowane AI + Automatyzacja",
+    modules: [
+      {
+        id: 1,
+        title: "Blok 1: Instalacja lokalna",
+        lessons: [
+          { id: "d2-1", title: "Instalacja lokalna AI na komputerze", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
-        id: 8,
-        title: "WARSZTAT 8: Strategia i Content Marketing",
+        id: 2,
+        title: "Blok 2: Obsługa asystentów / Terminal",
         lessons: [
-          { id: "8-1", title: "Proces: Content Machine", type: "process", completed: false },
-          { id: "8-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "8-3", title: "Zadanie 1: Plan contentowy", type: "task", completed: false },
+          { id: "d2-2", title: "Obsługa asystentów i terminala", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
-        id: 9,
-        title: "WARSZTAT 9: CMO & GHOST",
+        id: 3,
+        title: "Blok 3: Skille / API / MCP",
         lessons: [
-          { id: "9-1", title: "Proces: CMO + GHOST", type: "process", completed: false },
-          { id: "9-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "9-3", title: "Zadanie 1: Cyfrowy bliźniak", type: "task", completed: false },
+          { id: "d2-3", title: "Skille, API, MCP — rozszerzenia AI", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
         ],
       },
       {
-        id: 10,
-        title: "WARSZTAT 10: CEO",
+        id: 4,
+        title: "Blok 4: Automatyzacje zadań",
         lessons: [
-          { id: "10-1", title: "Proces: CEO", type: "process", completed: false },
-          { id: "10-2", title: "Nagranie Warsztatu", type: "recording", completed: false },
-          { id: "10-3", title: "Zadanie 1: CEO", type: "task", completed: false },
-          { id: "10-4", title: "Zadanie 2: Zaktualizuj cały system o CEO", type: "task", completed: false },
+          { id: "d2-4", title: "Automatyzacje codziennych zadań", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
+        ],
+      },
+      {
+        id: 5,
+        title: "Blok 5: Łączenie z narzędziami",
+        lessons: [
+          { id: "d2-5", title: "Łączenie z narzędziami (mail/kalendarz/CRM)", type: "process", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
+        ],
+      },
+      {
+        id: 6,
+        title: "Blok 6: Test + Certyfikat",
+        lessons: [
+          { id: "d2-6", title: "Test końcowy + Certyfikat", type: "task", completed: false, content: "Materiały zostaną udostępnione po warsztacie." },
+        ],
+      },
+      {
+        id: 7,
+        title: "Nagranie",
+        lessons: [
+          { id: "d2-7", title: "Nagranie warsztatu — Dzień 2", type: "recording", completed: false, content: "Nagranie zostanie udostępnione po warsztacie." },
+        ],
+      },
+    ],
+  },
+  "nagrania-qa": {
+    title: "NAGRANIA Q&A",
+    modules: [
+      {
+        id: 1,
+        title: "Spotkania Q&A",
+        lessons: [
+          { id: "q-1", title: "Q&A — Edycja #1, Spotkanie 1", type: "recording", completed: false, content: "Nagranie zostanie udostępnione po spotkaniu." },
         ],
       },
     ],
   },
   "biblioteka": {
-    title: "BIBLIOTEKA ZASOBÓW I BONUSY",
+    title: "BIBLIOTEKA ZASOBÓW",
     modules: [
       {
         id: 1,
@@ -164,30 +204,18 @@ const courseData: Record<string, { title: string; modules: Module[] }> = {
       },
     ],
   },
-  "nagrania-qa": {
-    title: "NAGRANIA SPOTKAŃ Q&A",
-    modules: [
-      {
-        id: 1,
-        title: "Spotkania Q&A",
-        lessons: [
-          { id: "q-1", title: "Q&A — Edycja I, Spotkanie 1", type: "recording", completed: false, content: "Nagranie zostanie udostępnione po spotkaniu." },
-        ],
-      },
-    ],
-  },
   "narzedzia": {
-    title: "NARZĘDZIA AI — WSZYSTKIE EDYCJE",
+    title: "NARZĘDZIA AI",
     modules: [
       {
         id: 1,
         title: "Narzędzia AI",
         lessons: [
           { id: "n-1", title: "Claude.ai — Podstawy", type: "process", completed: false },
-          { id: "n-2", title: "Claude Code — Terminal AI", type: "process", completed: false },
-          { id: "n-3", title: "Gemini — Google AI", type: "process", completed: false },
-          { id: "n-4", title: "NotebookLM — Research", type: "process", completed: false },
-          { id: "n-5", title: "Lovable — Budowa stron", type: "process", completed: false },
+          { id: "n-2", title: "Gemini — Google AI", type: "process", completed: false },
+          { id: "n-3", title: "NotebookLM — Research", type: "process", completed: false },
+          { id: "n-4", title: "Lovable — Budowa stron", type: "process", completed: false },
+          { id: "n-5", title: "Claude Code — Terminal AI", type: "process", completed: false },
         ],
       },
     ],

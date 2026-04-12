@@ -36,9 +36,11 @@ export default function AboutPage() {
           <div style={{ borderLeft: "2px solid rgba(201, 160, 48, 0.3)", paddingLeft: "24px" }}>
             <h3 className="font-heading text-sm font-semibold text-foreground uppercase tracking-[0.15em] mb-4">O warsztatach</h3>
             <p className="text-base text-foreground/50 leading-[1.9] font-light">
-              Akademia AI to intensywny, 4-dniowy program szkoleniowy. Uczymy jak wykorzystać
-              sztuczną inteligencję w codziennej pracy — od automatyzacji ofert, przez tworzenie
-              treści marketingowych, po budowę osobistego asystenta AI.
+              Akademia AI to intensywny, 4-dniowy program szkoleniowy dla agentów nieruchomości.
+              Uczymy jak wykorzystać sztuczną inteligencję w codziennej pracy — od budowy osobistego
+              zespołu AI, przez automatyzację procesów i tworzenie treści marketingowych, po zaawansowane
+              integracje z narzędziami (mail, kalendarz, CRM). Wszystko hands-on, z konkretnymi
+              wynikami od pierwszego dnia.
             </p>
           </div>
 
@@ -47,9 +49,9 @@ export default function AboutPage() {
             <h3 className="font-heading text-sm font-semibold text-foreground uppercase tracking-[0.15em] mb-6">Format warsztatu</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-0">
               {[
-                { day: "Środa", label: "Online wstępne", time: "9:00", accentColor: "#60a5fa" },
-                { day: "Czwartek", label: "Warsztat", time: "9:00–15:00", accentColor: "#C9A030" },
-                { day: "Piątek", label: "Warsztat", time: "9:00–15:00", accentColor: "#C9A030" },
+                { day: "Środa", label: "Online przygotowanie", time: "9:00", accentColor: "#60a5fa" },
+                { day: "Czwartek", label: "Stacjonarnie Trójmiasto", time: "9:00–15:00", accentColor: "#C9A030" },
+                { day: "Piątek", label: "Stacjonarnie Trójmiasto", time: "9:00–15:00", accentColor: "#C9A030" },
                 { day: "Sobota", label: "Online Q&A", time: "9:00", accentColor: "#60a5fa" },
               ].map((item) => (
                 <div
@@ -82,7 +84,7 @@ export default function AboutPage() {
               </div>
               <div>
                 <p className="font-semibold text-foreground text-base">Dariusz Szuca</p>
-                <p className="text-sm text-foreground/35 mt-0.5 font-light">Specjalista AI & Marketing</p>
+                <p className="text-sm text-foreground/35 mt-0.5 font-light">8 lat doświadczenia w marketingu, 15+ branż</p>
                 <div className="flex items-center gap-1.5 mt-2">
                   <span className="w-1.5 h-1.5 bg-gold" style={{ borderRadius: "0" }} />
                   <span className="text-[10px] text-gold/60 font-medium uppercase tracking-wider">Organizator Akademii AI</span>
@@ -91,22 +93,49 @@ export default function AboutPage() {
             </div>
           </div>
 
+          {/* Price */}
+          <div style={{ borderLeft: "2px solid rgba(201, 160, 48, 0.3)", paddingLeft: "24px" }}>
+            <h3 className="font-heading text-sm font-semibold text-foreground uppercase tracking-[0.15em] mb-4">Cena</h3>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-foreground">1 499 PLN</span>
+            </div>
+            <p className="text-sm text-foreground/35 mt-2 font-light">
+              NSL: 1 399 PLN z kodem <span className="text-gold font-semibold">AI2026</span>
+            </p>
+            <p className="text-xs text-foreground/25 mt-2">Maks. 12 osób na edycję</p>
+          </div>
+
           {/* Links */}
           <div className="pt-4 border-t border-border/50">
             <h3 className="font-heading text-sm font-semibold text-foreground uppercase tracking-[0.15em] mb-4">Linki</h3>
-            <a
-              href="https://ai-team.pl"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 text-sm text-foreground/40 hover:text-gold transition-colors group"
-            >
-              <div className="w-8 h-8 bg-slate-light flex items-center justify-center group-hover:bg-gold/10 transition-colors" style={{ borderRadius: "0" }}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-                </svg>
-              </div>
-              ai-team.pl
-            </a>
+            <div className="flex flex-col gap-3">
+              <a
+                href="https://akademia-ai-nieruchomosci.pl"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 text-sm text-foreground/40 hover:text-gold transition-colors group"
+              >
+                <div className="w-8 h-8 bg-slate-light flex items-center justify-center group-hover:bg-gold/10 transition-colors" style={{ borderRadius: "0" }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                  </svg>
+                </div>
+                akademia-ai-nieruchomosci.pl
+              </a>
+              <a
+                href="https://ai-team.pl"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 text-sm text-foreground/40 hover:text-gold transition-colors group"
+              >
+                <div className="w-8 h-8 bg-slate-light flex items-center justify-center group-hover:bg-gold/10 transition-colors" style={{ borderRadius: "0" }}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                  </svg>
+                </div>
+                ai-team.pl
+              </a>
+            </div>
           </div>
         </div>
       </div>

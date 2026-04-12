@@ -37,7 +37,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-14 pb-24">
+      <main className="pt-14">
         <div className="px-5 sm:px-8 lg:px-12 py-8 max-w-6xl mx-auto">
           {children}
         </div>
