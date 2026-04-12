@@ -71,25 +71,25 @@ export default function InviteRegisterPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md">
           <div className="flex items-center justify-center gap-2.5 mb-10">
-            <div className="w-10 h-10 flex items-center justify-center" style={{ borderLeft: "3px solid #C9A030" }}>
-              <span className="text-foreground font-heading font-bold text-lg pl-2">AI</span>
+            <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
+              AI
             </div>
-            <span className="font-heading text-sm font-semibold text-foreground tracking-[0.15em] uppercase">
+            <span className="text-sm font-bold text-foreground tracking-tight">
               Akademia AI
             </span>
           </div>
 
-          <div className="bg-card border border-border p-8" style={{ borderRadius: "0" }}>
+          <div className="bg-card border border-border rounded-2xl p-8">
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center" style={{ background: "rgba(239, 68, 68, 0.1)" }}>
+              <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center bg-red-500/10">
                 <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                 </svg>
               </div>
-              <h2 className="font-heading text-xl font-bold text-foreground tracking-wide">
+              <h2 className="text-xl font-bold text-foreground">
                 Link nieprawidłowy
               </h2>
-              <p className="text-sm text-foreground/40 mt-3 leading-relaxed font-light">
+              <p className="text-sm text-foreground/40 mt-3 leading-relaxed">
                 Link zaproszeniowy wygasł lub jest nieprawidłowy.
                 Skontaktuj się z organizatorem aby otrzymać nowy link.
               </p>
@@ -100,7 +100,7 @@ export default function InviteRegisterPage() {
             <div className="text-center">
               <Link
                 href="/login"
-                className="text-sm text-gold hover:text-gold/80 transition-colors font-medium"
+                className="text-sm text-accent hover:text-accent/80 transition-colors font-medium"
               >
                 Masz już konto? Zaloguj się
               </Link>
@@ -116,35 +116,35 @@ export default function InviteRegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-10">
-          <div className="w-10 h-10 flex items-center justify-center" style={{ borderLeft: "3px solid #C9A030" }}>
-            <span className="text-foreground font-heading font-bold text-lg pl-2">AI</span>
+          <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
+            AI
           </div>
-          <span className="font-heading text-sm font-semibold text-foreground tracking-[0.15em] uppercase">
+          <span className="text-sm font-bold text-foreground tracking-tight">
             Akademia AI
           </span>
         </div>
 
-        <div className="bg-card border border-border p-8" style={{ borderRadius: "0" }}>
+        <div className="bg-card border border-border rounded-2xl p-8">
           {step === "register" && (
             <>
               <div className="text-center mb-8">
-                <h2 className="font-heading text-xl font-bold text-foreground tracking-wide">
+                <h2 className="text-xl font-bold text-foreground">
                   Utwórz konto
                 </h2>
-                <p className="text-sm text-foreground/40 mt-2 font-light">
+                <p className="text-sm text-foreground/40 mt-2">
                   Akademia AI — Edycja #1
                 </p>
               </div>
 
               {error && (
-                <div className="mb-6 p-3 text-sm text-red-400 border border-red-400/20 bg-red-400/5" style={{ borderRadius: "0" }}>
+                <div className="mb-6 p-3 text-sm text-red-400 border border-red-400/20 bg-red-400/5 rounded-lg">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
-                  <label className="block text-[11px] text-foreground/40 uppercase tracking-wider font-semibold mb-2">
+                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
                     Imię i nazwisko
                   </label>
                   <input
@@ -152,14 +152,13 @@ export default function InviteRegisterPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full bg-slate-light px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-gold/30 border border-transparent hover:border-border transition-all"
-                    style={{ borderRadius: "0" }}
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
                     placeholder="Jan Kowalski"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-foreground/40 uppercase tracking-wider font-semibold mb-2">
+                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
                     Email
                   </label>
                   <input
@@ -167,14 +166,13 @@ export default function InviteRegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full bg-slate-light px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-gold/30 border border-transparent hover:border-border transition-all"
-                    style={{ borderRadius: "0" }}
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
                     placeholder="jan@example.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-foreground/40 uppercase tracking-wider font-semibold mb-2">
+                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
                     Hasło
                   </label>
                   <input
@@ -183,11 +181,10 @@ export default function InviteRegisterPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="w-full bg-slate-light px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-gold/30 border border-transparent hover:border-border transition-all"
-                    style={{ borderRadius: "0" }}
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
                     placeholder="Min. 8 znaków"
                   />
-                  <p className="text-[10px] text-foreground/25 mt-1.5">
+                  <p className="text-[10px] text-foreground/30 mt-1.5">
                     Min. 8 znaków, wielka litera, cyfra, znak specjalny
                   </p>
                 </div>
@@ -195,12 +192,7 @@ export default function InviteRegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 text-sm font-semibold uppercase tracking-wider transition-all duration-200 disabled:opacity-50"
-                  style={{
-                    background: "#C9A030",
-                    color: "white",
-                    borderRadius: "0",
-                  }}
+                  className="w-full py-3 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 bg-[#0D9488] hover:bg-[#0B8478] text-white"
                 >
                   {loading ? "Rejestracja..." : "Zarejestruj się"}
                 </button>
@@ -211,7 +203,7 @@ export default function InviteRegisterPage() {
               <div className="text-center">
                 <Link
                   href="/login"
-                  className="text-sm text-gold hover:text-gold/80 transition-colors font-medium"
+                  className="text-sm text-accent hover:text-accent/80 transition-colors font-medium"
                 >
                   Masz już konto? Zaloguj się
                 </Link>
@@ -222,28 +214,28 @@ export default function InviteRegisterPage() {
           {step === "confirm" && (
             <>
               <div className="text-center mb-8">
-                <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center" style={{ background: "rgba(201, 160, 48, 0.1)" }}>
-                  <svg className="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center bg-accent/10">
+                  <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                   </svg>
                 </div>
-                <h2 className="font-heading text-xl font-bold text-foreground tracking-wide">
+                <h2 className="text-xl font-bold text-foreground">
                   Sprawdź email
                 </h2>
-                <p className="text-sm text-foreground/40 mt-2 font-light">
+                <p className="text-sm text-foreground/40 mt-2">
                   Wysłaliśmy kod weryfikacyjny na <span className="text-foreground font-medium">{email}</span>
                 </p>
               </div>
 
               {error && (
-                <div className="mb-6 p-3 text-sm text-red-400 border border-red-400/20 bg-red-400/5" style={{ borderRadius: "0" }}>
+                <div className="mb-6 p-3 text-sm text-red-400 border border-red-400/20 bg-red-400/5 rounded-lg">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleConfirm} className="space-y-4">
                 <div>
-                  <label className="block text-[11px] text-foreground/40 uppercase tracking-wider font-semibold mb-2">
+                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
                     Kod weryfikacyjny
                   </label>
                   <input
@@ -251,8 +243,7 @@ export default function InviteRegisterPage() {
                     value={confirmCode}
                     onChange={(e) => setConfirmCode(e.target.value)}
                     required
-                    className="w-full bg-slate-light px-4 py-3 text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-1 focus:ring-gold/30 border border-transparent hover:border-border transition-all"
-                    style={{ borderRadius: "0" }}
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
                     placeholder="000000"
                     maxLength={6}
                   />
@@ -261,12 +252,7 @@ export default function InviteRegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 text-sm font-semibold uppercase tracking-wider transition-all duration-200 disabled:opacity-50"
-                  style={{
-                    background: "#C9A030",
-                    color: "white",
-                    borderRadius: "0",
-                  }}
+                  className="w-full py-3 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 bg-[#0D9488] hover:bg-[#0B8478] text-white"
                 >
                   {loading ? "Weryfikacja..." : "Potwierdź"}
                 </button>
@@ -276,25 +262,20 @@ export default function InviteRegisterPage() {
 
           {step === "done" && (
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center" style={{ background: "rgba(16, 185, 129, 0.1)" }}>
+              <div className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center bg-emerald-500/10">
                 <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                 </svg>
               </div>
-              <h2 className="font-heading text-xl font-bold text-foreground tracking-wide">
+              <h2 className="text-xl font-bold text-foreground">
                 Konto utworzone!
               </h2>
-              <p className="text-sm text-foreground/40 mt-2 font-light">
+              <p className="text-sm text-foreground/40 mt-2">
                 Możesz teraz zalogować się do platformy.
               </p>
               <button
                 onClick={() => router.push("/login")}
-                className="mt-6 px-8 py-3 text-sm font-semibold uppercase tracking-wider transition-all duration-200"
-                style={{
-                  background: "#C9A030",
-                  color: "white",
-                  borderRadius: "0",
-                }}
+                className="mt-6 px-8 py-3 text-sm font-semibold rounded-lg transition-all duration-200 bg-[#0D9488] hover:bg-[#0B8478] text-white"
               >
                 Zaloguj się
               </button>

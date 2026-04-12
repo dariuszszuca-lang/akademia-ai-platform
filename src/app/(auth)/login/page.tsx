@@ -17,7 +17,7 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      router.push("/home");
+      router.push("/community");
     } catch {
       // Error is handled by auth context
     } finally {
@@ -30,57 +30,60 @@ function LoginForm() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
-          <h1 className="font-heading text-3xl font-bold text-navy tracking-wide">
-            Akademia <span className="text-gold">AI</span>
+          <div className="w-12 h-12 rounded-xl bg-[#0D9488] text-white font-extrabold text-lg flex items-center justify-center mx-auto mb-3">
+            AI
+          </div>
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+            Akademia AI
           </h1>
-          <p className="text-gray-500 text-sm mt-2">Platforma szkoleniowa</p>
+          <p className="text-foreground/50 text-sm mt-1">Platforma szkoleniowa</p>
         </div>
 
         {/* Form */}
-        <div className="bg-card rounded-2xl border border-border p-8 shadow-lg">
-          <h2 className="font-heading text-xl font-semibold text-navy mb-6">Zaloguj się</h2>
+        <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
+          <h2 className="text-xl font-bold text-foreground mb-6">Zaloguj się</h2>
 
           {error && (
-            <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
+            <div className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-sm px-4 py-3 rounded-lg mb-4">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => { clearError(); setEmail(e.target.value); }}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold transition-all"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition-all"
                 placeholder="twoj@email.pl"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Hasło</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1.5">Hasło</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => { clearError(); setPassword(e.target.value); }}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold transition-all"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition-all"
                 placeholder="••••••••"
               />
             </div>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-navy hover:bg-navy-light text-white font-medium py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#0D9488] hover:bg-[#0B8478] text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Logowanie..." : "Zaloguj się"}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <div className="mt-6 text-center text-sm text-foreground/40">
             Nie masz konta?{" "}
-            <Link href="/register" className="text-gold-dark font-medium hover:underline">
+            <Link href="/register" className="text-[#0D9488] font-medium hover:underline">
               Zarejestruj się
             </Link>
           </div>

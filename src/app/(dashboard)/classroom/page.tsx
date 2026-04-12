@@ -119,7 +119,7 @@ function CourseCard({ course }: { course: Course }) {
             style={{ background: `${course.accentColor}15` }}
           >
             <span
-              className="font-heading text-base font-bold"
+              className="text-base font-extrabold"
               style={{ color: course.accentColor }}
             >
               {course.icon}
@@ -132,7 +132,7 @@ function CourseCard({ course }: { course: Course }) {
             </svg>
           ) : (
             <svg
-              className="w-5 h-5 text-foreground/15 group-hover:text-gold group-hover:translate-x-0.5 transition-all mt-1"
+              className="w-5 h-5 text-foreground/15 group-hover:text-accent group-hover:translate-x-0.5 transition-all mt-1"
               fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -141,7 +141,7 @@ function CourseCard({ course }: { course: Course }) {
         </div>
 
         {/* Title */}
-        <h3 className="font-heading text-sm font-bold text-foreground uppercase tracking-[0.08em] leading-snug group-hover:text-gold transition-colors">
+        <h3 className="text-sm font-bold text-foreground uppercase tracking-wide leading-snug group-hover:text-accent transition-colors">
           {course.title}
         </h3>
 
@@ -215,14 +215,13 @@ function CourseCard({ course }: { course: Course }) {
 export default function ClassroomPage() {
   return (
     <div className="animate-fade-in">
-      <div className="mb-10">
-        <h2 className="font-heading text-4xl font-bold text-foreground tracking-wide gold-glow-text">
+      <div className="mb-8">
+        <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
           Materiały
         </h2>
-        <p className="text-sm text-foreground/35 mt-2 font-light tracking-wide">
+        <p className="text-sm text-foreground/50 mt-1">
           Wybierz kurs aby rozpocząć naukę
         </p>
-        <div className="w-24 h-px bg-gradient-to-r from-gold to-transparent mt-4" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children pb-8">

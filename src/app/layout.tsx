@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Cinzel } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin", "latin-ext"],
-});
-
-const cinzel = Cinzel({
-  variable: "--font-cinzel",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -24,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className={`${inter.variable} ${cinzel.variable} h-full`}>
+    <html lang="pl" className={`${jakarta.variable} h-full`}>
       <body className="font-sans antialiased min-h-full flex flex-col bg-background text-foreground">
         {children}
       </body>

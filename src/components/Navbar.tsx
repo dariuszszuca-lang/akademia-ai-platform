@@ -6,60 +6,11 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
 
 const navItems = [
-  {
-    name: "Home",
-    href: "/home",
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-      </svg>
-    ),
-  },
-  {
-    name: "Społeczność",
-    href: "/community",
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-      </svg>
-    ),
-  },
-  {
-    name: "Materiały",
-    href: "/classroom",
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-      </svg>
-    ),
-  },
-  {
-    name: "Kalendarz",
-    href: "/calendar",
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-      </svg>
-    ),
-  },
-  {
-    name: "Członkowie",
-    href: "/members",
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-      </svg>
-    ),
-  },
-  {
-    name: "O nas",
-    href: "/about",
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-      </svg>
-    ),
-  },
+  { name: "Społeczność", href: "/community" },
+  { name: "Materiały", href: "/classroom" },
+  { name: "Kalendarz", href: "/calendar" },
+  { name: "Członkowie", href: "/members" },
+  { name: "O nas", href: "/about" },
 ];
 
 export default function Navbar() {
@@ -69,76 +20,64 @@ export default function Navbar() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-40 backdrop-blur-xl"
+      className="fixed top-0 left-0 right-0 z-40 border-b border-border"
       style={{
-        background: theme === "dark" ? "rgba(14, 14, 18, 0.85)" : "rgba(245, 244, 240, 0.85)",
-        borderBottom: "1px solid var(--border)",
+        background: theme === "dark" ? "rgba(17, 17, 17, 0.95)" : "rgba(255, 255, 255, 0.95)",
+        backdropFilter: "blur(12px)",
       }}
     >
       <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
-          <Link href="/home" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-8 h-8 flex items-center justify-center" style={{ borderLeft: "2px solid #C9A030" }}>
-              <span className="text-foreground font-heading font-bold text-sm tracking-wider pl-1.5">AI</span>
+          <Link href="/community" className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent text-white font-extrabold text-sm">
+              AI
             </div>
-            <span className="font-heading text-xs font-semibold text-foreground tracking-[0.15em] uppercase hidden sm:inline">
+            <span className="text-sm font-bold text-foreground tracking-tight hidden sm:inline">
               Akademia AI
             </span>
           </Link>
 
-          {/* Center navigation */}
-          <nav className="hidden md:flex items-center gap-0.5">
+          {/* Center navigation — Skool-style text tabs */}
+          <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
-              const isActive = item.href === "/home"
-                ? pathname === "/home" || pathname === "/"
-                : pathname.startsWith(item.href);
+              const isActive = pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium transition-all duration-200 ${
+                  className={`relative px-4 py-4 text-sm font-medium transition-colors duration-200 ${
                     isActive
-                      ? "text-gold"
-                      : "text-foreground/40 hover:text-foreground/70"
+                      ? "text-accent"
+                      : "text-foreground/50 hover:text-foreground/80"
                   }`}
                 >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  <span>{item.name}</span>
+                  {item.name}
                   {isActive && (
-                    <span
-                      className="absolute bottom-0 left-3 right-3 h-[2px]"
-                      style={{ background: "#C9A030" }}
-                    />
+                    <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-accent" />
                   )}
                 </Link>
               );
             })}
           </nav>
 
-          {/* Mobile nav — compact */}
-          <nav className="flex md:hidden items-center gap-0.5 overflow-x-auto">
+          {/* Mobile nav — text only, compact */}
+          <nav className="flex md:hidden items-center gap-0 overflow-x-auto">
             {navItems.map((item) => {
-              const isActive = item.href === "/home"
-                ? pathname === "/home" || pathname === "/"
-                : pathname.startsWith(item.href);
+              const isActive = pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`relative flex items-center p-2 transition-all duration-200 ${
+                  className={`relative px-2.5 py-4 text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
                     isActive
-                      ? "text-gold"
-                      : "text-foreground/35 hover:text-foreground/60"
+                      ? "text-accent"
+                      : "text-foreground/40 hover:text-foreground/70"
                   }`}
-                  title={item.name}
                 >
-                  {item.icon}
+                  {item.name}
                   {isActive && (
-                    <span
-                      className="absolute bottom-0 left-1 right-1 h-[2px]"
-                      style={{ background: "#C9A030" }}
-                    />
+                    <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-accent" />
                   )}
                 </Link>
               );
@@ -149,7 +88,7 @@ export default function Navbar() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={toggle}
-              className="w-8 h-8 flex items-center justify-center text-foreground/40 hover:text-gold transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground/40 hover:text-accent hover:bg-accent-light transition-colors"
               title={theme === "light" ? "Tryb ciemny" : "Tryb jasny"}
             >
               {theme === "light" ? (
@@ -165,11 +104,7 @@ export default function Navbar() {
 
             {user && (
               <button
-                className="w-8 h-8 flex items-center justify-center text-xs font-semibold rounded-full cursor-pointer hover:ring-2 hover:ring-gold/30 transition-all"
-                style={{
-                  background: "rgba(201, 160, 48, 0.15)",
-                  color: "#C9A030",
-                }}
+                className="w-8 h-8 flex items-center justify-center text-xs font-bold rounded-full cursor-pointer bg-accent/15 text-accent hover:bg-accent/25 transition-all"
                 onClick={logout}
                 title="Wyloguj"
               >

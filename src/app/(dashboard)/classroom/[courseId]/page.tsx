@@ -224,16 +224,13 @@ const courseData: Record<string, { title: string; modules: Module[] }> = {
 
 function LessonTypeLabel({ type }: { type: Lesson["type"] }) {
   const config = {
-    process: { label: "Materiał", color: "text-blue-500", borderColor: "#3b82f6" },
-    recording: { label: "Nagranie", color: "text-red-400", borderColor: "#f87171" },
-    task: { label: "Zadanie", color: "text-gold", borderColor: "#C9A030" },
+    process: { label: "Materiał", color: "text-blue-500", bg: "bg-blue-500/10" },
+    recording: { label: "Nagranie", color: "text-red-400", bg: "bg-red-400/10" },
+    task: { label: "Zadanie", color: "text-accent", bg: "bg-accent/10" },
   };
   const c = config[type];
   return (
-    <span
-      className={`text-[10px] font-semibold uppercase tracking-[0.15em] ${c.color} px-3 py-1`}
-      style={{ borderLeft: `2px solid ${c.borderColor}` }}
-    >
+    <span className={`text-[11px] font-semibold uppercase tracking-wide ${c.color} ${c.bg} px-2.5 py-1 rounded-md`}>
       {c.label}
     </span>
   );
@@ -242,7 +239,7 @@ function LessonTypeLabel({ type }: { type: Lesson["type"] }) {
 function LessonIcon({ type, completed }: { type: Lesson["type"]; completed: boolean }) {
   if (completed) {
     return (
-      <div className="w-5 h-5 bg-gold flex items-center justify-center flex-shrink-0" style={{ borderRadius: "0" }}>
+      <div className="w-5 h-5 bg-accent rounded-md flex items-center justify-center flex-shrink-0">
         <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
         </svg>
@@ -252,13 +249,13 @@ function LessonIcon({ type, completed }: { type: Lesson["type"]; completed: bool
 
   const colors = {
     recording: { bg: "rgba(248, 113, 113, 0.1)", fg: "#f87171" },
-    task: { bg: "rgba(201, 160, 48, 0.1)", fg: "#C9A030" },
+    task: { bg: "var(--accent-light)", fg: "var(--accent)" },
     process: { bg: "rgba(59, 130, 246, 0.1)", fg: "#60a5fa" },
   };
   const c = colors[type];
 
   return (
-    <div className="w-5 h-5 flex items-center justify-center flex-shrink-0" style={{ background: c.bg, borderRadius: "0" }}>
+    <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 rounded-md" style={{ background: c.bg }}>
       {type === "recording" ? (
         <svg className="w-2.5 h-2.5" fill={c.fg} viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
       ) : type === "task" ? (
@@ -288,7 +285,7 @@ export default function CoursePage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="w-16 h-16 bg-slate-light flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-slate-light rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-foreground/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
             </svg>
@@ -310,20 +307,20 @@ export default function CoursePage() {
     <div className="animate-fade-in">
       {/* Back + Course title */}
       <div className="mb-6">
-        <Link href="/classroom" className="inline-flex items-center gap-1.5 text-xs text-foreground/30 hover:text-gold transition-colors mb-5 group">
+        <Link href="/classroom" className="inline-flex items-center gap-1.5 text-xs text-foreground/40 hover:text-accent transition-colors mb-5 group">
           <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
           Wróć do materiałów
         </Link>
-        <h2 className="font-heading text-3xl font-bold text-foreground tracking-wide gold-glow-text">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
           {course.title}
         </h2>
         <div className="flex items-center gap-4 mt-3">
           <div className="flex items-center gap-3 flex-1 max-w-xs">
-            <div className="flex-1 h-1 bg-slate-light overflow-hidden" style={{ borderRadius: "0" }}>
+            <div className="flex-1 h-2 bg-slate-light rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-gold to-gold-dark transition-all duration-500"
+                className="h-full bg-accent rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -332,7 +329,7 @@ export default function CoursePage() {
         </div>
       </div>
 
-      {/* Module chips — horizontal scrollable (docs-site style navigation) */}
+      {/* Module chips */}
       <div className="border-b border-border mb-8 overflow-x-auto">
         <div className="flex">
           {course.modules.map((mod) => {
@@ -353,9 +350,9 @@ export default function CoursePage() {
         </div>
       </div>
 
-      {/* Lessons list + Content — stacked vertically */}
+      {/* Lessons list + Content */}
       <div className="max-w-4xl">
-        {/* Lesson picker — horizontal row */}
+        {/* Lesson picker */}
         <div className="flex flex-wrap gap-2 mb-8">
           {activeModule.lessons.map((lesson) => {
             const isSelected = selectedLesson?.id === lesson.id;
@@ -363,12 +360,11 @@ export default function CoursePage() {
               <button
                 key={lesson.id}
                 onClick={() => setSelectedLesson(lesson)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all duration-150 border ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all duration-150 border rounded-lg ${
                   isSelected
-                    ? "border-gold/40 bg-gold/5 text-foreground"
-                    : "border-border text-foreground/40 hover:border-gold/20 hover:text-foreground/70"
+                    ? "border-accent/40 bg-accent/5 text-foreground"
+                    : "border-border text-foreground/40 hover:border-accent/20 hover:text-foreground/70"
                 }`}
-                style={{ borderRadius: "0" }}
               >
                 <LessonIcon type={lesson.type} completed={lesson.completed} />
                 <span className="truncate">{lesson.title}</span>
@@ -379,23 +375,22 @@ export default function CoursePage() {
 
         {/* Content area */}
         {selectedLesson ? (
-          <div className="animate-fade-in" style={{ borderLeft: "2px solid #C9A030", paddingLeft: "32px" }}>
+          <div className="animate-fade-in bg-card border border-border rounded-xl p-6 sm:p-8">
             {/* Type label */}
             <div className="mb-4">
               <LessonTypeLabel type={selectedLesson.type} />
             </div>
 
             <div className="flex items-start justify-between mb-6">
-              <h1 className="font-heading text-2xl font-semibold text-foreground tracking-wide leading-relaxed">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-snug">
                 {selectedLesson.title}
               </h1>
               <button
-                className={`w-8 h-8 border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ml-4 ${
+                className={`w-8 h-8 border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ml-4 rounded-lg ${
                   selectedLesson.completed
-                    ? "bg-gold border-gold text-white"
-                    : "border-foreground/15 hover:border-gold hover:bg-gold/5"
+                    ? "bg-accent border-accent text-white"
+                    : "border-foreground/15 hover:border-accent hover:bg-accent/5"
                 }`}
-                style={{ borderRadius: "0" }}
                 title={selectedLesson.completed ? "Ukończone" : "Oznacz jako ukończone"}
               >
                 {selectedLesson.completed && (
@@ -407,11 +402,11 @@ export default function CoursePage() {
             </div>
 
             {selectedLesson.content ? (
-              <div className="text-foreground/60 leading-[1.9] text-[15px] whitespace-pre-line font-light">
+              <div className="text-foreground/60 leading-relaxed text-[15px] whitespace-pre-line">
                 {selectedLesson.content}
               </div>
             ) : (
-              <div className="bg-slate-light p-8 text-center" style={{ borderRadius: "0" }}>
+              <div className="bg-slate-light p-8 text-center rounded-xl">
                 <svg className="w-10 h-10 text-foreground/10 mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>
