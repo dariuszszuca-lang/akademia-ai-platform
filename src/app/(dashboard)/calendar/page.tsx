@@ -12,10 +12,10 @@ type CalendarEvent = {
 };
 
 const events: CalendarEvent[] = [
-  { id: 1, date: 15, month: "KWI", day: "ŚR", title: "Spotkanie online — przygotowanie materiałów", time: "9:00", type: "online", edition: 1 },
-  { id: 2, date: 16, month: "KWI", day: "CZ", title: "Dzień 1: Twój AI Team w Akcji", time: "9:00–15:00", type: "onsite", edition: 1 },
-  { id: 3, date: 17, month: "KWI", day: "PT", title: "Dzień 2: Zaawansowane AI + Automatyzacja", time: "9:00–15:00", type: "onsite", edition: 1 },
-  { id: 4, date: 18, month: "KWI", day: "SO", title: "Q&A Online", time: "9:00", type: "online", edition: 1 },
+  { id: 1, date: 22, month: "KWI", day: "ŚR", title: "Spotkanie online — przygotowanie materiałów", time: "9:00", type: "online", edition: 1 },
+  { id: 2, date: 23, month: "KWI", day: "CZ", title: "Dzień 1: Twój AI Team w Akcji", time: "9:00–15:00", type: "onsite", edition: 1 },
+  { id: 3, date: 24, month: "KWI", day: "PT", title: "Dzień 2: Zaawansowane AI + Automatyzacja", time: "9:00–15:00", type: "onsite", edition: 1 },
+  { id: 4, date: 25, month: "KWI", day: "SO", title: "Q&A Online", time: "9:00", type: "online", edition: 1 },
 ];
 
 const dayNames = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
@@ -125,7 +125,7 @@ export default function CalendarPage() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">Edycja #1</h3>
-                <p className="text-[10px] text-foreground/30">15–18 kwietnia 2026</p>
+                <p className="text-[10px] text-foreground/30">22–25 kwietnia 2026</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger-children">
