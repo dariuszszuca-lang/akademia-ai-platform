@@ -16,9 +16,34 @@ const navItems = [
 ];
 
 const quickActions = [
-  { name: "Otwórz Agenta", href: "/agent" },
-  { name: "Plan tygodnia", href: "/na-zywo" },
-  { name: "Ostatni program", href: "/programy" },
+  {
+    name: "Agent",
+    href: "/agent",
+    icon: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.091-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.091L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.091 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.091Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18.25 8.25 18 9.25l-.25-1a2 2 0 0 0-1.5-1.5l-1-.25 1-.25a2 2 0 0 0 1.5-1.5l.25-1 .25 1a2 2 0 0 0 1.5 1.5l1 .25-1 .25a2 2 0 0 0-1.5 1.5Z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Tydzień",
+    href: "/na-zywo",
+    icon: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25m10.5-2.25v2.25M4.5 8.25h15m-13.5 12h12A2.25 2.25 0 0 0 20.25 18V6.75A2.25 2.25 0 0 0 18 4.5H6A2.25 2.25 0 0 0 3.75 6.75V18A2.25 2.25 0 0 0 6 20.25Z" />
+      </svg>
+    ),
+  },
+  {
+    name: "Program",
+    href: "/programy",
+    icon: (
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5V6.75A2.25 2.25 0 0 1 6.75 4.5h10.5A2.25 2.25 0 0 1 19.5 6.75V19.5l-7.5-3-7.5 3Z" />
+      </svg>
+    ),
+  },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -44,11 +69,8 @@ export default function Navbar() {
                 AI
               </div>
               <div className="hidden min-w-0 sm:block">
-                <p className="text-[0.65rem] uppercase tracking-[0.26em] text-foreground/35">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/80">
                   Akademia AI
-                </p>
-                <p className="font-display text-lg leading-none text-foreground">
-                  Klub Wdrożeniowy
                 </p>
               </div>
             </Link>
@@ -125,28 +147,23 @@ export default function Navbar() {
         </div>
       </header>
 
-      <div className="fixed bottom-4 left-1/2 z-40 hidden w-[min(92vw,44rem)] -translate-x-1/2 lg:block">
-        <div className="flex items-center justify-between gap-3 rounded-full border border-border bg-[color:var(--card)] px-4 py-3 shadow-[var(--shadow-soft)] backdrop-blur-xl">
-          <div className="flex min-w-0 flex-col">
-            <span className="text-[0.65rem] uppercase tracking-[0.22em] text-foreground/35">
-              Szybkie wejścia
-            </span>
-            <span className="text-sm text-foreground/75">
-              Wejdź od razu tam, gdzie platforma ma dziś wartość.
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {quickActions.map((action) => (
-              <Link
-                key={action.href + action.name}
-                href={action.href}
-                className="rounded-full border border-border bg-background/60 px-4 py-2 text-sm text-foreground/70 transition-colors hover:text-foreground"
-              >
+      <div className="fixed bottom-6 right-6 z-40 hidden lg:block">
+        <div className="grid gap-2 rounded-2xl border border-border bg-[color:var(--card)] p-2 shadow-[var(--shadow-soft)] backdrop-blur-xl">
+          {quickActions.map((action) => (
+            <Link
+              key={action.href + action.name}
+              href={action.href}
+              title={action.name}
+              className="group flex h-11 w-11 items-center justify-center rounded-xl border border-transparent text-foreground/55 transition-all hover:w-28 hover:justify-start hover:border-border hover:bg-background/60 hover:px-3 hover:text-foreground"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/55 text-[color:var(--accent)]">
+                {action.icon}
+              </span>
+              <span className="ml-2 hidden text-sm font-medium group-hover:block">
                 {action.name}
-              </Link>
-            ))}
-          </div>
+              </span>
+            </Link>
+          ))}
         </div>
       </div>
     </>
