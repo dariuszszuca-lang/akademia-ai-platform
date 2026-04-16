@@ -275,7 +275,7 @@ export default function AgentPage() {
             <p className="eyebrow">Po co to jest</p>
             <h2 className="mt-3 font-display text-3xl text-foreground">Agent skraca drogę od intencji do gotowego outputu.</h2>
             <p className="mt-4 text-sm leading-7 text-foreground/62">
-              Dzięki temu platforma nie kończy się na materiałach i live'ach. Zamienia się w miejsce,
+              Dzięki temu platforma nie kończy się na materiałach i spotkaniach na żywo. Zamienia się w miejsce,
               gdzie po nauce od razu uruchamiasz realną produkcję treści, planów i workflowów.
             </p>
           </div>

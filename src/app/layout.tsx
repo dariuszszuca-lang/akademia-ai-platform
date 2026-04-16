@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-jakarta",
-  subsets: ["latin", "latin-ext"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: "100 900",
 });
 
-const fraunces = Fraunces({
+const display = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-display",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className={`${jakarta.variable} ${fraunces.variable} h-full`}>
+    <html lang="pl" className={`${jakarta.variable} ${display.variable} h-full`}>
       <body className="font-sans antialiased min-h-full flex flex-col bg-background text-foreground">
         {children}
       </body>
