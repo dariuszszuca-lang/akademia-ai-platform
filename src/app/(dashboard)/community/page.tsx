@@ -1,50 +1,83 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "@/lib/auth-context";
+import type { CommunityPost, PostCategory } from "@/lib/community-posts";
+import { categoryColors } from "@/lib/community-posts";
 
-type FeedItem = {
-  id: string;
-  type: "Sygnał" | "Wygrana" | "Materiał" | "Pytanie" | "Ogłoszenie";
-  author: string;
-  role: string;
-  title: string;
-  body: string;
-  replies?: number;
-  featured?: boolean;
-};
-
-const feed: FeedItem[] = [
-  {
-    id: "1",
-    type: "Ogłoszenie",
-    author: "Dariusz Szuca",
-    role: "Prowadzący",
-    title: "Spotkanie online w środę otwiera warsztaty Edycji 1",
-    body: "Link do Zoom dostaniecie mailem + w module Dzień 1. Przed spotkaniem domknij moduł Przygotowanie — wtedy środa wejdzie gładko.",
-    featured: true,
-  },
-  {
-    id: "2",
-    type: "Materiał",
-    author: "Dariusz Szuca",
-    role: "Prowadzący",
-    title: "Nowy playbook w Skarbcu: prompt pack dla agentów nieruchomości",
-    body: "Zebrane prompty do ofert, maili i przygotowania spotkań. Wejdź w Skarbiec jeśli chcesz już działać na realnych zadaniach.",
-  },
-  {
-    id: "3",
-    type: "Pytanie",
-    author: "Dariusz Szuca",
-    role: "Prowadzący",
-    title: "Jakie zadanie chcesz zautomatyzować jako pierwsze po warsztacie?",
-    body: "Zbierzmy konkretne przypadki użycia, żeby podczas live pracować na realnych procesach uczestników.",
-    replies: 6,
-  },
-];
+const categories: PostCategory[] = ["Wygrana", "Pytanie", "Materiał", "Ogłoszenie", "Dyskusja"];
 
 export default function CommunityPage() {
+  const { user } = useAuth();
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState<PostCategory | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSaving, setFormSaving] = useState(false);
+  const [formTitle, setFormTitle] = useState("");
+  const [formBody, setFormBody] = useState("");
+  const [activeFilter, setActiveFilter] = useState<PostCategory | "Wszystkie">("Wszystkie");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/community/posts", { cache: "no-store" });
+      const data = await res.json();
+      setPosts(data.posts ?? []);
+    } catch {
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!user || !formOpen) return;
+    setFormSaving(true);
+    setFormError(null);
+
+    try {
+      const res = await fetch("/api/community/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: formOpen,
+          title: formTitle,
+          body: formBody,
+          authorName: user.name,
+          authorEmail: user.email,
+          authorSub: user.sub,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Nie udało się opublikować");
+      }
+
+      setFormTitle("");
+      setFormBody("");
+      setFormOpen(null);
+      await load();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Błąd");
+    } finally {
+      setFormSaving(false);
+    }
+  }
+
+  const filtered =
+    activeFilter === "Wszystkie"
+      ? posts
+      : posts.filter((p) => p.category === activeFilter);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-10 animate-fade-in-up">
+    <div className="mx-auto max-w-3xl space-y-8 animate-fade-in-up">
       <header>
         <p className="eyebrow">Społeczność</p>
         <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
@@ -52,81 +85,204 @@ export default function CommunityPage() {
         </h1>
       </header>
 
-      <section className="flex flex-col items-start gap-4 rounded-[2rem] border border-border bg-[color:var(--card)] p-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      {/* Publish buttons */}
+      {user ? (
+        <section className="rounded-[2rem] border border-border bg-[color:var(--card)] p-6">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
-            Masz wygraną lub pytanie?
+            Dodaj post
           </p>
           <h2 className="mt-2 font-display text-lg text-foreground">
-            Napisz — odbierają wszyscy z edycji.
+            Podziel się wygraną, pytaniem lub materiałem.
           </h2>
-        </div>
-        <div className="flex gap-2">
-          <button className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition hover:opacity-90">
-            Wygrana
-          </button>
-          <button className="rounded-full border border-border bg-background/55 px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-foreground/40">
-            Pytanie
-          </button>
-        </div>
+
+          {!formOpen ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    setFormOpen(cat);
+                    setFormError(null);
+                  }}
+                  className="rounded-full border border-border bg-background/55 px-4 py-2 text-sm font-semibold text-foreground/80 transition hover:border-foreground/40"
+                  style={{ color: categoryColors[cat] }}
+                >
+                  + {cat}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="rounded-full border border-border bg-background/70 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em]"
+                  style={{ color: categoryColors[formOpen] }}
+                >
+                  {formOpen}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(null)}
+                  className="text-xs text-foreground/50 hover:text-foreground"
+                >
+                  Zmień kategorię
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder="Tytuł posta"
+                maxLength={200}
+                required
+                minLength={3}
+                className="w-full rounded-2xl border border-border bg-background/55 px-4 py-3 text-sm text-foreground placeholder:text-foreground/30 focus:border-foreground/40 focus:outline-none"
+              />
+              <textarea
+                value={formBody}
+                onChange={(e) => setFormBody(e.target.value)}
+                placeholder="O co chodzi?"
+                rows={4}
+                maxLength={5000}
+                required
+                minLength={5}
+                className="w-full rounded-2xl border border-border bg-background/55 px-4 py-3 text-sm text-foreground placeholder:text-foreground/30 focus:border-foreground/40 focus:outline-none"
+              />
+
+              {formError && (
+                <p className="text-xs text-red-500">{formError}</p>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={formSaving}
+                  className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {formSaving ? "Publikuję..." : "Opublikuj"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(null)}
+                  className="rounded-full border border-border bg-background/55 px-5 py-2.5 text-sm font-semibold text-foreground/70"
+                >
+                  Anuluj
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+      ) : (
+        <section className="rounded-[2rem] border border-dashed border-border bg-background/35 p-6 text-center text-sm text-foreground/55">
+          Zaloguj się, żeby dodawać posty.
+        </section>
+      )}
+
+      {/* Filters */}
+      <section className="flex flex-wrap gap-2">
+        <FilterChip label="Wszystkie" active={activeFilter === "Wszystkie"} onClick={() => setActiveFilter("Wszystkie")} />
+        {categories.map((cat) => (
+          <FilterChip
+            key={cat}
+            label={cat}
+            active={activeFilter === cat}
+            color={categoryColors[cat]}
+            onClick={() => setActiveFilter(cat)}
+          />
+        ))}
       </section>
 
+      {/* Feed */}
       <section>
-        <h2 className="mb-4 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
-          Ostatnie ruchy
-        </h2>
-        <div className="space-y-3">
-          {feed.map((item) => (
-            <FeedCard key={item.id} item={item} />
-          ))}
-        </div>
+        {loading ? (
+          <p className="text-sm text-foreground/50">Ładowanie...</p>
+        ) : filtered.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border bg-background/35 p-8 text-center text-sm text-foreground/50">
+            {activeFilter === "Wszystkie"
+              ? "Jeszcze nikt nic nie napisał. Bądź pierwszy."
+              : `Brak postów w kategorii ${activeFilter}.`}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
+        )}
       </section>
-
-      <div className="text-center">
-        <Link
-          href="/classroom"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/60 underline-offset-4 hover:underline"
-        >
-          Wróć do warsztatów →
-        </Link>
-      </div>
     </div>
   );
 }
 
-function FeedCard({ item }: { item: FeedItem }) {
+function FilterChip({
+  label,
+  active,
+  color,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  color?: string;
+  onClick: () => void;
+}) {
   return (
-    <article
-      className={`rounded-2xl border border-border p-5 ${
-        item.featured ? "bg-[color:var(--card)]" : "bg-background/55"
+    <button
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+        active
+          ? "bg-foreground text-background"
+          : "border border-border bg-background/55 text-foreground/60 hover:text-foreground"
       }`}
+      style={!active && color ? { color } : undefined}
     >
+      {label}
+    </button>
+  );
+}
+
+function PostCard({ post }: { post: CommunityPost }) {
+  const date = new Date(post.createdAt);
+  const ago = timeAgo(date);
+
+  return (
+    <article className="rounded-2xl border border-border bg-background/55 p-5">
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-accent">
-          {item.author.charAt(0)}
+          {post.author.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">
-            {item.author}
+            {post.author}
           </p>
-          <p className="truncate text-xs text-foreground/50">{item.role}</p>
+          <p className="truncate text-xs text-foreground/45">{ago}</p>
         </div>
-        <span className="shrink-0 rounded-full border border-border bg-background/70 px-3 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-foreground/55">
-          {item.type}
+        <span
+          className="shrink-0 rounded-full border border-border bg-background/70 px-3 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em]"
+          style={{ color: categoryColors[post.category] }}
+        >
+          {post.category}
         </span>
       </div>
 
       <h3 className="mt-4 text-base font-semibold leading-snug text-foreground">
-        {item.title}
+        {post.title}
       </h3>
-      <p className="mt-2 text-sm leading-6 text-foreground/60">{item.body}</p>
-
-      {item.replies !== undefined && (
-        <div className="mt-4 flex items-center gap-4 text-xs text-foreground/50">
-          <span>💬 {item.replies} odpowiedzi</span>
-          <button className="underline-offset-4 hover:underline">Dołącz do rozmowy</button>
-        </div>
-      )}
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground/65">
+        {post.body}
+      </p>
     </article>
   );
+}
+
+function timeAgo(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "teraz";
+  if (mins < 60) return `${mins} min temu`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h temu`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} dni temu`;
+  return date.toLocaleDateString("pl-PL", { day: "numeric", month: "long" });
 }

@@ -53,12 +53,21 @@ const quickActions = [
   },
 ];
 
+const pathAliases: Record<string, string[]> = {
+  "/programy": ["/programy", "/classroom"],
+  "/na-zywo": ["/na-zywo", "/calendar"],
+  "/spolecznosc": ["/spolecznosc", "/community"],
+  "/ludzie": ["/ludzie", "/members"],
+  "/o-akademii": ["/o-akademii", "/about"],
+};
+
 function isActivePath(pathname: string, href: string) {
   if (href === "/start") {
     return pathname === "/start";
   }
 
-  return pathname.startsWith(href);
+  const paths = pathAliases[href] ?? [href];
+  return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export default function Navbar() {
