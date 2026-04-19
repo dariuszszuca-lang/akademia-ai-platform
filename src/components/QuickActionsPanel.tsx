@@ -164,7 +164,7 @@ export default function QuickActionsPanel() {
             <button
               onClick={() => setForm({ kind: "create" })}
               title="Dodaj akcję"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-background/55 text-[color:var(--muted-gold)] transition hover:bg-background/80"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-background/55 text-[color:var(--muted-gold)] transition hover:bg-[color:var(--card-strong)]"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M12 3.75v16.5" />
@@ -332,7 +332,7 @@ function FormModal({
               onChange={(e) => setName(e.target.value)}
               required
               maxLength={40}
-              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-[color:var(--card-strong)] px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
             />
           </div>
 
@@ -344,7 +344,7 @@ function FormModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={80}
-              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-[color:var(--card-strong)] px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
             />
           </div>
 
@@ -356,7 +356,7 @@ function FormModal({
               value={href}
               onChange={(e) => setHref(e.target.value)}
               required
-              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 font-mono text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-[color:var(--card-strong)] px-3 py-2 font-mono text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
             />
           </div>
 
@@ -364,7 +364,7 @@ function FormModal({
             <label className="mb-2 block text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-foreground/50">
               Ikona
             </label>
-            <div className="grid grid-cols-8 gap-1.5 rounded-xl border border-border bg-background/80 p-2">
+            <div className="grid grid-cols-8 gap-1.5 rounded-xl border border-border bg-[color:var(--card-strong)] p-2">
               {iconKeys.map((key) => (
                 <button
                   key={key}
@@ -390,7 +390,7 @@ function FormModal({
             <select
               value={tone}
               onChange={(e) => setTone(e.target.value)}
-              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-[color:var(--card-strong)] px-3 py-2 text-sm text-foreground focus:border-foreground/40 focus:outline-none"
             >
               {toneOptions.map((t) => (
                 <option key={t.value} value={t.value}>
