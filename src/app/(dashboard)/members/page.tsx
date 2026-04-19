@@ -68,7 +68,7 @@ export default function MembersPage() {
             type="text"
             value={INVITE_LINK}
             readOnly
-            className="min-w-0 flex-1 rounded-full border border-border bg-background/55 px-4 py-2.5 text-xs text-foreground/60 focus:outline-none"
+            className="min-w-0 flex-1 rounded-full border border-border bg-background/70 px-4 py-2.5 font-mono text-xs text-foreground focus:outline-none"
             onClick={(e) => (e.target as HTMLInputElement).select()}
           />
           <button
