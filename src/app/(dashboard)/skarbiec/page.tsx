@@ -1,124 +1,92 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Course } from "@/data/modules";
 import { getEffectiveResources } from "@/lib/module-overrides";
 
 export const dynamic = "force-dynamic";
 
-const collections = [
+const sections: { title: string; description: string; categories: Course["category"][] }[] = [
   {
     title: "Skarbiec i replaye",
-    description: "Prompty, checklisty, poradniki, szablony, playbooki oraz archiwum Q&A.",
-    categories: ["Skarbiec"] as Course["category"][],
+    description: "Playbooki, checklisty, szablony i archiwum Q&A.",
+    categories: ["Skarbiec"],
   },
   {
     title: "Narzędzia",
-    description: "Claude, Gemini, NotebookLM, Lovable i Claude Code — z przykładami użycia.",
-    categories: ["Narzędzia"] as Course["category"][],
+    description: "Claude, Gemini, NotebookLM, Lovable, Claude Code — z przykładami użycia.",
+    categories: ["Narzędzia"],
   },
   {
     title: "Wejścia zewnętrzne",
-    description: "Dodatkowe narzędzia i zasoby, które rozszerzają pracę poza platformą.",
-    categories: ["Zewnętrzne"] as Course["category"][],
+    description: "Narzędzia poza platformą.",
+    categories: ["Zewnętrzne"],
   },
 ];
-
-function ResourceCard({ resource }: { resource: Course }) {
-  const content = (
-    <div className="group card-hover cursor-pointer relative overflow-hidden rounded-[1.75rem] border border-border bg-background/55 p-6">
-      {resource.image ? (
-        <div className="relative mb-5 h-36 overflow-hidden rounded-[1.3rem]">
-          <Image src={resource.image} alt={resource.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
-        </div>
-      ) : (
-        <div
-          className="absolute right-0 top-0 h-40 w-40 opacity-[0.08]"
-          style={{ background: `radial-gradient(circle, ${resource.accentColor} 0%, transparent 70%)` }}
-        />
-      )}
-
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-3">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-[1rem] text-sm font-extrabold"
-            style={{ background: `${resource.accentColor}18`, color: resource.accentColor }}
-          >
-            {resource.icon}
-          </div>
-          <span className="rounded-full border border-border bg-background/60 px-3 py-1 text-[0.68rem] uppercase tracking-[0.18em] text-foreground/42">
-            {resource.category}
-          </span>
-        </div>
-
-        <h3 className="mt-5 text-xl font-semibold text-foreground transition-colors group-hover:text-accent">
-          {resource.title}
-        </h3>
-        <p className="mt-3 text-sm leading-6 text-foreground/58">{resource.description}</p>
-
-        <div className="mt-5 flex items-center justify-between gap-4">
-          <span className="text-xs text-foreground/42">
-            {resource.external ? "Wejście zewnętrzne" : `${resource.lessons} lekcji`}
-          </span>
-          {resource.external && (
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--muted-gold)]">
-              Otwórz →
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (resource.external) {
-    return (
-      <a href={resource.external} target="_blank" rel="noopener noreferrer">
-        {content}
-      </a>
-    );
-  }
-
-  return <Link href={`/programy/${resource.id}`}>{content}</Link>;
-}
 
 export default async function SkarbiecPage() {
   const all = await getEffectiveResources();
   const items = all.filter((r) => r.enabled);
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <section className="section-shell rounded-[2rem] p-8 sm:p-10">
-        <div className="relative z-10 max-w-2xl">
-          <p className="eyebrow">Skarbiec</p>
-          <h1 className="display-title mt-4 text-5xl text-foreground sm:text-6xl">
-            Zasoby i narzędzia do codziennej pracy.
-          </h1>
-          <p className="mt-5 max-w-xl text-base leading-7 text-foreground/66 sm:text-lg">
-            Miejsce na wszystko, do czego wracasz po warsztatach — playbooki, checklisty, narzędzia i wejścia zewnętrzne.
-          </p>
-        </div>
-      </section>
+    <div className="mx-auto max-w-4xl space-y-10 animate-fade-in-up">
+      <header>
+        <p className="eyebrow">Skarbiec</p>
+        <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
+          Wszystko, do czego wracasz.
+        </h1>
+        <p className="mt-4 max-w-xl text-sm leading-6 text-foreground/60">
+          Miejsce na playbooki, narzędzia, replaye i wejścia zewnętrzne.
+        </p>
+      </header>
 
-      {collections.map((collection) => {
-        const sectionItems = items.filter((resource) => collection.categories.includes(resource.category));
+      {sections.map((section) => {
+        const sectionItems = items.filter((r) => section.categories.includes(r.category));
         if (!sectionItems.length) return null;
 
         return (
-          <section key={collection.title} className="section-shell rounded-[2rem] p-6 sm:p-8">
-            <div className="relative z-10">
-              <div className="mb-6">
-                <p className="eyebrow">{collection.title}</p>
-                <h2 className="mt-3 font-display text-3xl text-foreground">{collection.description}</h2>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                {sectionItems.map((resource) => (
-                  <ResourceCard key={resource.id} resource={resource} />
-                ))}
-              </div>
+          <section key={section.title}>
+            <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
+              {section.title}
+            </h2>
+            <p className="mt-1 text-sm text-foreground/55">{section.description}</p>
+            <div className="mt-4 space-y-2">
+              {sectionItems.map((resource) => (
+                <ResourceRow key={resource.id} resource={resource} />
+              ))}
             </div>
           </section>
         );
       })}
     </div>
   );
+}
+
+function ResourceRow({ resource }: { resource: Course }) {
+  const body = (
+    <div className="group flex items-start gap-4 rounded-2xl border border-border bg-background/55 px-5 py-4 transition hover:border-foreground/40">
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-extrabold"
+        style={{ background: `${resource.accentColor}18`, color: resource.accentColor }}
+      >
+        {resource.icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 className="truncate text-sm font-semibold text-foreground">{resource.title}</h3>
+        <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-foreground/55">
+          {resource.description}
+        </p>
+      </div>
+      <span className="shrink-0 self-center text-xs font-semibold uppercase tracking-[0.14em] text-foreground/40">
+        {resource.external ? "Otwórz ↗" : "Wejdź →"}
+      </span>
+    </div>
+  );
+
+  if (resource.external) {
+    return (
+      <a href={resource.external} target="_blank" rel="noopener noreferrer">
+        {body}
+      </a>
+    );
+  }
+  return <Link href={`/classroom/${resource.id}`}>{body}</Link>;
 }
