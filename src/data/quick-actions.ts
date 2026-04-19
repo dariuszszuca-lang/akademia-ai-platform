@@ -3,7 +3,7 @@ export type QuickAction = {
   name: string;
   note: string;
   href: string;
-  emoji: string;
+  emoji: string; // Icon key (np. "sparkles") lub legacy emoji znak (fallback)
   tone: string;
 };
 
@@ -13,7 +13,7 @@ export const defaultQuickActions: QuickAction[] = [
     name: "Agent",
     note: "Uruchom zadanie",
     href: "/agent",
-    emoji: "✨",
+    emoji: "sparkles",
     tone: "from-[color:var(--accent)] to-[color:var(--aqua)]",
   },
   {
@@ -21,7 +21,7 @@ export const defaultQuickActions: QuickAction[] = [
     name: "Tydzień",
     note: "Najbliższe live",
     href: "/na-zywo",
-    emoji: "📅",
+    emoji: "calendar",
     tone: "from-[color:var(--muted-gold)] to-[color:var(--copper)]",
   },
   {
@@ -29,7 +29,7 @@ export const defaultQuickActions: QuickAction[] = [
     name: "Warsztat",
     note: "Wróć do ścieżki",
     href: "/programy",
-    emoji: "🔖",
+    emoji: "bookmark",
     tone: "from-[color:var(--rose)] to-[color:var(--plum)]",
   },
 ];

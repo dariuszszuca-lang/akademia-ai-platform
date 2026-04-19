@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { defaultQuickActions, toneOptions, type QuickAction } from "@/data/quick-actions";
+import { Icon, iconKeys } from "./icons";
 
 type FormMode =
   | { kind: "closed" }
@@ -233,9 +234,9 @@ function ActionRow({
         className="flex items-center gap-3 rounded-2xl border border-transparent p-2 transition-all hover:border-border hover:bg-background/60"
       >
         <span
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${action.tone} text-xl text-white shadow-[0_12px_30px_-18px_rgba(0,0,0,0.65)]`}
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${action.tone} text-white shadow-[0_12px_30px_-18px_rgba(0,0,0,0.65)]`}
         >
-          {action.emoji}
+          <Icon name={action.emoji} fallback={action.emoji} className="h-5 w-5" />
         </span>
         <span className="min-w-0">
           <span className="block text-sm font-semibold leading-5 text-foreground">
@@ -283,7 +284,7 @@ function FormModal({
   const [name, setName] = useState(initial?.name ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [href, setHref] = useState(initial?.href ?? "/");
-  const [emoji, setEmoji] = useState(initial?.emoji ?? "✨");
+  const [emoji, setEmoji] = useState(initial?.emoji ?? "sparkles");
   const [tone, setTone] = useState(initial?.tone ?? toneOptions[0].value);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -331,7 +332,7 @@ function FormModal({
               onChange={(e) => setName(e.target.value)}
               required
               maxLength={40}
-              className="w-full rounded-xl border border-border bg-background/55 px-3 py-2 text-sm text-foreground focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
             />
           </div>
 
@@ -343,7 +344,7 @@ function FormModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={80}
-              className="w-full rounded-xl border border-border bg-background/55 px-3 py-2 text-sm text-foreground focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
             />
           </div>
 
@@ -355,38 +356,48 @@ function FormModal({
               value={href}
               onChange={(e) => setHref(e.target.value)}
               required
-              className="w-full rounded-xl border border-border bg-background/55 px-3 py-2 font-mono text-sm text-foreground focus:border-foreground/40 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 font-mono text-sm text-foreground placeholder:text-foreground/35 focus:border-foreground/40 focus:outline-none"
             />
           </div>
 
-          <div className="grid grid-cols-[1fr_2fr] gap-3">
-            <div>
-              <label className="mb-1 block text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-foreground/50">
-                Emoji
-              </label>
-              <input
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                maxLength={4}
-                className="w-full rounded-xl border border-border bg-background/55 px-3 py-2 text-center text-lg text-foreground focus:border-foreground/40 focus:outline-none"
-              />
+          <div>
+            <label className="mb-2 block text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-foreground/50">
+              Ikona
+            </label>
+            <div className="grid grid-cols-8 gap-1.5 rounded-xl border border-border bg-background/80 p-2">
+              {iconKeys.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setEmoji(key)}
+                  title={key}
+                  className={`flex h-9 items-center justify-center rounded-lg transition ${
+                    emoji === key
+                      ? "bg-foreground text-background"
+                      : "text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+                  }`}
+                >
+                  <Icon name={key} className="h-4 w-4" />
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="mb-1 block text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-foreground/50">
-                Gradient
-              </label>
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background/55 px-3 py-2 text-sm text-foreground focus:border-foreground/40 focus:outline-none"
-              >
-                {toneOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-foreground/50">
+              Gradient
+            </label>
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground focus:border-foreground/40 focus:outline-none"
+            >
+              {toneOptions.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="rounded-2xl border border-border bg-background/35 p-3">
@@ -395,9 +406,9 @@ function FormModal({
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-transparent p-2">
               <span
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tone} text-xl text-white shadow-[0_12px_30px_-18px_rgba(0,0,0,0.65)]`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tone} text-white shadow-[0_12px_30px_-18px_rgba(0,0,0,0.65)]`}
               >
-                {emoji || "✨"}
+                <Icon name={emoji} fallback={emoji} className="h-5 w-5" />
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold leading-5 text-foreground">
