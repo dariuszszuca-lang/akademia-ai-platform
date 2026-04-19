@@ -1,239 +1,150 @@
-"use client";
-
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
+import { getEffectiveModules, getEffectiveResources } from "@/lib/module-overrides";
 
-const priorities = [
-  {
-    label: "Najbliższe na żywo",
-    title: "Spotkanie online: przygotowanie do warsztatu",
-    meta: "15 kwietnia, 9:00",
-    href: "/na-zywo",
-  },
-  {
-    label: "Aktywny program",
-    title: "Przygotowanie przed warsztatem",
-    meta: "6 zadań do zamknięcia przed startem",
-    href: "/programy/przygotowanie",
-  },
-  {
-    label: "Polecany materiał",
-    title: "START TUTAJ",
-    meta: "Krótki moduł orientacyjny na wejście",
-    href: "/programy/start",
-  },
-];
+export const dynamic = "force-dynamic";
 
-const weeklyAgenda = [
-  {
-    day: "Środa",
-    title: "Spotkanie online i ustawienie kierunku tygodnia",
-    detail: "Checklisty, przygotowanie materiałów i pytania otwierające.",
-  },
-  {
-    day: "Czwartek",
-    title: "Dzień 1: Twój AI Team w Akcji",
-    detail: "Konfiguracja, styl pisania, rolki, posty i plan działań.",
-  },
-  {
-    day: "Piątek",
-    title: "Dzień 2: Automatyzacja i zaawansowane workflowy",
-    detail: "Skille, API, MCP, automatyzacje i certyfikacja.",
-  },
-  {
-    day: "Sobota",
-    title: "Sesja Q&A i domknięcie wdrożeń",
-    detail: "Replaye, odpowiedzi i kolejne kroki po warsztacie.",
-  },
-];
+export default async function StartPage() {
+  const [allModules, allResources] = await Promise.all([
+    getEffectiveModules(),
+    getEffectiveResources(),
+  ]);
 
-const unlocks = [
-  { type: "Nowe nagranie", title: "Replay: Konfiguracja AI Team", tone: "var(--accent)" },
-  { type: "Playbook", title: "Jak przygotować ofertę nieruchomości z AI", tone: "var(--muted-gold)" },
-  { type: "Case study", title: "Od pomysłu do publikacji w 30 minut", tone: "var(--rose)" },
-  { type: "Prompt pack", title: "Prompty do maili, postów i opisów ofert", tone: "var(--olive)" },
-];
+  const enabledModules = allModules.filter((m) => m.enabled && (m.items?.length ?? 0) > 0);
+  const continueModule = enabledModules.find((m) => m.id === "przygotowanie") ?? enabledModules[0];
+  const continueLesson = continueModule?.items?.[0];
 
-const conciergeActions = [
-  "Napisz ofertę sprzedażową",
-  "Przygotuj post i mail do bazy",
-  "Zaplanuj dzień pracy agenta",
-];
+  const enabledResources = allResources.filter((r) => r.enabled).slice(0, 3);
 
-export default function StartPage() {
-  const { user } = useAuth();
+  const nextLive =
+    enabledModules.find((m) => m.id === "dzien-1-online") ??
+    enabledModules.find((m) => m.id === "dzien-4-qa-online");
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <section className="premium-grid">
-        <div className="section-shell rounded-[2rem] p-8 sm:p-10">
-          <div className="relative z-10 max-w-2xl">
-            <p className="eyebrow">W środku Akademii AI</p>
-            <h1 className="display-title mt-4 text-5xl text-foreground sm:text-6xl">
-              Twoje centrum pracy z AI.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-foreground/68 sm:text-lg">
-              Tutaj widzisz, co jest najważniejsze dziś: program, spotkania na żywo,
-              nowe materiały i wejście do pracy z agentem.
-            </p>
+    <div className="mx-auto max-w-4xl space-y-10 animate-fade-in-up">
+      <header>
+        <p className="eyebrow">Akademia AI</p>
+        <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
+          Cześć. Zacznijmy od tego co najważniejsze.
+        </h1>
+      </header>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/programy"
-                className="rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background"
+      {continueModule && continueLesson ? (
+        <Link
+          href={`/classroom/${continueModule.id}?lesson=${continueLesson.id}`}
+          className="group block rounded-[2rem] border border-border bg-[color:var(--card)] p-8 transition hover:border-foreground/40 sm:p-10"
+        >
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p
+                className="text-[0.7rem] font-semibold uppercase tracking-[0.22em]"
+                style={{ color: continueModule.accentColor }}
               >
-                Kontynuuj program
-              </Link>
-              <Link
-                href="/agent"
-                className="rounded-full border border-border bg-background/60 px-6 py-3 text-sm font-semibold text-foreground"
-              >
-                Otwórz agenta
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <aside className="section-shell texture-dots rounded-[2rem] p-6 sm:p-7">
-          <div className="relative z-10 space-y-6">
-            <div>
-              <p className="eyebrow">Status tygodnia</p>
-              <h2 className="mt-3 font-display text-3xl text-foreground">
-                {user?.name ? `${user.name.split(" ")[0]}, jesteś w rytmie.` : "Jesteś w rytmie."}
-              </h2>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-border bg-background/50 p-5">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm text-foreground/45">Postęp programu</p>
-                  <p className="mt-2 text-4xl font-semibold text-foreground">24%</p>
-                </div>
-                <p className="text-sm text-foreground/45">Edycja 01</p>
-              </div>
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-light">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: "24%", background: "linear-gradient(90deg, var(--accent), var(--muted-gold))" }}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-[1.5rem] border border-border bg-background/50 p-4">
-                <p className="text-[0.7rem] uppercase tracking-[0.18em] text-foreground/35">
-                  Najbliższe spotkanie
-                </p>
-                <p className="mt-2 text-lg font-semibold text-foreground">Dziś, 9:00</p>
-                <p className="mt-1 text-sm text-foreground/55">Przygotowanie materiałów i kierunku pracy.</p>
-              </div>
-              <div className="rounded-[1.5rem] border border-border bg-background/50 p-4">
-                <p className="text-[0.7rem] uppercase tracking-[0.18em] text-foreground/35">
-                  Sygnał dnia
-                </p>
-                <p className="mt-2 text-lg font-semibold text-foreground">Nowy playbook w skarbcu</p>
-                <p className="mt-1 text-sm text-foreground/55">Prompt pack i szablony dla agentów nieruchomości.</p>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </section>
-
-      <section className="section-shell rounded-[2rem] p-6 sm:p-8">
-        <div className="relative z-10">
-          <div className="mb-6 flex items-end justify-between gap-4">
-            <div>
-              <p className="eyebrow">Najważniejsze teraz</p>
-              <h2 className="mt-3 font-display text-3xl text-foreground">Trzy wejścia, które prowadzą do wartości.</h2>
-            </div>
-            <Link href="/na-zywo" className="text-sm text-foreground/55 underline-offset-4 hover:underline">
-              Zobacz cały tydzień
-            </Link>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            {priorities.map((item, index) => (
-              <Link
-                key={item.title}
-                href={item.href}
-                className={`card-hover rounded-[1.75rem] border border-border p-6 ${
-                  index === 0 ? "bg-[linear-gradient(180deg,rgba(30,78,83,0.08),rgba(255,252,247,0.5))]" : "bg-background/55"
-                }`}
-              >
-                <p className="text-[0.72rem] uppercase tracking-[0.18em] text-foreground/35">{item.label}</p>
-                <h3 className="mt-4 text-xl font-semibold text-foreground">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-foreground/58">{item.meta}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <div className="section-shell rounded-[2rem] p-6 sm:p-8">
-          <div className="relative z-10">
-            <p className="eyebrow">Ten tydzień</p>
-            <h2 className="mt-3 font-display text-3xl text-foreground">Rytm pracy wewnątrz platformy.</h2>
-
-            <div className="mt-8 space-y-4">
-              {weeklyAgenda.map((item) => (
-                <div key={item.day} className="rounded-[1.5rem] border border-border bg-background/55 p-5">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-gold)]">
-                      {item.day}
-                    </p>
-                    <div className="max-w-xl">
-                      <h3 className="text-lg font-semibold text-foreground">{item.title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-foreground/56">{item.detail}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <section className="section-shell rounded-[2rem] p-6 sm:p-8">
-            <div className="relative z-10">
-              <p className="eyebrow">Nowe w skarbcu</p>
-              <h2 className="mt-3 font-display text-3xl text-foreground">Świeżo odblokowane materiały.</h2>
-
-              <div className="mt-6 grid gap-3">
-                {unlocks.map((item) => (
-                  <div key={item.title} className="rounded-[1.4rem] border border-border bg-background/55 p-4">
-                    <p className="text-[0.72rem] uppercase tracking-[0.18em]" style={{ color: item.tone }}>
-                      {item.type}
-                    </p>
-                    <p className="mt-2 text-base font-semibold text-foreground">{item.title}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="section-shell rounded-[2rem] p-6 sm:p-8">
-            <div className="relative z-10">
-              <p className="eyebrow">Wynajmij agenta</p>
-              <h2 className="mt-3 font-display text-3xl text-foreground">Uruchom realną pracę, nie tylko naukę.</h2>
-              <p className="mt-3 text-sm leading-6 text-foreground/58">
-                Zamiast pustego czatu zacznij od gotowych akcji, które od razu prowadzą do wyniku.
+                Kontynuuj
               </p>
-
-              <div className="mt-5 space-y-3">
-                {conciergeActions.map((action) => (
-                  <button
-                    key={action}
-                    className="w-full rounded-[1.25rem] border border-border bg-background/60 px-4 py-4 text-left text-sm font-medium text-foreground transition-colors hover:border-foreground/20"
-                  >
-                    {action}
-                  </button>
-                ))}
-              </div>
+              <h2 className="mt-3 font-display text-3xl text-foreground">
+                {continueLesson.title}
+              </h2>
+              <p className="mt-2 text-sm text-foreground/55">
+                {continueModule.title}
+                {continueLesson.duration && ` · ${continueLesson.duration} min`}
+              </p>
             </div>
-          </section>
+            <div className="shrink-0">
+              <span className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition group-hover:opacity-90">
+                Wejdź
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </span>
+            </div>
+          </div>
+        </Link>
+      ) : (
+        <div className="rounded-[2rem] border border-dashed border-border bg-background/35 p-8 text-center">
+          <p className="text-sm text-foreground/60">
+            Moduły zostaną otwarte przez prowadzącego w odpowiednim momencie.
+          </p>
         </div>
-      </section>
+      )}
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        {nextLive && (
+          <section className="rounded-[2rem] border border-border bg-background/55 p-6">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
+              Na żywo
+            </p>
+            <h3 className="mt-3 font-display text-xl text-foreground">
+              {nextLive.title}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-foreground/55">{nextLive.description}</p>
+            {nextLive.meta && (
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--muted-gold)]">
+                {nextLive.meta}
+              </p>
+            )}
+            <Link
+              href="/na-zywo"
+              className="mt-4 inline-block text-sm font-semibold text-foreground/80 underline-offset-4 hover:underline"
+            >
+              Kalendarz →
+            </Link>
+          </section>
+        )}
+
+        {enabledResources.length > 0 && (
+          <section className="rounded-[2rem] border border-border bg-background/55 p-6">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
+              Skarbiec — najnowsze
+            </p>
+            <ul className="mt-4 space-y-3">
+              {enabledResources.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={r.external ?? `/skarbiec`}
+                    target={r.external ? "_blank" : undefined}
+                    rel={r.external ? "noopener noreferrer" : undefined}
+                    className="flex items-start gap-3 text-sm text-foreground/75 hover:text-foreground"
+                  >
+                    <span
+                      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-extrabold"
+                      style={{
+                        background: `${r.accentColor}18`,
+                        color: r.accentColor,
+                      }}
+                    >
+                      {r.icon}
+                    </span>
+                    <span className="flex-1 leading-snug">{r.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/skarbiec"
+              className="mt-4 inline-block text-sm font-semibold text-foreground/80 underline-offset-4 hover:underline"
+            >
+              Cały skarbiec →
+            </Link>
+          </section>
+        )}
+      </div>
+
+      <div className="flex flex-col items-start gap-4 rounded-[2rem] border border-border bg-[color:var(--card)] p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
+            Twój asystent
+          </p>
+          <h3 className="mt-2 font-display text-xl text-foreground">
+            Pracuj z AI przy codziennych zadaniach.
+          </h3>
+        </div>
+        <Link
+          href="/agent"
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-background/55 px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-foreground/40"
+        >
+          Otwórz Agenta →
+        </Link>
+      </div>
     </div>
   );
 }
