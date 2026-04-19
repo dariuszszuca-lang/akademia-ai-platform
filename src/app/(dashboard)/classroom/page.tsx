@@ -1,121 +1,20 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
+import { modules, type Course } from "@/data/modules";
+import { getEffectiveModules } from "@/lib/module-overrides";
 
-type Course = {
-  id: string;
-  title: string;
-  description: string;
-  progress: number;
-  accentColor: string;
-  icon: string;
-  lessons: number;
-  category: "Start" | "Program główny" | "Skarbiec" | "Narzędzia" | "Zewnętrzne";
-  locked?: boolean;
-  external?: string;
-  image?: string;
-};
-
-const courses: Course[] = [
-  {
-    id: "start",
-    title: "Start tutaj",
-    description: "Powitanie, orientacja i pierwszy rytm pracy wewnątrz platformy.",
-    progress: 0,
-    accentColor: "#576150",
-    icon: "01",
-    lessons: 3,
-    category: "Start",
-  },
-  {
-    id: "przygotowanie",
-    title: "Przygotowanie przed warsztatem",
-    description: "Profil przedsiębiorcy, persony, oferta, konfiguracja kont AI i pobranie asystentów.",
-    progress: 0,
-    accentColor: "#b28a52",
-    icon: "02",
-    lessons: 6,
-    category: "Program główny",
-  },
-  {
-    id: "dzien-1",
-    title: "Dzień 1: Twój AI Team w akcji",
-    description: "Konfiguracja, styl pisania, wideo, posty, narzędzia agenta i plan działania.",
-    progress: 0,
-    accentColor: "#1e4e53",
-    icon: "03",
-    lessons: 7,
-    category: "Program główny",
-  },
-  {
-    id: "dzien-2",
-    title: "Dzień 2: Automatyzacja i zaawansowane workflowy",
-    description: "Instalacja lokalna, skille, API, MCP, automatyzacje, integracje i certyfikacja.",
-    progress: 0,
-    accentColor: "#b96d5d",
-    icon: "04",
-    lessons: 7,
-    category: "Program główny",
-  },
-  {
-    id: "nagrania-qa",
-    title: "Nagrania Q&A",
-    description: "Archiwum sesji Q&A z sobót i odpowiedzi na pytania pojawiające się po warsztatach.",
-    progress: 0,
-    accentColor: "#7c5d99",
-    icon: "05",
-    lessons: 1,
-    category: "Skarbiec",
-  },
-  {
-    id: "rct",
-    title: "Rejestr cen transakcyjnych",
-    description: "Darmowy dostęp do rzeczywistych cen nieruchomości z aktów notarialnych.",
-    progress: 0,
-    accentColor: "#8d6170",
-    icon: "06",
-    lessons: 0,
-    external: "https://rejestrcentransakcyjnych.pl",
-    category: "Zewnętrzne",
-  },
-  {
-    id: "biblioteka",
-    title: "Skarbiec zasobów",
-    description: "Prompty, checklisty, poradniki, szablony i playbooki do wykorzystania w pracy.",
-    progress: 0,
-    accentColor: "#3b7d78",
-    icon: "07",
-    lessons: 11,
-    category: "Skarbiec",
-  },
-  {
-    id: "narzedzia",
-    title: "Narzędzia AI",
-    description: "Claude, Gemini, NotebookLM, Lovable i Claude Code z przykładami użycia.",
-    progress: 0,
-    accentColor: "#5d7a62",
-    icon: "08",
-    lessons: 5,
-    category: "Narzędzia",
-  },
-];
+export const dynamic = "force-dynamic";
 
 const collections = [
   {
-    title: "Program główny",
-    description: "Rdzeń transformacji: przygotowanie, dwa dni warsztatowe i przejście do praktyki.",
-    categories: ["Start", "Program główny"] as Course["category"][],
+    title: "Start",
+    description: "Wejście do platformy i przygotowanie przed warsztatami stacjonarnymi.",
+    categories: ["Start"] as Course["category"][],
   },
   {
-    title: "Skarbiec i replaye",
-    description: "Materiały, do których wracasz po live'ach, kiedy chcesz utrwalić albo odtworzyć proces.",
-    categories: ["Skarbiec", "Narzędzia"] as Course["category"][],
-  },
-  {
-    title: "Wejścia zewnętrzne",
-    description: "Dodatkowe narzędzia i zasoby, które rozszerzają pracę poza samą platformą.",
-    categories: ["Zewnętrzne"] as Course["category"][],
+    title: "Warsztaty",
+    description: "Cztery dni pracy: spotkanie online, dwa dni stacjonarne, sesja Q&A online.",
+    categories: ["Warsztaty"] as Course["category"][],
   },
 ];
 
@@ -157,6 +56,12 @@ function CourseCard({ course, featured = false }: { course: Course; featured?: b
         </h3>
         <p className="mt-3 text-sm leading-6 text-foreground/58">{course.description}</p>
 
+        {course.meta && (
+          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--muted-gold)]">
+            {course.meta}
+          </p>
+        )}
+
         <div className="mt-5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-light">
@@ -170,7 +75,9 @@ function CourseCard({ course, featured = false }: { course: Course; featured?: b
             </div>
             <span className="text-xs text-foreground/42">{course.progress}%</span>
           </div>
-          <span className="text-xs text-foreground/35">{course.lessons > 0 ? `${course.lessons} lekcji` : "Wejście zewnętrzne"}</span>
+          <span className="text-xs text-foreground/35">
+            {course.lessons > 0 ? `${course.lessons} lekcji` : "Wejście zewnętrzne"}
+          </span>
         </div>
       </div>
     </div>
@@ -187,51 +94,58 @@ function CourseCard({ course, featured = false }: { course: Course; featured?: b
   return <Link href={`/programy/${course.id}`}>{content}</Link>;
 }
 
-export default function ClassroomPage() {
+export default async function ClassroomPage() {
+  const all = await getEffectiveModules();
+  const visible = all.filter((m) => m.enabled);
+  const featured = visible.find((m) => m.id === "przygotowanie") ?? visible[0];
+  const hiddenCount = modules.length - visible.length;
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <section className="premium-grid">
         <div className="section-shell rounded-[2rem] p-8 sm:p-10">
           <div className="relative z-10 max-w-2xl">
-            <p className="eyebrow">Programy</p>
+            <p className="eyebrow">Warsztaty</p>
             <h1 className="display-title mt-4 text-5xl text-foreground sm:text-6xl">
-              Ścieżki pracy i wdrożeń.
+              Cztery dni pracy nad Twoim AI.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-foreground/66 sm:text-lg">
-              Każdy program ma prowadzić do konkretnego rezultatu: od przygotowania, przez warsztaty,
-              po skarbiec materiałów i narzędzi do codziennej pracy.
+              Spotkanie online, dwa dni warsztatów stacjonarnych i sesja Q&A. Każdy moduł otwiera się w odpowiednim momencie.
             </p>
           </div>
         </div>
 
-        <aside className="section-shell rounded-[2rem] p-6 sm:p-7">
-          <div className="relative z-10 space-y-4">
-            <div>
-              <p className="eyebrow">Aktualna ścieżka</p>
-              <h2 className="mt-3 font-display text-3xl text-foreground">Przygotowanie przed warsztatem.</h2>
+        {featured && (
+          <aside className="section-shell rounded-[2rem] p-6 sm:p-7">
+            <div className="relative z-10 space-y-4">
+              <div>
+                <p className="eyebrow">Aktualny moduł</p>
+                <h2 className="mt-3 font-display text-3xl text-foreground">{featured.title}.</h2>
+              </div>
+              <div className="rounded-[1.5rem] border border-border bg-background/55 p-5">
+                <p className="text-sm font-semibold text-foreground">
+                  {featured.lessons > 0 ? `${featured.lessons} lekcji` : "Otwierane przez prowadzącego"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-foreground/58">{featured.description}</p>
+              </div>
             </div>
-            <div className="rounded-[1.5rem] border border-border bg-background/55 p-5">
-              <p className="text-sm font-semibold text-foreground">6 zadań do zamknięcia</p>
-              <p className="mt-2 text-sm leading-6 text-foreground/58">
-                Profil przedsiębiorcy, persony, oferta, konfiguracja kont i pobranie asystentów.
-              </p>
-            </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </section>
 
-      <section className="section-shell rounded-[2rem] p-6 sm:p-8">
-        <div className="relative z-10">
-          <p className="eyebrow">Polecane wejście</p>
-          <div className="mt-4">
-            <CourseCard course={courses[1]} featured />
+      {featured && (
+        <section className="section-shell rounded-[2rem] p-6 sm:p-8">
+          <div className="relative z-10">
+            <p className="eyebrow">Polecane wejście</p>
+            <div className="mt-4">
+              <CourseCard course={featured} featured />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {collections.map((collection) => {
-        const items = courses.filter((course) => collection.categories.includes(course.category));
-
+        const items = visible.filter((course) => collection.categories.includes(course.category));
         if (!items.length) return null;
 
         return (
@@ -251,6 +165,20 @@ export default function ClassroomPage() {
           </section>
         );
       })}
+
+      {hiddenCount > 0 && (
+        <section className="section-shell rounded-[2rem] border border-dashed border-border bg-background/35 p-6 sm:p-8">
+          <div className="relative z-10">
+            <p className="eyebrow">Wkrótce</p>
+            <h2 className="mt-3 font-display text-2xl text-foreground/70">
+              Kolejne moduły zostaną otwarte w odpowiednim momencie.
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-foreground/50">
+              Prowadzący odblokowuje moduły podczas warsztatów. Zostaniesz powiadomiony, kiedy pojawią się kolejne.
+            </p>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

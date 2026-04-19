@@ -7,7 +7,8 @@ import { useTheme } from "@/lib/theme-context";
 
 const navItems = [
   { name: "Start", href: "/start" },
-  { name: "Programy", href: "/programy" },
+  { name: "Warsztaty", href: "/programy" },
+  { name: "Skarbiec", href: "/skarbiec" },
   { name: "Na żywo", href: "/na-zywo" },
   { name: "Agent", href: "/agent" },
   { name: "Społeczność", href: "/spolecznosc" },
@@ -40,7 +41,7 @@ const quickActions = [
     ),
   },
   {
-    name: "Program",
+    name: "Warsztat",
     note: "Wróć do ścieżki",
     href: "/programy",
     tone: "from-[color:var(--rose)] to-[color:var(--plum)]",
@@ -199,7 +200,7 @@ export default function Navbar() {
               Dzisiaj
             </p>
             <p className="mt-1 text-sm leading-5 text-foreground/70">
-              Program, live i agent są pod ręką.
+              Warsztat, live i agent są pod ręką.
             </p>
           </div>
         </div>
