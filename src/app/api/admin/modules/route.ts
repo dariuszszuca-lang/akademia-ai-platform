@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/admin-auth";
 import {
+  getEffectiveAgents,
   getEffectiveModules,
   getEffectiveResources,
   setOverride,
@@ -14,14 +15,16 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [modules, resources] = await Promise.all([
+  const [modules, resources, agents] = await Promise.all([
     getEffectiveModules(),
     getEffectiveResources(),
+    getEffectiveAgents(),
   ]);
 
   return NextResponse.json({
     modules,
     resources,
+    agents,
     kv: kvStatus(),
   });
 }

@@ -1,6 +1,7 @@
 import { kv } from "@vercel/kv";
 import { modules, type Course } from "@/data/modules";
 import { resources } from "@/data/resources";
+import { agents, type Agent } from "@/data/agents";
 
 export type ModuleOverride = { enabled: boolean };
 
@@ -17,7 +18,11 @@ export async function getOverrides(): Promise<Record<string, ModuleOverride>> {
   if (!isKvConfigured()) return {};
 
   try {
-    const allIds = [...modules, ...resources].map((item) => item.id);
+    const allIds = [
+      ...modules.map((m) => m.id),
+      ...resources.map((r) => r.id),
+      ...agents.map((a) => `agent:${a.id}`),
+    ];
     const keys = allIds.map((id) => `${KV_KEY_PREFIX}${id}`);
     const values = await kv.mget<Array<ModuleOverride | null>>(...keys);
 
@@ -51,6 +56,17 @@ export function applyOverrides<T extends Course>(
   });
 }
 
+export function applyAgentOverrides(
+  list: Agent[],
+  overrides: Record<string, ModuleOverride>,
+): Agent[] {
+  return list.map((agent) => {
+    const override = overrides[`agent:${agent.id}`];
+    if (!override) return agent;
+    return { ...agent, enabled: override.enabled };
+  });
+}
+
 export async function getEffectiveModules(): Promise<Course[]> {
   const overrides = await getOverrides();
   return applyOverrides(modules, overrides);
@@ -59,6 +75,11 @@ export async function getEffectiveModules(): Promise<Course[]> {
 export async function getEffectiveResources(): Promise<Course[]> {
   const overrides = await getOverrides();
   return applyOverrides(resources, overrides);
+}
+
+export async function getEffectiveAgents(): Promise<Agent[]> {
+  const overrides = await getOverrides();
+  return applyAgentOverrides(agents, overrides);
 }
 
 export function kvStatus() {

@@ -3,10 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Course } from "@/data/modules";
+import type { Agent } from "@/data/agents";
+
+type AdminItem = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  icon: string;
+  accentColor: string;
+  enabled: boolean;
+};
 
 type ApiResponse = {
   modules: Course[];
   resources: Course[];
+  agents: Agent[];
   kv: { configured: boolean };
 };
 
@@ -56,11 +68,15 @@ export default function AdminDashboard({ kv }: { kv: { configured: boolean } }) 
 
       setData((prev) => {
         if (!prev) return prev;
-        const mapItem = (item: Course) => (item.id === id ? { ...item, enabled: next } : item);
+        const isAgent = id.startsWith("agent:");
+        const agentId = isAgent ? id.slice("agent:".length) : null;
+        const mapCourse = (item: Course) => (item.id === id ? { ...item, enabled: next } : item);
+        const mapAgent = (a: Agent) => (a.id === agentId ? { ...a, enabled: next } : a);
         return {
           ...prev,
-          modules: prev.modules.map(mapItem),
-          resources: prev.resources.map(mapItem),
+          modules: prev.modules.map(mapCourse),
+          resources: prev.resources.map(mapCourse),
+          agents: prev.agents.map(mapAgent),
         };
       });
       setSuccess(`Zapisano: ${id} = ${next ? "włączony" : "wyłączony"}`);
@@ -121,14 +137,29 @@ export default function AdminDashboard({ kv }: { kv: { configured: boolean } }) 
           <Section
             title="Warsztaty"
             description="Moduły warsztatowe — włączaj w odpowiednim momencie."
-            items={data.modules}
+            items={data.modules.map(courseToItem)}
             updatingId={updating}
             onToggle={toggle}
           />
           <Section
             title="Skarbiec"
             description="Zasoby i narzędzia dodatkowe."
-            items={data.resources}
+            items={data.resources.map(courseToItem)}
+            updatingId={updating}
+            onToggle={toggle}
+          />
+          <Section
+            title="Agenci"
+            description="Wyspecjalizowani agenci dla różnych domen (faza testów)."
+            items={data.agents.map((a) => ({
+              id: `agent:${a.id}`,
+              title: a.name,
+              description: `${a.tagline} · ${a.tools.length} narzędzi`,
+              category: "Agent",
+              icon: a.icon,
+              accentColor: a.color,
+              enabled: a.enabled,
+            }))}
             updatingId={updating}
             onToggle={toggle}
           />
@@ -136,6 +167,18 @@ export default function AdminDashboard({ kv }: { kv: { configured: boolean } }) 
       )}
     </div>
   );
+}
+
+function courseToItem(c: Course): AdminItem {
+  return {
+    id: c.id,
+    title: c.title,
+    description: c.description,
+    category: c.category,
+    icon: c.icon,
+    accentColor: c.accentColor,
+    enabled: c.enabled,
+  };
 }
 
 function Section({
@@ -147,7 +190,7 @@ function Section({
 }: {
   title: string;
   description: string;
-  items: Course[];
+  items: AdminItem[];
   updatingId: string | null;
   onToggle: (id: string, next: boolean) => void;
 }) {
