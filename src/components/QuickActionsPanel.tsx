@@ -9,46 +9,157 @@ type FormMode =
   | { kind: "create" }
   | { kind: "edit"; action: QuickAction };
 
+const LOCAL_KEY = "akademia-quick-actions";
+
+function loadLocalActions(): QuickAction[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalActions(list: QuickAction[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
+}
+
+function clearLocalActions() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(LOCAL_KEY);
+}
+
+function newId() {
+  return `qa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export default function QuickActionsPanel() {
   const [actions, setActions] = useState<QuickAction[]>(defaultQuickActions);
   const [isAdmin, setIsAdmin] = useState(false);
   const [form, setForm] = useState<FormMode>({ kind: "closed" });
+  const [hasLocal, setHasLocal] = useState(false);
 
   useEffect(() => {
-    fetch("/api/quick-actions")
-      .then((r) => r.json())
-      .then((d) => Array.isArray(d.actions) && setActions(d.actions))
-      .catch(() => {});
-
     fetch("/api/admin/status")
       .then((r) => r.json())
-      .then((d) => setIsAdmin(Boolean(d.admin)))
+      .then(async (d) => {
+        const admin = Boolean(d.admin);
+        setIsAdmin(admin);
+
+        if (admin) {
+          const res = await fetch("/api/quick-actions", { cache: "no-store" });
+          const data = await res.json();
+          if (Array.isArray(data.actions)) setActions(data.actions);
+        } else {
+          const local = loadLocalActions();
+          if (local) {
+            setActions(local);
+            setHasLocal(true);
+          } else {
+            const res = await fetch("/api/quick-actions", { cache: "no-store" });
+            const data = await res.json();
+            if (Array.isArray(data.actions)) setActions(data.actions);
+          }
+        }
+      })
       .catch(() => {});
   }, []);
 
-  async function reload() {
+  async function reloadAdmin() {
     const res = await fetch("/api/quick-actions", { cache: "no-store" });
     const data = await res.json();
     if (Array.isArray(data.actions)) setActions(data.actions);
   }
 
+  function persistUserChanges(next: QuickAction[]) {
+    saveLocalActions(next);
+    setActions(next);
+    setHasLocal(true);
+  }
+
+  async function addAction(data: Omit<QuickAction, "id">) {
+    if (isAdmin) {
+      const res = await fetch("/api/admin/quick-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Nie udało się zapisać");
+      }
+      await reloadAdmin();
+    } else {
+      const next = [...actions, { ...data, id: newId() }];
+      persistUserChanges(next);
+    }
+  }
+
+  async function updateAction(id: string, data: Omit<QuickAction, "id">) {
+    if (isAdmin) {
+      const res = await fetch("/api/admin/quick-actions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...data }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Nie udało się zapisać");
+      }
+      await reloadAdmin();
+    } else {
+      const next = actions.map((a) => (a.id === id ? { ...a, ...data } : a));
+      persistUserChanges(next);
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm("Usunąć tę akcję?")) return;
-    await fetch(`/api/admin/quick-actions?id=${id}`, { method: "DELETE" });
-    await reload();
+    if (isAdmin) {
+      await fetch(`/api/admin/quick-actions?id=${id}`, { method: "DELETE" });
+      await reloadAdmin();
+    } else {
+      const next = actions.filter((a) => a.id !== id);
+      persistUserChanges(next);
+    }
+  }
+
+  async function resetToDefaults() {
+    if (!confirm("Przywrócić domyślne akcje? Twoje zmiany zostaną usunięte.")) return;
+    clearLocalActions();
+    setHasLocal(false);
+    const res = await fetch("/api/quick-actions", { cache: "no-store" });
+    const data = await res.json();
+    setActions(Array.isArray(data.actions) ? data.actions : defaultQuickActions);
   }
 
   return (
     <div className="fixed right-6 top-1/2 z-40 hidden -translate-y-1/2 xl:block">
       <div className="w-60 rounded-[28px] border border-border bg-[color:var(--card)] p-3 shadow-[var(--shadow-soft)] backdrop-blur-xl">
-        <div className="mb-3 flex items-start justify-between px-2 pt-1">
-          <div>
+        <div className="mb-3 flex items-start justify-between gap-2 px-2 pt-1">
+          <div className="min-w-0">
             <p className="text-[0.62rem] uppercase tracking-[0.22em] text-foreground/35">
-              Centrum
+              {isAdmin ? "Admin · globalne" : "Twoja"}
             </p>
             <p className="mt-1 text-sm font-semibold text-foreground/80">Szybka praca</p>
           </div>
-          {isAdmin && (
+          <div className="flex shrink-0 gap-1">
+            {!isAdmin && hasLocal && (
+              <button
+                onClick={resetToDefaults}
+                title="Przywróć domyślne"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-background/55 text-foreground/60 transition hover:text-foreground"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => setForm({ kind: "create" })}
               title="Dodaj akcję"
@@ -58,7 +169,7 @@ export default function QuickActionsPanel() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M12 3.75v16.5" />
               </svg>
             </button>
-          )}
+          </div>
         </div>
 
         <div className="grid gap-2">
@@ -66,14 +177,13 @@ export default function QuickActionsPanel() {
             <ActionRow
               key={action.id}
               action={action}
-              isAdmin={isAdmin}
               onEdit={() => setForm({ kind: "edit", action })}
               onDelete={() => remove(action.id)}
             />
           ))}
           {actions.length === 0 && (
             <p className="px-2 py-4 text-center text-xs text-foreground/40">
-              Brak akcji.{isAdmin && " Kliknij +, żeby dodać."}
+              Brak akcji. Kliknij +, żeby dodać.
             </p>
           )}
         </div>
@@ -92,8 +202,12 @@ export default function QuickActionsPanel() {
         <FormModal
           mode={form}
           onClose={() => setForm({ kind: "closed" })}
-          onSaved={async () => {
-            await reload();
+          onSubmit={async (data) => {
+            if (form.kind === "edit") {
+              await updateAction(form.action.id, data);
+            } else {
+              await addAction(data);
+            }
             setForm({ kind: "closed" });
           }}
         />
@@ -104,12 +218,10 @@ export default function QuickActionsPanel() {
 
 function ActionRow({
   action,
-  isAdmin,
   onEdit,
   onDelete,
 }: {
   action: QuickAction;
-  isAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -134,28 +246,26 @@ function ActionRow({
           </span>
         </span>
       </Link>
-      {isAdmin && (
-        <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            onClick={onEdit}
-            title="Edytuj"
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-[color:var(--card)] text-foreground/70 hover:text-foreground"
-          >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-            </svg>
-          </button>
-          <button
-            onClick={onDelete}
-            title="Usuń"
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-[color:var(--card)] text-red-500 hover:text-red-600"
-          >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          onClick={onEdit}
+          title="Edytuj"
+          className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-[color:var(--card)] text-foreground/70 hover:text-foreground"
+        >
+          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+          </svg>
+        </button>
+        <button
+          onClick={onDelete}
+          title="Usuń"
+          className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-[color:var(--card)] text-red-500 hover:text-red-600"
+        >
+          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
@@ -163,11 +273,11 @@ function ActionRow({
 function FormModal({
   mode,
   onClose,
-  onSaved,
+  onSubmit,
 }: {
   mode: Exclude<FormMode, { kind: "closed" }>;
   onClose: () => void;
-  onSaved: () => void;
+  onSubmit: (data: Omit<QuickAction, "id">) => Promise<void>;
 }) {
   const initial = mode.kind === "edit" ? mode.action : null;
   const [name, setName] = useState(initial?.name ?? "");
@@ -182,26 +292,8 @@ function FormModal({
     e.preventDefault();
     setSaving(true);
     setErr(null);
-
     try {
-      const isEdit = mode.kind === "edit";
-      const res = await fetch("/api/admin/quick-actions", {
-        method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: isEdit ? mode.action.id : undefined,
-          name,
-          note,
-          href,
-          emoji,
-          tone,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Nie udało się zapisać");
-      }
-      onSaved();
+      await onSubmit({ name, note, href, emoji, tone });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Błąd");
       setSaving(false);
@@ -297,7 +389,6 @@ function FormModal({
             </div>
           </div>
 
-          {/* Preview */}
           <div className="rounded-2xl border border-border bg-background/35 p-3">
             <p className="mb-2 text-[0.6rem] uppercase tracking-[0.16em] text-foreground/40">
               Podgląd
