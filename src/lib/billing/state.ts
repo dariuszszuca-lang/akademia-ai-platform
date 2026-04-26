@@ -46,7 +46,11 @@ export async function getSubscriptionForUser(userId: string): Promise<UserSubscr
 }
 
 /**
- * Zwraca aktualny plan ID. Jeśli trial wygasł lub status nieaktywny, traktuje jako 'trial expired'.
+ * Zwraca aktualny plan ID.
+ *
+ * GATE BYPASS: jeśli STRIPE_SECRET_KEY nie skonfigurowane (faza testowa Wojtka),
+ * traktujemy każdego usera jak Pro (active=true, ragLegal+pathA dostępne).
+ * Po włączeniu Stripe gates aktywują się automatycznie.
  */
 export async function getEffectivePlan(): Promise<{
   plan: PlanId | 'expired'
@@ -54,6 +58,10 @@ export async function getEffectivePlan(): Promise<{
   sub: UserSubscription
 }> {
   const sub = await getUserSubscription()
+  const stripeReady = Boolean(process.env.STRIPE_SECRET_KEY)
+  if (!stripeReady) {
+    return { plan: 'pro', active: true, sub }
+  }
   const active = isPlanActive(sub)
   return {
     plan: active ? sub.plan : 'expired',
