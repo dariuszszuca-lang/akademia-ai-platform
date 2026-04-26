@@ -78,3 +78,43 @@ export async function markOnboardingComplete(): Promise<void> {
   state.completedAt = new Date().toISOString()
   await saveOnboardingState(state)
 }
+
+// --- Persona helpers ---
+
+type PersonaType = 'buyer' | 'seller'
+
+function personaKey(userId: string, type: PersonaType): string {
+  return type === 'buyer' ? personaBuyerKey(userId) : personaSellerKey(userId)
+}
+
+export async function savePersonaAnswer(
+  type: PersonaType,
+  questionId: string,
+  answer: string,
+): Promise<void> {
+  const state = await getOnboardingState()
+  const slot = type === 'buyer' ? state.personaBuyer : state.personaSeller
+  slot.path = 'B' // Path B Pat na razie jedyna
+  slot.answers[questionId] = answer
+  if (state.currentStep === 'persona-buyer' && type === 'buyer') {
+    // pozostaw
+  } else if (state.expressGeneratedAt && state.currentStep !== 'persona-seller' && type === 'buyer') {
+    state.currentStep = 'persona-buyer'
+  }
+  await saveOnboardingState(state)
+}
+
+export async function savePersonaMd(type: PersonaType, markdown: string): Promise<void> {
+  const userId = getUserId()
+  await storeSet(personaKey(userId, type), markdown)
+  const state = await getOnboardingState()
+  const slot = type === 'buyer' ? state.personaBuyer : state.personaSeller
+  slot.generatedAt = new Date().toISOString()
+  if (type === 'buyer') {
+    state.currentStep = 'persona-seller'
+  } else {
+    // Po sprzedajacym idziemy do deep (opcjonalne) lub complete
+    state.currentStep = 'deep'
+  }
+  await saveOnboardingState(state)
+}
