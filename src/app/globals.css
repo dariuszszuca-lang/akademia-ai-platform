@@ -24,6 +24,13 @@
   --section-glow-c: rgba(185, 109, 93, 0.1);
   --shadow-soft: 0 24px 80px -36px rgba(19, 22, 20, 0.28);
   --shadow-card: 0 16px 40px -28px rgba(19, 22, 20, 0.2);
+
+  /* Motion language - Apple/Linear inspired */
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --duration-fast: 220ms;
+  --duration-medium: 360ms;
+  --duration-slow: 460ms;
 }
 
 .dark {
@@ -189,8 +196,59 @@ body {
 
 .display-title {
   font-family: var(--font-display), Georgia, serif;
-  letter-spacing: -0.04em;
-  line-height: 0.95;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  font-weight: 400;
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+}
+
+.display-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+/* Premium glass card */
+.glass-card {
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--duration-fast) var(--ease-premium),
+              box-shadow var(--duration-fast) var(--ease-premium),
+              background var(--duration-fast) var(--ease-premium);
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(255, 247, 234, 0.22);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Kbd hint */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--fg);
+  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+}
+
+/* Smoother focus for inputs */
+.focus-premium:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 
 .eyebrow {

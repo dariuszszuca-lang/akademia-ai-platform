@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import Navbar from "@/components/Navbar";
+import CommandPalette from "@/components/CommandPalette";
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -37,6 +38,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <CommandPalette />
       <main className="pt-36 pb-32 sm:pt-40">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {children}

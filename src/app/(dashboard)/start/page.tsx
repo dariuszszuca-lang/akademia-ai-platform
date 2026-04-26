@@ -22,11 +22,14 @@ export default async function StartPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 animate-fade-in-up">
-      <header>
+      <header className="space-y-4">
         <p className="eyebrow">Akademia AI</p>
-        <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
-          Cześć. Zacznijmy od tego co najważniejsze.
+        <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(40px, 6vw, 64px)' }}>
+          Cześć. Zacznijmy od <em>najważniejszego</em>.
         </h1>
+        <p className="text-foreground/50 text-base sm:text-lg max-w-xl leading-relaxed">
+          Twój kokpit AI dla pracy agenta nieruchomości. Naciśnij <span className="kbd">⌘</span> <span className="kbd">K</span> żeby od razu otworzyć agenta albo plik.
+        </p>
       </header>
 
       {/* Onboarding card, widoczny dopóki profil i persony niegotowe */}
