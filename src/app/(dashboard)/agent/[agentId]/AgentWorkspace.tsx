@@ -4,11 +4,24 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Agent, AgentTool } from "@/data/agents";
 
+type LegalSource = {
+  id: string;
+  ustawa: string;
+  art: string;
+  ksiega?: string;
+  url?: string;
+  score?: number;
+};
+
+const META_OPEN = "[[META]]";
+const META_CLOSE = "[[/META]]\n";
+
 export default function AgentWorkspace({ agent }: { agent: Agent }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [context, setContext] = useState("");
   const [goal, setGoal] = useState("");
   const [output, setOutput] = useState<string | null>(null);
+  const [sources, setSources] = useState<LegalSource[]>([]);
   const [running, setRunning] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -19,18 +32,38 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
     setContext("");
     setGoal("");
     setOutput(null);
+    setSources([]);
     setCopied(false);
   }
 
   function resetSelection() {
     setSelectedId(null);
     setOutput(null);
+    setSources([]);
+  }
+
+  function parseStreamChunk(raw: string): { meta: LegalSource[] | null; content: string } {
+    // Stream może zaczynać się od [[META]]{json}[[/META]]\n
+    if (raw.startsWith(META_OPEN)) {
+      const closeIdx = raw.indexOf(META_CLOSE);
+      if (closeIdx > 0) {
+        const json = raw.slice(META_OPEN.length, closeIdx);
+        try {
+          const parsed = JSON.parse(json) as { sources: LegalSource[] };
+          return { meta: parsed.sources ?? [], content: raw.slice(closeIdx + META_CLOSE.length) };
+        } catch {
+          return { meta: [], content: raw };
+        }
+      }
+    }
+    return { meta: null, content: raw };
   }
 
   async function run() {
     if (!selected) return;
     setRunning(true);
     setOutput("");
+    setSources([]);
     try {
       const res = await fetch("/api/agents/run", {
         method: "POST",
@@ -45,12 +78,26 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
       if (!res.body) throw new Error("no stream");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let acc = "";
+      let raw = "";
+      let metaProcessed = false;
       while (true) {
         const { value: chunk, done } = await reader.read();
         if (done) break;
-        acc += decoder.decode(chunk);
-        setOutput(acc);
+        raw += decoder.decode(chunk);
+        if (!metaProcessed && raw.includes(META_CLOSE)) {
+          const parsed = parseStreamChunk(raw);
+          if (parsed.meta) {
+            setSources(parsed.meta);
+            raw = parsed.content;
+            metaProcessed = true;
+          } else {
+            metaProcessed = true;
+          }
+        } else if (!metaProcessed && !raw.startsWith(META_OPEN.slice(0, Math.min(raw.length, META_OPEN.length)))) {
+          // raw definitely doesn't start with META, no meta in this stream
+          metaProcessed = true;
+        }
+        setOutput(raw);
       }
     } catch (e) {
       setOutput(
@@ -81,10 +128,10 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
       </div>
 
       <header>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <span
-            className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
-            style={{ background: `${agent.color}18` }}
+            className="flex h-14 w-14 items-center justify-center rounded-2xl text-3xl"
+            style={{ background: `${agent.color}18`, border: `1px solid ${agent.color}30` }}
           >
             {agent.icon}
           </span>
@@ -92,10 +139,12 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
             <p className="eyebrow" style={{ color: agent.color }}>
               Agent
             </p>
-            <h1 className="mt-1 font-display text-3xl text-foreground">{agent.name}</h1>
+            <h1 className="mt-1 display-title text-foreground" style={{ fontSize: 'clamp(28px, 4vw, 44px)' }}>
+              {agent.name}
+            </h1>
           </div>
         </div>
-        <p className="mt-4 text-sm leading-6 text-foreground/65">{agent.description}</p>
+        <p className="mt-5 text-sm leading-6 text-foreground/65 max-w-2xl">{agent.description}</p>
       </header>
 
       {!selected ? (
@@ -169,7 +218,8 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
             <section>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
-                  Wynik
+                  {running ? "Generuję..." : "Wynik"}
+                  {running && <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />}
                 </h2>
                 <button
                   onClick={copyOutput}
@@ -178,7 +228,28 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
                   {copied ? "Skopiowano ✓" : "Kopiuj"}
                 </button>
               </div>
-              <pre className="whitespace-pre-wrap rounded-2xl border border-border bg-[color:var(--card)] p-5 text-sm leading-6 text-foreground">
+
+              {sources.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-foreground/40">
+                    Źródła:
+                  </span>
+                  {sources.map((s) => (
+                    <a
+                      key={s.id}
+                      href={s.url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium text-accent border border-accent/30 bg-accent/[0.06] hover:bg-accent/[0.12] hover:border-accent/50 transition-colors"
+                      title={`${s.ustawa}${s.ksiega ? ' · ' + s.ksiega : ''}`}
+                    >
+                      art. {s.art} {s.ustawa === "Kodeks cywilny" ? "KC" : s.ustawa}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              <pre className="whitespace-pre-wrap rounded-2xl glass-card p-6 text-sm leading-6 text-foreground" style={{ fontFamily: 'inherit' }}>
                 {output}
               </pre>
             </section>

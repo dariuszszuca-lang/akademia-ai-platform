@@ -35,6 +35,20 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Prepend metadata: zrodla prawne (jesli agent prawny)
+        if (legalChunks.length > 0) {
+          const sources = legalChunks.map(c => ({
+            id: c.id,
+            ustawa: c.ustawa,
+            art: c.art_number,
+            ksiega: c.ksiega ?? '',
+            url: c.url ?? '',
+            score: c.score,
+          }))
+          const meta = `[[META]]${JSON.stringify({ sources })}[[/META]]\n`
+          controller.enqueue(new TextEncoder().encode(meta))
+        }
+
         const llmStream = await anthropic.messages.stream({
           model: DEFAULT_MODEL,
           max_tokens: 2500,

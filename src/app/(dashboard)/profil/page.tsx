@@ -19,12 +19,12 @@ export default async function ProfilPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 animate-fade-in-up">
-      <header>
+      <header className="space-y-4">
         <p className="eyebrow">Twój profil AI</p>
-        <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
-          Tak Cię widzą agenty.
+        <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(40px, 6vw, 64px)' }}>
+          Tak Cię widzą <em>agenty</em>.
         </h1>
-        <p className="mt-3 text-base text-foreground/55 leading-relaxed max-w-2xl">
+        <p className="text-base text-foreground/55 leading-relaxed max-w-2xl">
           Każdy plik poniżej trafia jako kontekst do każdego agenta na platformie.
           Jeśli coś nie pasuje, edytuj odpowiedzi w ankiecie albo wygeneruj ponownie.
         </p>

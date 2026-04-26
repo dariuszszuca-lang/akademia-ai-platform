@@ -28,8 +28,8 @@ export default async function OnboardingWelcome() {
         <div className="text-[11px] uppercase tracking-[0.3em] text-accent">
           Onboarding
         </div>
-        <h1 className="text-foreground text-4xl sm:text-5xl font-medium leading-tight tracking-tight">
-          Stwórzmy razem Twój profil.
+        <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(36px, 5.5vw, 56px)' }}>
+          Stwórzmy razem <em>Twój profil</em>.
         </h1>
         <p className="text-foreground/55 text-lg leading-relaxed max-w-xl">
           AI pozna Cię w 20 minut. Każdy kolejny agent na platformie (CEO, Marketing,
