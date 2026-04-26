@@ -11,8 +11,6 @@ export default async function StartPage() {
   ]);
 
   const enabledModules = allModules.filter((m) => m.enabled && (m.items?.length ?? 0) > 0);
-  const continueModule = enabledModules.find((m) => m.id === "przygotowanie") ?? enabledModules[0];
-  const continueLesson = continueModule?.items?.[0];
 
   const enabledResources = allResources.filter((r) => r.enabled).slice(0, 3);
 
@@ -34,45 +32,6 @@ export default async function StartPage() {
 
       {/* Onboarding card, widoczny dopóki profil i persony niegotowe */}
       <OnboardingCard />
-
-      {continueModule && continueLesson ? (
-        <Link
-          href={`/classroom/${continueModule.id}?lesson=${continueLesson.id}`}
-          className="group block rounded-[2rem] border border-border bg-[color:var(--card)] p-8 transition hover:border-foreground/40 sm:p-10"
-        >
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p
-                className="text-[0.7rem] font-semibold uppercase tracking-[0.22em]"
-                style={{ color: continueModule.accentColor }}
-              >
-                Kontynuuj
-              </p>
-              <h2 className="mt-3 font-display text-3xl text-foreground">
-                {continueLesson.title}
-              </h2>
-              <p className="mt-2 text-sm text-foreground/55">
-                {continueModule.title}
-                {continueLesson.duration && ` · ${continueLesson.duration} min`}
-              </p>
-            </div>
-            <div className="shrink-0">
-              <span className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-semibold text-background transition group-hover:opacity-90">
-                Wejdź
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </span>
-            </div>
-          </div>
-        </Link>
-      ) : (
-        <div className="rounded-[2rem] border border-dashed border-border bg-background/35 p-8 text-center">
-          <p className="text-sm text-foreground/60">
-            Moduły zostaną otwarte przez prowadzącego w odpowiednim momencie.
-          </p>
-        </div>
-      )}
 
       <div className="grid gap-6 sm:grid-cols-2">
         {nextLive && (
