@@ -1,5 +1,7 @@
 import type { Agent, AgentTool } from '@/data/agents'
 import { userContextAsBlock, type UserContext } from './user-context'
+import type { LegalChunk } from '@/lib/legal/pinecone'
+import { formatChunksForPrompt } from '@/lib/legal/search'
 
 /**
  * Buduje system prompt dla agenta na bazie:
@@ -10,7 +12,24 @@ import { userContextAsBlock, type UserContext } from './user-context'
 export function buildAgentSystemPrompt(
   agent: Agent,
   userContext: UserContext,
+  legalChunks?: LegalChunk[],
 ): string {
+  const isLegal = agent.id === 'prawny'
+  const legalBlock =
+    isLegal && legalChunks && legalChunks.length > 0
+      ? `
+
+RELEWANTNE FRAGMENTY POLSKIEGO PRAWA (cytuj te artykuły dosłownie gdzie pasuje):
+
+${formatChunksForPrompt(legalChunks)}
+
+ZASADY DLA AGENTA PRAWNEGO:
+- Cytuj DOKŁADNIE numer artykułu z powyższych fragmentów (np. "art. 158 KC stanowi że...")
+- Jeśli fragment nie odpowiada na pytanie, powiedz wprost: "W bazie nie znalazłem przepisu wprost odnoszącego się do tego pytania" zamiast halucynować
+- Zawsze przypominaj: "To wymaga konsultacji z prawnikiem przed decyzją" gdy pytanie wymaga oceny indywidualnej
+- Nie udzielaj porady prawnej, tylko informacji o przepisach`
+      : ''
+
   return `Jesteś agentem "${agent.name}" na platformie Akademia AI dla agentów nieruchomości.
 
 ROLA: ${agent.tagline}
@@ -18,7 +37,7 @@ ${agent.description}
 
 KONTEKST UŻYTKOWNIKA (zawsze uwzględniaj te dane przy każdej odpowiedzi):
 
-${userContextAsBlock(userContext)}
+${userContextAsBlock(userContext)}${legalBlock}
 
 ZASADY:
 - Pisz po polsku, naturalnie, bez korpomowy ani AI-mowy ("innowacyjny", "kompleksowy", "holistyczny" — zakazane)

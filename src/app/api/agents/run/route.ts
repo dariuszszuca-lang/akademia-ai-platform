@@ -2,6 +2,8 @@ import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { findAgent, findTool } from '@/data/agents'
 import { getUserContext } from '@/lib/agent/user-context'
 import { buildAgentSystemPrompt, buildAgentUserPrompt } from '@/lib/agent/prompts'
+import { searchLegal } from '@/lib/legal/search'
+import type { LegalChunk } from '@/lib/legal/pinecone'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -19,7 +21,15 @@ export async function POST(req: Request) {
   }
 
   const userCtx = await getUserContext()
-  const system = buildAgentSystemPrompt(agent, userCtx)
+
+  // RAG dla agenta Prawnego: szukaj relewantnych fragmentów ustawowych
+  let legalChunks: LegalChunk[] = []
+  if (agent.id === 'prawny') {
+    const ragQuery = `${tool.title}\n${context ?? ''}\n${goal ?? ''}`.trim()
+    legalChunks = await searchLegal(ragQuery, 5)
+  }
+
+  const system = buildAgentSystemPrompt(agent, userCtx, legalChunks)
   const user = buildAgentUserPrompt(tool, context ?? '', goal ?? '')
 
   const stream = new ReadableStream({
