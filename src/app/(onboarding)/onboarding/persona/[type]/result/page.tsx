@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { getPersonaBuyerMd, getPersonaSellerMd } from '@/lib/onboarding/state'
+import { getPersonaBuyerMd, getPersonaSellerMd, getOnboardingState } from '@/lib/onboarding/state'
+import RegenerateButton from '@/components/onboarding/RegenerateButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,14 @@ export default async function PersonaResultPage({
   const isBuyer = type === 'buyer'
 
   const md = isBuyer ? await getPersonaBuyerMd() : await getPersonaSellerMd()
+  const state = await getOnboardingState()
+  const slot = isBuyer ? state.personaBuyer : state.personaSeller
+  const usedPathA = slot.path === 'A' && slot.chosenType
+  const personaTypeForRegen = usedPathA
+    ? null // Path A wymaga chosenType - skip regenerate from result page (zbyt skomplikowane)
+    : slot.path === 'B'
+    ? 'B'
+    : null
 
   if (!md) {
     return (
@@ -69,13 +78,22 @@ export default async function PersonaResultPage({
         </article>
       </div>
 
-      <div className="flex items-center justify-between pt-4 border-t border-foreground/[0.06]">
-        <Link
-          href={`/onboarding/persona/${type}`}
-          className="text-foreground/40 hover:text-foreground text-xs uppercase tracking-[0.25em] transition-colors"
-        >
-          ← Edytuj odpowiedzi
-        </Link>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link
+            href={`/onboarding/persona/${type}`}
+            className="text-foreground/40 hover:text-foreground text-xs uppercase tracking-[0.25em] transition-colors"
+          >
+            ← Edytuj odpowiedzi
+          </Link>
+          {personaTypeForRegen === 'B' && (
+            <RegenerateButton
+              endpoint="/api/onboarding/persona/generate"
+              body={{ type }}
+              label="Wygeneruj ponownie"
+            />
+          )}
+        </div>
         <Link
           href={nextHref}
           className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors"

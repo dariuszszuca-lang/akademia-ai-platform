@@ -147,7 +147,7 @@ export default function PersonaChat({ type, questions, initialAnswers, resultPat
   const allDone = currentIndex >= questions.length
 
   return (
-    <div className="max-w-2xl mx-auto py-8 sm:py-12 flex flex-col h-[calc(100vh-180px)]">
+    <div className="max-w-2xl mx-auto py-6 sm:py-12 flex flex-col h-[100dvh] sm:h-[calc(100vh-180px)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {/* Heading */}
       <div className="mb-6">
         <div className="text-[11px] uppercase tracking-[0.3em] text-accent mb-2">
@@ -190,7 +190,7 @@ export default function PersonaChat({ type, questions, initialAnswers, resultPat
 
       {/* Input */}
       {!allDone && (
-        <div className="pt-4 border-t border-foreground/[0.06]">
+        <div className="pt-4 pb-2 border-t border-foreground/[0.06] sticky bottom-0 bg-background/80 backdrop-blur-sm" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
           {current?.helper && (
             <p className="text-foreground/40 text-xs mb-2 leading-relaxed">{current.helper}</p>
           )}

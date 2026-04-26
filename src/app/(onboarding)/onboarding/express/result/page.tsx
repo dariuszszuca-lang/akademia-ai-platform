@@ -2,6 +2,7 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getProfilMd } from '@/lib/onboarding/state'
+import RegenerateButton from '@/components/onboarding/RegenerateButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,13 +57,16 @@ export default async function ExpressResultPage() {
         </article>
       </div>
 
-      <div className="flex items-center justify-between pt-4 border-t border-foreground/[0.06]">
-        <Link
-          href="/onboarding/express"
-          className="text-foreground/40 hover:text-foreground text-xs uppercase tracking-[0.25em] transition-colors"
-        >
-          ← Edytuj odpowiedzi
-        </Link>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-foreground/[0.06]">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link
+            href="/onboarding/express"
+            className="text-foreground/40 hover:text-foreground text-xs uppercase tracking-[0.25em] transition-colors"
+          >
+            ← Edytuj odpowiedzi
+          </Link>
+          <RegenerateButton endpoint="/api/onboarding/generate-profil" label="Wygeneruj ponownie" />
+        </div>
         <Link
           href="/onboarding"
           className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors"
