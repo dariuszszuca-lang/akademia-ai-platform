@@ -93,7 +93,7 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
 
       {question.type !== 'select' && (
         <div className="text-foreground/30 text-[11px] uppercase tracking-[0.25em]">
-          ⌘/Ctrl + Enter zeby przejsc dalej
+          ⌘/Ctrl + Enter żeby przejść dalej
         </div>
       )}
     </div>

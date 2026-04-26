@@ -106,13 +106,13 @@ export default function WizardFlow({
       <div className="max-w-2xl mx-auto py-16 space-y-8 animate-fade-in-up">
         <div className="text-center space-y-3">
           <div className="text-[11px] uppercase tracking-[0.3em] text-accent">
-            AI tworzy Twoj profil
+            AI tworzy Twój profil
           </div>
           <h1 className="text-foreground text-2xl font-medium">
-            Czytam Twoje 15 odpowiedzi i pisze profil.md
+            Czytam Twoje 15 odpowiedzi i piszę profil.md
           </h1>
           <p className="text-foreground/40 text-sm">
-            Za chwile bedzie gotowy. Mozesz spokojnie sledzic.
+            Za chwilę będzie gotowy. Możesz spokojnie śledzić.
           </p>
         </div>
 

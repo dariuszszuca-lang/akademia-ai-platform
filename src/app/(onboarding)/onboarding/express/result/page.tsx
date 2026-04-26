@@ -16,7 +16,7 @@ export default async function ExpressResultPage() {
           href="/onboarding/express"
           className="inline-block text-accent hover:text-accent/80 text-sm uppercase tracking-[0.25em]"
         >
-          Wroc do ankiety →
+          Wróć do ankiety →
         </Link>
       </div>
     )
@@ -29,10 +29,10 @@ export default async function ExpressResultPage() {
           Profil gotowy
         </div>
         <h1 className="text-foreground text-3xl sm:text-4xl font-medium tracking-tight">
-          Tak Cie widzi AI.
+          Tak Cię widzi AI.
         </h1>
         <p className="text-foreground/40 text-sm max-w-lg mx-auto">
-          Kazdy agent na platformie ma to w pamieci. Przy kazdej odpowiedzi.
+          Każdy agent na platformie ma to w pamięci. Przy każdej odpowiedzi.
         </p>
       </div>
 

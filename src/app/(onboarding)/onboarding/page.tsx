@@ -19,12 +19,12 @@ export default async function OnboardingWelcome() {
           Onboarding
         </div>
         <h1 className="text-foreground text-4xl sm:text-5xl font-medium leading-tight tracking-tight">
-          Stworzmy razem Twoj profil.
+          Stwórzmy razem Twój profil.
         </h1>
         <p className="text-foreground/55 text-lg leading-relaxed max-w-xl">
-          AI pozna Cie w 20 minut. Kazdy kolejny agent na platformie (CEO, Marketing,
-          Prawny, Wycena, Publikacja) bedzie odpowiadal w Twoich realiach. Bez generycznych
-          rad. Konkretnie pod Twoj rynek, klienta, cele.
+          AI pozna Cię w 20 minut. Każdy kolejny agent na platformie (CEO, Marketing,
+          Prawny, Wycena, Publikacja) będzie odpowiadał w Twoich realiach. Bez generycznych
+          rad. Konkretnie pod Twój rynek, klienta, cele.
         </p>
       </div>
 
@@ -32,7 +32,7 @@ export default async function OnboardingWelcome() {
         <Step
           number={1}
           title="Profil agenta"
-          subtitle="15 pytan w 3 czesciach"
+          subtitle="15 pytań w 3 częściach"
           time="~20 min"
           status={expressDone ? 'done' : expressInProgress ? 'progress' : 'pending'}
           href="/onboarding/express"
@@ -40,8 +40,8 @@ export default async function OnboardingWelcome() {
         />
         <Step
           number={2}
-          title="Persona klienta kupujacego"
-          subtitle="Chat z AI, sciezka A lub B"
+          title="Persona klienta kupującego"
+          subtitle="Chat z AI, ścieżka A lub B"
           time="~10 min"
           status={hasProfil ? 'pending' : 'locked'}
           href="/onboarding/persona/buyer"
@@ -50,18 +50,18 @@ export default async function OnboardingWelcome() {
         />
         <Step
           number={3}
-          title="Persona klienta sprzedajacego"
-          subtitle="Chat z AI, sciezka A lub B"
+          title="Persona klienta sprzedającego"
+          subtitle="Chat z AI, ścieżka A lub B"
           time="~10 min"
           status="locked"
           href="/onboarding/persona/seller"
           ctaLabel="Zacznij"
-          disabledHint="Najpierw kupujacy"
+          disabledHint="Najpierw kupujący"
         />
         <Step
           number={4}
-          title="Profil poglebiony (opcja)"
-          subtitle="20 pytan, dodatkowe sekcje"
+          title="Profil pogłębiony (opcja)"
+          subtitle="20 pytań, dodatkowe sekcje"
           time="~30 min"
           status="locked"
           href="/onboarding/deep"

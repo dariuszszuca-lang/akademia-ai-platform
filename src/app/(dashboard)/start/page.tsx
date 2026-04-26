@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getEffectiveModules, getEffectiveResources } from "@/lib/module-overrides";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,9 @@ export default async function StartPage() {
           Cześć. Zacznijmy od tego co najważniejsze.
         </h1>
       </header>
+
+      {/* Onboarding card, widoczny dopóki profil i persony niegotowe */}
+      <OnboardingCard />
 
       {continueModule && continueLesson ? (
         <Link
