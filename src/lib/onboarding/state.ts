@@ -104,6 +104,23 @@ export async function savePersonaAnswer(
   await saveOnboardingState(state)
 }
 
+export async function saveDeepAnswer(questionId: string, answer: string): Promise<void> {
+  const state = await getOnboardingState()
+  state.deepAnswers[questionId] = answer
+  if (state.currentStep !== 'deep') state.currentStep = 'deep'
+  await saveOnboardingState(state)
+}
+
+export async function saveExtendedProfilMd(markdown: string): Promise<void> {
+  const userId = getUserId()
+  await storeSet(profilKey(userId), markdown)
+  const state = await getOnboardingState()
+  state.deepGeneratedAt = new Date().toISOString()
+  state.currentStep = 'complete'
+  state.completedAt = new Date().toISOString()
+  await saveOnboardingState(state)
+}
+
 export async function savePersonaMd(type: PersonaType, markdown: string): Promise<void> {
   const userId = getUserId()
   await storeSet(personaKey(userId, type), markdown)

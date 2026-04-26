@@ -1,16 +1,26 @@
 import Link from 'next/link'
-import { getOnboardingState, getProfilMd } from '@/lib/onboarding/state'
+import { getOnboardingState, getProfilMd, getPersonaBuyerMd, getPersonaSellerMd } from '@/lib/onboarding/state'
 import { expressQuestions } from '@/data/onboarding/express'
+import { deepQuestions } from '@/data/onboarding/deep'
 import SkipOnboardingButton from '@/components/onboarding/SkipOnboardingButton'
 
 export const dynamic = 'force-dynamic'
 
 export default async function OnboardingWelcome() {
   const state = await getOnboardingState()
-  const hasProfil = Boolean(await getProfilMd())
+  const [profilMdRaw, buyerMd, sellerMd] = await Promise.all([
+    getProfilMd(),
+    getPersonaBuyerMd(),
+    getPersonaSellerMd(),
+  ])
+  const hasProfil = Boolean(profilMdRaw)
+  const hasBuyer = Boolean(buyerMd)
+  const hasSeller = Boolean(sellerMd)
 
   const expressDone = expressQuestions.every(q => state.expressAnswers[q.id]?.trim())
   const expressInProgress = !expressDone && Object.keys(state.expressAnswers).length > 0
+  const deepDone = Boolean(state.deepGeneratedAt) && deepQuestions.every(q => state.deepAnswers[q.id]?.trim())
+  const deepInProgress = !deepDone && Object.keys(state.deepAnswers).length > 0
 
   return (
     <div className="max-w-2xl mx-auto py-16 sm:py-24 space-y-12 animate-fade-in-up">
@@ -41,32 +51,32 @@ export default async function OnboardingWelcome() {
         <Step
           number={2}
           title="Persona klienta kupującego"
-          subtitle="Chat z AI, ścieżka A lub B"
+          subtitle="Chat z AI, 6 pytań"
           time="~10 min"
-          status={hasProfil ? 'pending' : 'locked'}
+          status={hasBuyer ? 'done' : hasProfil ? 'pending' : 'locked'}
           href="/onboarding/persona/buyer"
-          ctaLabel="Zacznij"
+          ctaLabel={hasBuyer ? 'Zobacz personę' : 'Zacznij'}
           disabledHint={hasProfil ? undefined : 'Wymaga profilu'}
         />
         <Step
           number={3}
           title="Persona klienta sprzedającego"
-          subtitle="Chat z AI, ścieżka A lub B"
+          subtitle="Chat z AI, 6 pytań"
           time="~10 min"
-          status="locked"
+          status={hasSeller ? 'done' : hasBuyer ? 'pending' : 'locked'}
           href="/onboarding/persona/seller"
-          ctaLabel="Zacznij"
-          disabledHint="Najpierw kupujący"
+          ctaLabel={hasSeller ? 'Zobacz personę' : 'Zacznij'}
+          disabledHint={hasBuyer ? undefined : 'Najpierw kupujący'}
         />
         <Step
           number={4}
           title="Profil pogłębiony (opcja)"
           subtitle="20 pytań, dodatkowe sekcje"
           time="~30 min"
-          status="locked"
+          status={deepDone ? 'done' : deepInProgress ? 'progress' : (hasBuyer && hasSeller) ? 'pending' : 'locked'}
           href="/onboarding/deep"
-          ctaLabel="Zacznij"
-          disabledHint="Po podstawowym onboardingu"
+          ctaLabel={deepDone ? 'Zobacz profil' : deepInProgress ? 'Kontynuuj' : 'Zacznij'}
+          disabledHint={(hasBuyer && hasSeller) ? undefined : 'Po obu personach'}
         />
       </div>
 

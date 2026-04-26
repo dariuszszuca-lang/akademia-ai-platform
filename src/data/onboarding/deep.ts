@@ -1,0 +1,210 @@
+import type { OnboardingQuestion } from '@/lib/onboarding/types'
+
+/**
+ * Deep Wizard: 20 dodatkowych pytan w 4 czesciach (~30 min lacznie).
+ * Po zakonczeniu LLM rozszerza profil.md o nowe sekcje:
+ * - DOSWIADCZENIE
+ * - JAK PRACUJE NA CO DZIEN
+ * - TWOJ RYNEK
+ * - WARTOSCI I KIERUNEK
+ */
+export const deepQuestions: OnboardingQuestion[] = [
+  // CZESC 4: DOSWIADCZENIE (5 pytan)
+  {
+    id: 'd1',
+    section: 'doswiadczenie',
+    sectionLabel: 'Część 4: Doświadczenie',
+    prompt: 'Co robiłeś/aś zanim wszedłeś w nieruchomości? Jakie doświadczenie zawodowe masz poza branżą?',
+    type: 'textarea',
+    placeholder: 'Np. 10 lat w bankowości jako doradca, potem prowadziłem własny biznes...',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd2',
+    section: 'doswiadczenie',
+    sectionLabel: 'Część 4: Doświadczenie',
+    prompt: 'Jakie masz certyfikaty, licencje, ukończone kursy związane z nieruchomościami?',
+    type: 'textarea',
+    placeholder: 'Licencja pośrednika, kurs MLS, szkolenie z negocjacji, certyfikat KW...',
+    estimatedSeconds: 60,
+  },
+  {
+    id: 'd3',
+    section: 'doswiadczenie',
+    sectionLabel: 'Część 4: Doświadczenie',
+    prompt: 'Jaka była Twoja najlepsza transakcja i dlaczego?',
+    helper: 'Co poszło idealnie? Co takiego się wydarzyło?',
+    type: 'textarea',
+    placeholder: 'Sprzedaż 150m² willi w Sopocie, klient z polecenia, 3 dni od oferty do umowy przedwstępnej...',
+    estimatedSeconds: 120,
+  },
+  {
+    id: 'd4',
+    section: 'doswiadczenie',
+    sectionLabel: 'Część 4: Doświadczenie',
+    prompt: 'Jaka była Twoja najtrudniejsza transakcja i czego się z niej nauczyłeś/aś?',
+    type: 'textarea',
+    placeholder: 'Spór sąsiedzki przy umowie, błąd w księdze wieczystej, klient zerwał na 2 dni przed aktem...',
+    estimatedSeconds: 120,
+  },
+  {
+    id: 'd5',
+    section: 'doswiadczenie',
+    sectionLabel: 'Część 4: Doświadczenie',
+    prompt: 'Czy zarządzasz zespołem / masz asystenta, czy pracujesz solo?',
+    type: 'textarea',
+    placeholder: 'Solo. Albo: 1 asystent administracyjny. Albo: zespół 3 osób + księgowa.',
+    estimatedSeconds: 60,
+  },
+  // CZESC 5: JAK PRACUJESZ NA CO DZIEN (5 pytan)
+  {
+    id: 'd6',
+    section: 'jak-na-codzien',
+    sectionLabel: 'Część 5: Jak pracujesz na co dzień',
+    prompt: 'Opisz typowy dzień pracy — od rana do wieczora. Co zajmuje Ci najwięcej czasu?',
+    type: 'textarea',
+    placeholder: '7:00 - kawa i mail, 9-12 - prezentacje, 12-14 - umowa u notariusza, 14-17 - telefony i Otodom...',
+    estimatedSeconds: 180,
+  },
+  {
+    id: 'd7',
+    section: 'jak-na-codzien',
+    sectionLabel: 'Część 5: Jak pracujesz na co dzień',
+    prompt: 'O której porze dnia masz najwięcej energii i koncentracji?',
+    helper: 'Wtedy najlepiej planować pracę kreatywną (oferty, opisy, strategia)',
+    type: 'select',
+    options: [
+      { value: 'rano', label: 'Rano (6-10)' },
+      { value: 'przedpoludnie', label: 'Przed południem (10-13)' },
+      { value: 'popoludnie', label: 'Popołudnie (13-17)' },
+      { value: 'wieczor', label: 'Wieczorem (po 18)' },
+    ],
+    estimatedSeconds: 30,
+  },
+  {
+    id: 'd8',
+    section: 'jak-na-codzien',
+    sectionLabel: 'Część 5: Jak pracujesz na co dzień',
+    prompt: 'Jak reagujesz na stres? Klient dzwoni w panice, transakcja się sypie.',
+    type: 'textarea',
+    placeholder: 'Działam zimno, sprawdzam fakty zanim odpowiem. Albo: emocjonalnie, potrzebuję chwili na ochłonięcie.',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd9',
+    section: 'jak-na-codzien',
+    sectionLabel: 'Część 5: Jak pracujesz na co dzień',
+    prompt: 'Jesteś bardziej introwertykiem czy ekstrawertykiem? Jak wpływa to na pracę z klientami?',
+    type: 'textarea',
+    placeholder: 'Introwertyk, dlatego wolę pracę przez maile i przygotowane prezentacje niż improwizowane spotkania...',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd10',
+    section: 'jak-na-codzien',
+    sectionLabel: 'Część 5: Jak pracujesz na co dzień',
+    prompt: 'Wolisz mieć stałą rutynę (np. poniedziałek = prezentacje) czy działasz elastycznie?',
+    type: 'textarea',
+    placeholder: 'Rutyna: pon-wtorek = oferty + telefony, środa = prezentacje, czwartek = administracja, piątek = follow-up.',
+    estimatedSeconds: 60,
+  },
+  // CZESC 6: TWOJ RYNEK (5 pytan)
+  {
+    id: 'd11',
+    section: 'rynek',
+    sectionLabel: 'Część 6: Twój rynek',
+    prompt: 'Jakie dzielnice/okolice znasz najlepiej? Gdzie czujesz się ekspertem?',
+    type: 'textarea',
+    placeholder: 'Wrzeszcz, Oliwa, Sopot Górny. Znam tam każdą uliczkę, ceny, deweloperów, problemy z parkingiem.',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd12',
+    section: 'rynek',
+    sectionLabel: 'Część 6: Twój rynek',
+    prompt: 'Jaki jest Twój średni czas sprzedaży nieruchomości? Od podpisania umowy do transakcji.',
+    type: 'text',
+    placeholder: '~45 dni',
+    estimatedSeconds: 30,
+  },
+  {
+    id: 'd13',
+    section: 'rynek',
+    sectionLabel: 'Część 6: Twój rynek',
+    prompt: 'Jaka jest Twoja obecna baza klientów?',
+    helper: 'Ile osób w CRM, ile aktywnych kontaktów, skąd przychodzą',
+    type: 'textarea',
+    placeholder: '~200 osób w CRM, z czego ~30 aktywnych. 60% z poleceń, 25% Otodom, 15% social.',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd14',
+    section: 'rynek',
+    sectionLabel: 'Część 6: Twój rynek',
+    prompt: 'Czy masz stronę www, profile social media, wizytówkę Google? Co działa, co nie?',
+    type: 'textarea',
+    placeholder: 'IG @anna.nieruchomosci 800 obserwujących (działa), FB profil firmowy (martwy), Google Business 4.9 z 30 opinii.',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd15',
+    section: 'rynek',
+    sectionLabel: 'Część 6: Twój rynek',
+    prompt: 'Kim jest Twoja główna konkurencja w okolicy? Co robią dobrze, a co źle?',
+    type: 'textarea',
+    placeholder: 'KW Polska - silna marka i prowizja, ale mało lokalni. RealEstate XYZ - dobre social, słaby follow-up.',
+    estimatedSeconds: 120,
+  },
+  // CZESC 7: WARTOSCI I KIERUNEK (5 pytan)
+  {
+    id: 'd16',
+    section: 'wartosci',
+    sectionLabel: 'Część 7: Wartości i kierunek',
+    prompt: 'Jakie 3 wartości są dla Ciebie najważniejsze w pracy z klientem?',
+    type: 'textarea',
+    placeholder: '1. Uczciwość - mówię prawdę nawet jak jest niewygodna\n2. Czas klienta - nie marnuję\n3. Lokalność - znam tę okolicę',
+    estimatedSeconds: 120,
+  },
+  {
+    id: 'd17',
+    section: 'wartosci',
+    sectionLabel: 'Część 7: Wartości i kierunek',
+    prompt: 'Jak definiujesz sukces w swojej pracy? (poza pieniędzmi)',
+    type: 'textarea',
+    placeholder: 'Klient który po roku napisał mi "polecam dalej". Albo: czas na wieczór z rodziną i zero telefonów.',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd18',
+    section: 'wartosci',
+    sectionLabel: 'Część 7: Wartości i kierunek',
+    prompt: 'Co chcesz robić za 3 lata?',
+    helper: 'Więcej transakcji? Własne biuro? Specjalizacja? Szkolenia? Spokój?',
+    type: 'textarea',
+    placeholder: 'Własne biuro w Sopocie, 2 osoby zespołu, 80 transakcji rocznie, 6 tygodni urlopu rocznie.',
+    estimatedSeconds: 120,
+  },
+  {
+    id: 'd19',
+    section: 'wartosci',
+    sectionLabel: 'Część 7: Wartości i kierunek',
+    prompt: 'Czego absolutnie NIE chcesz robić?',
+    helper: 'Dodaj więcej do listy z Express jeśli teraz przychodzi do głowy',
+    type: 'textarea',
+    placeholder: 'Praca z deweloperami. Cold calling. Reklamy płatne na FB. Otwarte domy w weekendy.',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'd20',
+    section: 'wartosci',
+    sectionLabel: 'Część 7: Wartości i kierunek',
+    prompt: 'Gdybyś mógł/mogła zmienić jedną rzecz w branży nieruchomości, co by to było?',
+    type: 'textarea',
+    placeholder: 'Większa transparencja cen transakcyjnych. Albo: standardy etyczne dla pośredników.',
+    estimatedSeconds: 90,
+  },
+]
+
+export function getDeepTotalSeconds(): number {
+  return deepQuestions.reduce((acc, q) => acc + (q.estimatedSeconds ?? 60), 0)
+}
