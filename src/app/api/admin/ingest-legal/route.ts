@@ -60,10 +60,7 @@ export async function POST(req: Request) {
     let uploaded = 0
     for (let i = 0; i < records.length; i += BATCH) {
       const batch = records.slice(i, i + BATCH)
-      const idx = index as unknown as {
-        upsertRecords: (records: unknown[]) => Promise<unknown>
-      }
-      await idx.upsertRecords(batch)
+      await index.upsertRecords({ records: batch })
       uploaded += batch.length
     }
 
