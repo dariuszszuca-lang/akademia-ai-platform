@@ -6,6 +6,8 @@ import { searchLegal } from '@/lib/legal/search'
 import type { LegalChunk } from '@/lib/legal/pinecone'
 import { getEffectivePlan } from '@/lib/billing/state'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
+import { getServerUserId } from '@/lib/session'
+import { rateLimit, LIMITS } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -20,6 +22,20 @@ export async function POST(req: Request) {
       status: 404,
       headers: { 'Content-Type': 'application/json' },
     })
+  }
+
+  // Rate limit per user
+  const userId = await getServerUserId()
+  if (userId) {
+    const rl = await rateLimit('agent-run', userId, LIMITS.AGENT_RUN.limit, LIMITS.AGENT_RUN.windowMinutes)
+    if (!rl.ok) {
+      return new Response(
+        JSON.stringify({
+          error: `Limit ${LIMITS.AGENT_RUN.limit} wywolan/min. Reset za ${rl.resetIn}s.`,
+        }),
+        { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.resetIn) } },
+      )
+    }
   }
 
   const userCtx = await getUserContext()
