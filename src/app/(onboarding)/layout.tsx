@@ -6,7 +6,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
         className="absolute inset-0 pointer-events-none opacity-50"
         style={{
           background:
-            'radial-gradient(circle at 20% 0%, rgba(251,191,36,0.06), transparent 50%), radial-gradient(circle at 80% 100%, rgba(251,191,36,0.04), transparent 50%)',
+            'radial-gradient(circle at 20% 0%, var(--section-glow-b), transparent 50%), radial-gradient(circle at 80% 100%, var(--section-glow-a), transparent 50%)',
         }}
       />
 
@@ -14,7 +14,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       <header className="relative z-10 px-6 sm:px-10 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl font-medium tracking-tight">
-            <span className="text-amber-400">Akademia</span>
+            <span className="text-accent">Akademia</span>
             <span className="text-foreground/60 ml-1">AI</span>
           </span>
         </div>

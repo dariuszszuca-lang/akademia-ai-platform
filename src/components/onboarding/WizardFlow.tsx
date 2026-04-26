@@ -105,7 +105,7 @@ export default function WizardFlow({
     return (
       <div className="max-w-2xl mx-auto py-16 space-y-8 animate-fade-in-up">
         <div className="text-center space-y-3">
-          <div className="text-[11px] uppercase tracking-[0.3em] text-amber-400/80">
+          <div className="text-[11px] uppercase tracking-[0.3em] text-accent">
             AI tworzy Twoj profil
           </div>
           <h1 className="text-foreground text-2xl font-medium">
@@ -120,7 +120,7 @@ export default function WizardFlow({
           <pre className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed text-foreground/85">
             {genStream || (
               <span className="text-foreground/30">
-                <span className="inline-block w-2 h-4 bg-amber-400/60 animate-pulse align-middle" />
+                <span className="inline-block w-2 h-4 bg-accent/60 animate-pulse align-middle" />
               </span>
             )}
           </pre>
@@ -161,7 +161,7 @@ export default function WizardFlow({
           type="button"
           onClick={next}
           disabled={!value.trim()}
-          className="px-6 py-2.5 bg-amber-400 text-black font-medium rounded-full text-sm hover:bg-amber-300 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+          className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
         >
           {isLast ? 'Wygeneruj profil →' : 'Dalej →'}
         </button>

@@ -14,7 +14,7 @@ export default async function ExpressResultPage() {
         <div className="text-foreground/50">Profil jeszcze nie wygenerowany.</div>
         <Link
           href="/onboarding/express"
-          className="inline-block text-amber-400 hover:text-amber-300 text-sm uppercase tracking-[0.25em]"
+          className="inline-block text-accent hover:text-accent/80 text-sm uppercase tracking-[0.25em]"
         >
           Wroc do ankiety →
         </Link>
@@ -65,7 +65,7 @@ export default async function ExpressResultPage() {
         </Link>
         <Link
           href="/onboarding"
-          className="px-6 py-2.5 bg-amber-400 text-black font-medium rounded-full text-sm hover:bg-amber-300 transition-colors"
+          className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors"
         >
           Dalej: Persona klienta →
         </Link>

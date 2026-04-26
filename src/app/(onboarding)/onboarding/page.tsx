@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getOnboardingState, getProfilMd } from '@/lib/onboarding/state'
 import { expressQuestions } from '@/data/onboarding/express'
+import SkipOnboardingButton from '@/components/onboarding/SkipOnboardingButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ export default async function OnboardingWelcome() {
   return (
     <div className="max-w-2xl mx-auto py-16 sm:py-24 space-y-12 animate-fade-in-up">
       <div className="space-y-6">
-        <div className="text-[11px] uppercase tracking-[0.3em] text-amber-400/80">
+        <div className="text-[11px] uppercase tracking-[0.3em] text-accent">
           Onboarding
         </div>
         <h1 className="text-foreground text-4xl sm:text-5xl font-medium leading-tight tracking-tight">
@@ -69,8 +70,11 @@ export default async function OnboardingWelcome() {
         />
       </div>
 
-      <div className="pt-4 border-t border-foreground/[0.06] text-foreground/30 text-xs leading-relaxed">
-        Wszystko jest zapisywane na biezaco. Mozesz wyjsc i wrocic w dowolnej chwili.
+      <div className="pt-4 border-t border-foreground/[0.06] flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <p className="text-foreground/30 text-xs leading-relaxed">
+          Wszystko jest zapisywane na bieżąco. Możesz wyjść i wrócić w dowolnej chwili.
+        </p>
+        {hasProfil && <SkipOnboardingButton />}
       </div>
     </div>
   )
@@ -106,7 +110,7 @@ function Step({
           ? 'bg-foreground/[0.01] border-foreground/[0.05] opacity-50'
           : isDone
           ? 'bg-emerald-500/[0.04] border-emerald-500/20 hover:border-emerald-500/40'
-          : 'bg-foreground/[0.02] border-foreground/[0.08] hover:border-amber-400/40 hover:bg-foreground/[0.04]')
+          : 'bg-foreground/[0.02] border-foreground/[0.08] hover:border-accent/40 hover:bg-foreground/[0.04]')
       }
     >
       <div className="flex items-center gap-5 min-w-0">
@@ -116,7 +120,7 @@ function Step({
             (isDone
               ? 'bg-emerald-500/20 text-emerald-400'
               : status === 'progress'
-              ? 'bg-amber-400/20 text-amber-400'
+              ? 'bg-accent/20 text-accent'
               : 'bg-foreground/[0.05] text-foreground/40')
           }
         >
@@ -142,7 +146,7 @@ function Step({
               'text-[11px] uppercase tracking-[0.25em] transition-colors ' +
               (isDone
                 ? 'text-emerald-400'
-                : 'text-foreground/50 group-hover:text-amber-400')
+                : 'text-foreground/50 group-hover:text-accent')
             }
           >
             {ctaLabel} →

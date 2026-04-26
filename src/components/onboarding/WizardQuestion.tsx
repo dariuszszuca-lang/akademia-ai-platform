@@ -61,7 +61,7 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
               className={
                 'w-full text-left px-5 py-4 rounded-xl border transition-all duration-200 ' +
                 (value === opt.value
-                  ? 'bg-amber-400/10 border-amber-400/60 text-foreground'
+                  ? 'bg-accent-light border-accent/60 text-foreground'
                   : 'bg-foreground/[0.02] border-foreground/[0.08] text-foreground/80 hover:border-foreground/25 hover:bg-foreground/[0.04]')
               }
             >
@@ -77,7 +77,7 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
           onKeyDown={handleKeyDown}
           placeholder={question.placeholder}
           rows={5}
-          className="w-full px-5 py-4 bg-foreground/[0.02] border border-foreground/[0.08] rounded-xl text-foreground placeholder:text-foreground/30 text-[15px] leading-relaxed focus:outline-none focus:border-amber-400/40 focus:bg-foreground/[0.04] transition-colors resize-none"
+          className="w-full px-5 py-4 bg-foreground/[0.02] border border-foreground/[0.08] rounded-xl text-foreground placeholder:text-foreground/30 text-[15px] leading-relaxed focus:outline-none focus:border-accent/40 focus:bg-foreground/[0.04] transition-colors resize-none"
         />
       ) : (
         <input
@@ -87,7 +87,7 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
           onChange={e => update(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={question.placeholder}
-          className="w-full px-5 py-4 bg-foreground/[0.02] border border-foreground/[0.08] rounded-xl text-foreground placeholder:text-foreground/30 text-[15px] focus:outline-none focus:border-amber-400/40 focus:bg-foreground/[0.04] transition-colors"
+          className="w-full px-5 py-4 bg-foreground/[0.02] border border-foreground/[0.08] rounded-xl text-foreground placeholder:text-foreground/30 text-[15px] focus:outline-none focus:border-accent/40 focus:bg-foreground/[0.04] transition-colors"
         />
       )}
 

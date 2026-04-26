@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -9,14 +9,31 @@ import Navbar from "@/components/Navbar";
 function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/login");
+      return;
     }
-  }, [isLoading, isAuthenticated, router]);
+    if (!isLoading && isAuthenticated && !onboardingChecked) {
+      // Sprawdz czy uzytkownik ma ukonczony onboarding (profil + persony)
+      fetch("/api/onboarding/state")
+        .then(r => r.json())
+        .then(data => {
+          const step = data?.state?.currentStep;
+          // Jesli onboarding niezakonczony - wymus
+          if (step !== "complete") {
+            router.push("/onboarding");
+            return;
+          }
+          setOnboardingChecked(true);
+        })
+        .catch(() => setOnboardingChecked(true));
+    }
+  }, [isLoading, isAuthenticated, onboardingChecked, router]);
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && !onboardingChecked)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-5">

@@ -71,3 +71,10 @@ export async function getPersonaSellerMd(): Promise<string | null> {
   const userId = getUserId()
   return storeGet<string>(personaSellerKey(userId))
 }
+
+export async function markOnboardingComplete(): Promise<void> {
+  const state = await getOnboardingState()
+  state.currentStep = 'complete'
+  state.completedAt = new Date().toISOString()
+  await saveOnboardingState(state)
+}

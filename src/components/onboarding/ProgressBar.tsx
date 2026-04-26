@@ -16,7 +16,7 @@ export default function ProgressBar({ current, total, sectionLabel }: Props) {
       </div>
       <div className="h-px bg-foreground/[0.08] relative overflow-hidden">
         <div
-          className="absolute inset-y-0 left-0 bg-amber-400 transition-all duration-500 ease-out"
+          className="absolute inset-y-0 left-0 bg-accent transition-all duration-500 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
