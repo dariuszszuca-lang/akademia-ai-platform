@@ -87,6 +87,20 @@ function personaKey(userId: string, type: PersonaType): string {
   return type === 'buyer' ? personaBuyerKey(userId) : personaSellerKey(userId)
 }
 
+export async function setPersonaPath(type: PersonaType, path: 'A' | 'B'): Promise<void> {
+  const state = await getOnboardingState()
+  const slot = type === 'buyer' ? state.personaBuyer : state.personaSeller
+  slot.path = path
+  await saveOnboardingState(state)
+}
+
+export async function setPersonaChosenType(type: PersonaType, n: 1 | 2 | 3): Promise<void> {
+  const state = await getOnboardingState()
+  const slot = type === 'buyer' ? state.personaBuyer : state.personaSeller
+  slot.chosenType = n
+  await saveOnboardingState(state)
+}
+
 export async function savePersonaAnswer(
   type: PersonaType,
   questionId: string,

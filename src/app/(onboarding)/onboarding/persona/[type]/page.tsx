@@ -1,11 +1,11 @@
 import { redirect, notFound } from 'next/navigation'
 import { getOnboardingState, getProfilMd } from '@/lib/onboarding/state'
 import { getPersonaQuestions } from '@/data/onboarding/persona-questions'
-import PersonaChat from '@/components/onboarding/PersonaChat'
+import PersonaFlow from '@/components/onboarding/PersonaFlow'
 
 export const dynamic = 'force-dynamic'
 
-export default async function PersonaChatPage({
+export default async function PersonaPage({
   params,
 }: {
   params: { type: string }
@@ -14,7 +14,6 @@ export default async function PersonaChatPage({
   if (t !== 'buyer' && t !== 'seller') notFound()
   const type = t as 'buyer' | 'seller'
 
-  // Wymagamy profil.md przed rozpoczeciem persony
   const profilMd = await getProfilMd()
   if (!profilMd) {
     redirect('/onboarding/express')
@@ -25,8 +24,9 @@ export default async function PersonaChatPage({
   const questions = getPersonaQuestions(type)
 
   return (
-    <PersonaChat
+    <PersonaFlow
       type={type}
+      initialPath={slot.path}
       questions={questions}
       initialAnswers={slot.answers}
       resultPath={`/onboarding/persona/${type}/result`}

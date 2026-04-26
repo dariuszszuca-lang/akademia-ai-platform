@@ -114,3 +114,99 @@ Wygeneruj persona-${isBuyer ? 'kupujacy' : 'sprzedajacy'}.md ściśle według fo
 
   return { system, user }
 }
+
+/**
+ * Path A: AI proponuje 3 typy klientów na bazie profilu agenta.
+ * Output: JSON z 3 typami (name, who, problem, match).
+ */
+export function buildProposeTypesPrompt(
+  type: 'buyer' | 'seller',
+  profilMd: string,
+): { system: string; user: string } {
+  const isBuyer = type === 'buyer'
+  const verb = isBuyer ? 'kupujących' : 'sprzedających'
+  const verb2 = isBuyer ? 'kupują' : 'sprzedają'
+
+  const system = `Jesteś asystentem AI który analizuje profil agenta nieruchomości i proponuje 3 najbardziej prawdopodobne typy klientów dla jego rynku i specjalizacji.
+
+ZASADY:
+- Trzy typy mają być RÓŻNE od siebie (różne sytuacje życiowe, różne motywacje, różne budżety)
+- Bazuj WYŁĄCZNIE na profilu agenta. Nie wymyślaj rynków/dzielnic których nie podał.
+- Pisz po polsku, naturalnie
+- Każdy typ musi pasować do rynku i ceny które obsługuje agent
+- Output STRICTLY w formacie JSON, nic poza JSON-em
+
+FORMAT WYJŚCIA (tylko ten JSON, nic więcej):
+
+{
+  "types": [
+    {
+      "name": "[opisowa nazwa typu, np. 'Młoda rodzina szukająca M3']",
+      "who": "[1-2 zdania: wiek, sytuacja życiowa, motywacja]",
+      "problem": "[1 zdanie: główny problem do rozwiązania]",
+      "match": "[1 zdanie: dlaczego trafią do tego konkretnego agenta]"
+    },
+    {
+      "name": "...",
+      "who": "...",
+      "problem": "...",
+      "match": "..."
+    },
+    {
+      "name": "...",
+      "who": "...",
+      "problem": "...",
+      "match": "..."
+    }
+  ]
+}`
+
+  const user = `Profil agenta:
+
+${profilMd}
+
+Zaproponuj 3 typy klientów ${verb}, którzy najprawdopodobniej ${verb2} u tego agenta. Output: tylko JSON.`
+
+  return { system, user }
+}
+
+/**
+ * Path A expansion: rozszerz wybrany typ klienta do pełnej persony.
+ */
+export function buildExpandTypePrompt(
+  type: 'buyer' | 'seller',
+  profilMd: string,
+  chosenType: { name: string; who: string; problem: string; match: string },
+): { system: string; user: string } {
+  // Reuse Path B system prompt (ten sam format wyjścia), tylko user prompt inny
+  const dummyAnswers = {
+    pq1: chosenType.who,
+    pq2: '(do uzupełnienia po kolejnych transakcjach)',
+    pq3: chosenType.problem,
+    pq4: '(do uzupełnienia po kolejnych transakcjach)',
+    pq5: '(do uzupełnienia po kolejnych transakcjach)',
+    pq6: '(do uzupełnienia po kolejnych transakcjach)',
+  }
+  const base = buildGeneratePersonaPrompt(type, profilMd, dummyAnswers)
+
+  // Override user prompt — daj AI znać że to ekspansja typu, nie odpowiedzi z chatu
+  const isBuyer = type === 'buyer'
+  const customUser = `Oto profil agenta nieruchomości:
+
+${profilMd}
+
+---
+
+Agent dopiero zaczyna i nie zna jeszcze swoich typowych klientów. Wybrał jednak ten typ klienta ${isBuyer ? 'kupującego' : 'sprzedającego'} jako najbardziej prawdopodobny dla swojego rynku:
+
+NAZWA TYPU: ${chosenType.name}
+KIM JEST: ${chosenType.who}
+GŁÓWNY PROBLEM: ${chosenType.problem}
+DLACZEGO TRAFI DO TEGO AGENTA: ${chosenType.match}
+
+Rozwiń ten typ do pełnej persony. Tam gdzie nie masz informacji od agenta, używaj rozsądnych założeń bazując na rynku który obsługuje, ale oznaczaj je adnotacją "(zakładane, do uzupełnienia po kolejnych transakcjach)".
+
+Wygeneruj persona-${isBuyer ? 'kupujacy' : 'sprzedajacy'}.md ściśle według formatu z system prompta.`
+
+  return { system: base.system, user: customUser }
+}
