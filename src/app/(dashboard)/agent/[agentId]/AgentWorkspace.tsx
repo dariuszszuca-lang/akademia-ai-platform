@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Agent, AgentTool } from "@/data/agents";
-import { runTool } from "@/data/agents";
 
 export default function AgentWorkspace({ agent }: { agent: Agent }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -28,13 +27,40 @@ export default function AgentWorkspace({ agent }: { agent: Agent }) {
     setOutput(null);
   }
 
-  function run() {
+  async function run() {
     if (!selected) return;
     setRunning(true);
-    setTimeout(() => {
-      setOutput(runTool(selected, context, goal));
+    setOutput("");
+    try {
+      const res = await fetch("/api/agents/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: agent.id,
+          toolId: selected.id,
+          context,
+          goal,
+        }),
+      });
+      if (!res.body) throw new Error("no stream");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      while (true) {
+        const { value: chunk, done } = await reader.read();
+        if (done) break;
+        acc += decoder.decode(chunk);
+        setOutput(acc);
+      }
+    } catch (e) {
+      setOutput(
+        (prev) =>
+          (prev ?? "") +
+          `\n\n[Błąd: ${e instanceof Error ? e.message : "unknown"}]`,
+      );
+    } finally {
       setRunning(false);
-    }, 300);
+    }
   }
 
   async function copyOutput() {
