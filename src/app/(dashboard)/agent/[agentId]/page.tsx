@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getEffectiveAgents } from "@/lib/module-overrides";
+import { getProfilMd } from "@/lib/onboarding/state";
+import AgentGate from "@/components/onboarding/AgentGate";
 import AgentWorkspace from "./AgentWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +10,11 @@ export const dynamic = "force-dynamic";
 type Props = { params: { agentId: string } };
 
 export default async function AgentDetailPage({ params }: Props) {
+  const profilMd = await getProfilMd();
+  if (!profilMd) {
+    return <AgentGate />;
+  }
+
   const agents = await getEffectiveAgents();
   const agent = agents.find((a) => a.id === params.agentId);
   if (!agent) notFound();

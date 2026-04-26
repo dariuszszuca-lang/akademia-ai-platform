@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { type Agent } from "@/data/agents";
 import { getEffectiveAgents } from "@/lib/module-overrides";
+import { getProfilMd } from "@/lib/onboarding/state";
+import AgentGate from "@/components/onboarding/AgentGate";
 
 export const dynamic = "force-dynamic";
 
 export default async function AgentPage() {
+  const profilMd = await getProfilMd();
+  if (!profilMd) {
+    return <AgentGate />;
+  }
+
   const effective = await getEffectiveAgents();
   const enabled = effective.filter((a) => a.enabled);
   const disabled = effective.filter((a) => !a.enabled);

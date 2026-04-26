@@ -22,6 +22,15 @@ export async function POST(req: Request) {
 
   const userCtx = await getUserContext()
 
+  // Gate: bez profil.md odmawiamy uruchomienia agenta
+  if (!userCtx.profil) {
+    return new Response(
+      JSON.stringify({ error: 'Najpierw zbuduj profil agenta (/onboarding/express).' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+
   // RAG dla agenta Prawnego: szukaj relewantnych fragmentów ustawowych
   let legalChunks: LegalChunk[] = []
   if (agent.id === 'prawny') {
