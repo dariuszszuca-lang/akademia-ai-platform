@@ -1,0 +1,167 @@
+import type { OnboardingQuestion } from '@/lib/onboarding/types'
+
+/**
+ * Express Wizard: 15 pytan w 3 czesciach (~20 min lacznie).
+ * Po zakonczeniu LLM generuje profil.md uzywany przez wszystkich agentow.
+ */
+export const expressQuestions: OnboardingQuestion[] = [
+  // CZESC 1: KIM JESTEM (5 pytan, 7 min)
+  {
+    id: 'q1',
+    section: 'kim-jestem',
+    sectionLabel: 'Czesc 1: Kim jestem',
+    prompt: 'Imie, wiek, lokalizacja, ile lat w nieruchomosciach?',
+    helper: 'Np. Anna, 38, Trojmiasto, 6 lat',
+    type: 'textarea',
+    placeholder: 'Anna, 38, Trojmiasto, 6 lat',
+    estimatedSeconds: 60,
+  },
+  {
+    id: 'q2',
+    section: 'kim-jestem',
+    sectionLabel: 'Czesc 1: Kim jestem',
+    prompt: 'Jaki rynek obslugujesz?',
+    helper: 'Miasto/region, pierwotny/wtorny, mieszkania/domy/dzialki/komercyjne',
+    type: 'textarea',
+    placeholder: 'Trojmiasto, glownie wtorny, mieszkania 50-80m2 i male domy',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'q3',
+    section: 'kim-jestem',
+    sectionLabel: 'Czesc 1: Kim jestem',
+    prompt: 'Jakie sa Twoje 3 supermoce?',
+    helper: 'Rzeczy ktore robisz lepiej niz wiekszosc agentow',
+    type: 'textarea',
+    placeholder: '1. ...\n2. ...\n3. ...',
+    estimatedSeconds: 120,
+  },
+  {
+    id: 'q4',
+    section: 'kim-jestem',
+    sectionLabel: 'Czesc 1: Kim jestem',
+    prompt: 'Jakich narzedzi uzywasz w pracy?',
+    helper: 'CRM, Otodom, OLX, social media, Excel, inne?',
+    type: 'textarea',
+    placeholder: 'Otodom, OLX, Excel, IG i FB',
+    estimatedSeconds: 60,
+  },
+  {
+    id: 'q5',
+    section: 'kim-jestem',
+    sectionLabel: 'Czesc 1: Kim jestem',
+    prompt: 'Twoj poziom komfortu z AI?',
+    type: 'select',
+    options: [
+      { value: 'poczatkujacy', label: 'Poczatkujacy (uzywam okazjonalnie)' },
+      { value: 'sredni', label: 'Sredni (regularnie, ale standardowo)' },
+      { value: 'zaawansowany', label: 'Zaawansowany (wlasne workflowy, prompty)' },
+    ],
+    estimatedSeconds: 30,
+  },
+  // CZESC 2: JAK PRACUJE (5 pytan, 7 min)
+  {
+    id: 'q6',
+    section: 'jak-pracuje',
+    sectionLabel: 'Czesc 2: Jak pracuje',
+    prompt: 'Ile ofert obslugujesz jednoczesnie?',
+    type: 'text',
+    placeholder: 'Np. 8-12',
+    estimatedSeconds: 30,
+  },
+  {
+    id: 'q7',
+    section: 'jak-pracuje',
+    sectionLabel: 'Czesc 2: Jak pracuje',
+    prompt: 'Skad przychodza Twoi klienci?',
+    helper: 'Polecenia, Otodom, social media, cold call, inne?',
+    type: 'textarea',
+    placeholder: '60% polecenia, 30% Otodom, 10% IG',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'q8',
+    section: 'jak-pracuje',
+    sectionLabel: 'Czesc 2: Jak pracuje',
+    prompt: 'Ile transakcji miesiecznie zamykasz? Ile chcesz zamykac?',
+    helper: 'Stan obecny i cel',
+    type: 'textarea',
+    placeholder: 'Obecnie 2-3, cel 5',
+    estimatedSeconds: 60,
+  },
+  {
+    id: 'q9',
+    section: 'jak-pracuje',
+    sectionLabel: 'Czesc 2: Jak pracuje',
+    prompt: 'Twoje TOP 3 ograniczenia?',
+    helper: 'Czas/brak leadow/za duzo administracji/inne',
+    type: 'textarea',
+    placeholder: '1. Czas\n2. Slabosc w social media\n3. Administracja',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'q10',
+    section: 'jak-pracuje',
+    sectionLabel: 'Czesc 2: Jak pracuje',
+    prompt: 'Co Cie najbardziej frustruje w codziennej pracy agenta?',
+    type: 'textarea',
+    placeholder: 'Klienci ktorzy nie odpisuja, follow-up, opisy ofert...',
+    estimatedSeconds: 90,
+  },
+  // CZESC 3: DOKAD IDE (5 pytan, 6 min)
+  {
+    id: 'q11',
+    section: 'dokad-ide',
+    sectionLabel: 'Czesc 3: Dokad ide',
+    prompt: 'Co chcesz zmienic w swoim sposobie pracy?',
+    type: 'textarea',
+    placeholder: 'Mniej rozprasze, wiecej focusu na sprzedaz, wiecej leadow z social',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'q12',
+    section: 'dokad-ide',
+    sectionLabel: 'Czesc 3: Dokad ide',
+    prompt: 'Jakie zadania zabieraja Ci najwiecej czasu?',
+    helper: 'Opisy, odpowiedzi na zapytania, follow-upy, social media, raporty?',
+    type: 'textarea',
+    placeholder: 'Pisanie opisow ofert i odpowiadanie na zapytania',
+    estimatedSeconds: 90,
+  },
+  {
+    id: 'q13',
+    section: 'dokad-ide',
+    sectionLabel: 'Czesc 3: Dokad ide',
+    prompt: 'Czy pracujesz solo czy w biurze/zespole?',
+    type: 'select',
+    options: [
+      { value: 'solo', label: 'Solo (sam/sama)' },
+      { value: 'biuro', label: 'W biurze (kilka osob, niezalezne)' },
+      { value: 'zespol', label: 'W zespole (z asystentem/em wspoldzielonym)' },
+    ],
+    estimatedSeconds: 30,
+  },
+  {
+    id: 'q14',
+    section: 'dokad-ide',
+    sectionLabel: 'Czesc 3: Dokad ide',
+    prompt: 'Czego NIE chcesz robic? (czerwone linie)',
+    helper: 'Np. cold calling, nagrywanie wideo, praca z deweloperami',
+    type: 'textarea',
+    placeholder: 'Cold calling. Nagrywanie wideo do social.',
+    estimatedSeconds: 60,
+  },
+  {
+    id: 'q15',
+    section: 'dokad-ide',
+    sectionLabel: 'Czesc 3: Dokad ide',
+    prompt: 'Gdyby AI moglo zdjac z Ciebie jedna rzecz od jutra, co by to bylo?',
+    type: 'textarea',
+    placeholder: 'Pisanie opisow ofert',
+    estimatedSeconds: 90,
+  },
+]
+
+export function getExpressTotalSeconds(): number {
+  return expressQuestions.reduce((acc, q) => acc + (q.estimatedSeconds ?? 60), 0)
+}
