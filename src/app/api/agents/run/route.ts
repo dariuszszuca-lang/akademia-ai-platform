@@ -4,6 +4,8 @@ import { getUserContext } from '@/lib/agent/user-context'
 import { buildAgentSystemPrompt, buildAgentUserPrompt } from '@/lib/agent/prompts'
 import { searchLegal } from '@/lib/legal/search'
 import type { LegalChunk } from '@/lib/legal/pinecone'
+import { getEffectivePlan } from '@/lib/billing/state'
+import { PLAN_FEATURES } from '@/lib/billing/plans'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -31,9 +33,19 @@ export async function POST(req: Request) {
   }
 
 
-  // RAG dla agenta Prawnego: szukaj relewantnych fragmentów ustawowych
+  // Gate: aktywny plan / trial
+  const { plan, active } = await getEffectivePlan()
+  if (!active) {
+    return new Response(
+      JSON.stringify({ error: 'Twój trial wygasł. Wybierz plan w /pricing.' }),
+      { status: 402, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+  const features = plan === 'expired' ? PLAN_FEATURES.starter : PLAN_FEATURES[plan]
+
+  // RAG dla agenta Prawnego: tylko jeśli plan ma ragLegal (Pro+/Trial/Agency)
   let legalChunks: LegalChunk[] = []
-  if (agent.id === 'prawny') {
+  if (agent.id === 'prawny' && features.ragLegal) {
     const ragQuery = `${tool.title}\n${context ?? ''}\n${goal ?? ''}`.trim()
     legalChunks = await searchLegal(ragQuery, 5)
   }

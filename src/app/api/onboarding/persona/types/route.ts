@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { buildProposeTypesPrompt } from '@/lib/onboarding/persona-prompts'
 import { getProfilMd } from '@/lib/onboarding/state'
+import { getEffectivePlan } from '@/lib/billing/state'
+import { PLAN_FEATURES } from '@/lib/billing/plans'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -15,6 +17,16 @@ export async function POST(req: Request) {
   const profilMd = await getProfilMd()
   if (!profilMd) {
     return NextResponse.json({ error: 'profil not generated yet' }, { status: 400 })
+  }
+
+  // Gate: Path A wymaga Pro+
+  const { plan, active } = await getEffectivePlan()
+  const features = plan === 'expired' ? PLAN_FEATURES.starter : PLAN_FEATURES[plan]
+  if (!active || !features.pathA) {
+    return NextResponse.json(
+      { error: 'Persona Path A jest dostępna w planie Pro+. Możesz użyć Path B (chat z 6 pytaniami) lub upgrade w /pricing.' },
+      { status: 402 },
+    )
   }
 
   const { system, user } = buildProposeTypesPrompt(type, profilMd)

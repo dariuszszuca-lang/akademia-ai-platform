@@ -9,6 +9,8 @@ const NAV_ITEMS: { label: string; href: string; group: string; hint?: string }[]
   { label: 'Start', href: '/start', group: 'Nawigacja', hint: 'Strona główna' },
   { label: 'Mój profil', href: '/profil', group: 'Nawigacja', hint: 'profil.md, persony' },
   { label: 'Agenci', href: '/agent', group: 'Nawigacja', hint: 'Lista 6 agentów AI' },
+  { label: 'Plan i subskrypcja', href: '/settings/subscription', group: 'Nawigacja', hint: 'Aktualny plan, faktury' },
+  { label: 'Cennik', href: '/pricing', group: 'Nawigacja', hint: 'Wybierz plan' },
   { label: 'Warsztaty', href: '/programy', group: 'Nawigacja' },
   { label: 'Skarbiec', href: '/skarbiec', group: 'Nawigacja' },
   { label: 'Na żywo', href: '/na-zywo', group: 'Nawigacja' },

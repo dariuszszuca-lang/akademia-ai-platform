@@ -10,6 +10,7 @@ const navItems = [
   { name: "Start", href: "/start" },
   { name: "Mój profil", href: "/profil" },
   { name: "Agent", href: "/agent" },
+  { name: "Plan", href: "/settings/subscription" },
   { name: "Warsztaty", href: "/programy" },
   { name: "Skarbiec", href: "/skarbiec" },
   { name: "Na żywo", href: "/na-zywo" },
