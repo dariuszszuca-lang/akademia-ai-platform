@@ -40,11 +40,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await cognito.getUser(accessToken);
       const attrs = data.UserAttributes || [];
+      const sub = attrs.find((a) => a.Name === "sub")?.Value || "";
       setUser({
         email: attrs.find((a) => a.Name === "email")?.Value || "",
         name: attrs.find((a) => a.Name === "name")?.Value || "",
-        sub: attrs.find((a) => a.Name === "sub")?.Value || "",
+        sub,
       });
+      // Synchronizuj server-side cookie z Cognito sub
+      if (sub) {
+        fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sub }),
+        }).catch(() => {});
+      }
     } catch {
       // Token expired — try refresh
       const refreshToken = localStorage.getItem("refreshToken");
@@ -56,11 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.setItem("idToken", refreshData.AuthenticationResult.IdToken);
             const userData = await cognito.getUser(refreshData.AuthenticationResult.AccessToken);
             const attrs = userData.UserAttributes || [];
+            const sub = attrs.find((a) => a.Name === "sub")?.Value || "";
             setUser({
               email: attrs.find((a) => a.Name === "email")?.Value || "",
               name: attrs.find((a) => a.Name === "name")?.Value || "",
-              sub: attrs.find((a) => a.Name === "sub")?.Value || "",
+              sub,
             });
+            if (sub) {
+              fetch("/api/auth/session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sub }),
+              }).catch(() => {});
+            }
           }
         } catch {
           localStorage.clear();
@@ -143,6 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // Ignore errors on sign out
       }
+    }
+    // Wyczysc server-side cookie
+    try {
+      await fetch("/api/auth/session", { method: "DELETE" });
+    } catch {
+      // ignore
     }
     localStorage.clear();
     setUser(null);

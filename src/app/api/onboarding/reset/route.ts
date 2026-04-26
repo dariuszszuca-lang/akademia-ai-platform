@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { storeDelete } from '@/lib/store'
-
-const DEMO_USER = 'demo-user'
+import { getServerUserId } from '@/lib/session'
 
 /**
- * Admin endpoint do resetu calego onboardingu (do testow).
- * Wymaga ADMIN_PASSWORD w nagłowku.
+ * Reset onboarding ZALOGOWANEGO usera (lub demo-user gdy brak sesji).
+ * Wymaga: ADMIN_PASSWORD w Authorization (defense, zeby nikt nie wyczyscil sobie z poziomu konsoli).
  *
  * curl -X POST .../api/onboarding/reset -H "Authorization: Bearer $ADMIN_PASSWORD"
  */
@@ -19,15 +18,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  const userId = (await getServerUserId()) ?? 'demo-user'
+
   const keys = [
-    `user:${DEMO_USER}:onboarding`,
-    `user:${DEMO_USER}:profil`,
-    `user:${DEMO_USER}:persona-buyer`,
-    `user:${DEMO_USER}:persona-seller`,
+    `user:${userId}:onboarding`,
+    `user:${userId}:profil`,
+    `user:${userId}:persona-buyer`,
+    `user:${userId}:persona-seller`,
   ]
   for (const k of keys) {
     await storeDelete(k)
   }
 
-  return NextResponse.json({ ok: true, cleared: keys })
+  return NextResponse.json({ ok: true, cleared: keys, userId })
 }

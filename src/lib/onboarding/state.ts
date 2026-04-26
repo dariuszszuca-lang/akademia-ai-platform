@@ -1,11 +1,17 @@
 import { storeGet, storeSet } from '@/lib/store'
+import { getServerUserId } from '@/lib/session'
 import { emptyState, type OnboardingState } from './types'
 
 const DEMO_USER_ID = 'demo-user'
 
-function getUserId(): string {
-  // MVP: statyczny user. Pozniej z Cognito / NextAuth.
-  return DEMO_USER_ID
+/**
+ * Server-only getUserId.
+ * Czyta httpOnly cookie z user.sub.
+ * Fallback: demo-user (dla starszych testów; produkcyjnie zawsze user musi być zalogowany).
+ */
+async function getUserId(): Promise<string> {
+  const sub = await getServerUserId()
+  return sub ?? DEMO_USER_ID
 }
 
 function stateKey(userId: string): string {
@@ -25,13 +31,13 @@ function personaSellerKey(userId: string): string {
 }
 
 export async function getOnboardingState(): Promise<OnboardingState> {
-  const userId = getUserId()
+  const userId = await getUserId()
   const existing = await storeGet<OnboardingState>(stateKey(userId))
   return existing ?? emptyState()
 }
 
 export async function saveOnboardingState(state: OnboardingState): Promise<void> {
-  const userId = getUserId()
+  const userId = await getUserId()
   await storeSet(stateKey(userId), state)
 }
 
@@ -49,7 +55,7 @@ export async function saveExpressAnswer(
 }
 
 export async function saveProfilMd(markdown: string): Promise<void> {
-  const userId = getUserId()
+  const userId = await getUserId()
   await storeSet(profilKey(userId), markdown)
   const state = await getOnboardingState()
   state.expressGeneratedAt = new Date().toISOString()
@@ -58,17 +64,17 @@ export async function saveProfilMd(markdown: string): Promise<void> {
 }
 
 export async function getProfilMd(): Promise<string | null> {
-  const userId = getUserId()
+  const userId = await getUserId()
   return storeGet<string>(profilKey(userId))
 }
 
 export async function getPersonaBuyerMd(): Promise<string | null> {
-  const userId = getUserId()
+  const userId = await getUserId()
   return storeGet<string>(personaBuyerKey(userId))
 }
 
 export async function getPersonaSellerMd(): Promise<string | null> {
-  const userId = getUserId()
+  const userId = await getUserId()
   return storeGet<string>(personaSellerKey(userId))
 }
 
@@ -126,7 +132,7 @@ export async function saveDeepAnswer(questionId: string, answer: string): Promis
 }
 
 export async function saveExtendedProfilMd(markdown: string): Promise<void> {
-  const userId = getUserId()
+  const userId = await getUserId()
   await storeSet(profilKey(userId), markdown)
   const state = await getOnboardingState()
   state.deepGeneratedAt = new Date().toISOString()
@@ -136,7 +142,7 @@ export async function saveExtendedProfilMd(markdown: string): Promise<void> {
 }
 
 export async function savePersonaMd(type: PersonaType, markdown: string): Promise<void> {
-  const userId = getUserId()
+  const userId = await getUserId()
   await storeSet(personaKey(userId, type), markdown)
   const state = await getOnboardingState()
   const slot = type === 'buyer' ? state.personaBuyer : state.personaSeller
