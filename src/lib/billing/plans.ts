@@ -103,7 +103,7 @@ export const PLAN_DISPLAY: PlanDisplay[] = [
     description: 'Pełne wykorzystanie. Najczęstszy wybór.',
     features: [
       '200 wywołań agenta / dzień',
-      'Wszystkie agenty + RAG na Kodeksie cywilnym',
+      'Wszyscy agenci + RAG na Kodeksie cywilnym',
       'Persona Path A (AI proponuje 3 typy)',
       'Profil pogłębiony (20 dodatkowych pytań)',
       'Priorytetowy support',
@@ -119,7 +119,7 @@ export const PLAN_DISPLAY: PlanDisplay[] = [
     description: 'Dla biur i zespołów.',
     features: [
       'Nielimitowane wywołania',
-      'Wszystkie agenty + Opus dla trudnych spraw prawnych',
+      'Wszyscy agenci + Opus dla trudnych spraw prawnych',
       'Multi-user (do 5 agentów w zespole)',
       'White-label (Twoje logo)',
       'Dedykowany account manager',

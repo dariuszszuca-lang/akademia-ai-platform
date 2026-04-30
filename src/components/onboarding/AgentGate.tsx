@@ -17,7 +17,7 @@ export default async function AgentGate() {
       <header className="space-y-4">
         <p className="eyebrow">Agenci AI</p>
         <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(36px, 5.5vw, 56px)' }}>
-          Najpierw <em>profil</em>, potem agenty.
+          Najpierw <em>profil</em>, potem agenci.
         </h1>
         <p className="text-foreground/55 text-base leading-relaxed max-w-2xl">
           Każdy agent na platformie odpowiada konkretnie pod Twój rynek, klienta, cele.
@@ -47,7 +47,7 @@ export default async function AgentGate() {
             <p className="mt-3 text-sm text-foreground/55 leading-relaxed">
               {expressInProgress
                 ? `Masz wypełnionych ${expressFilled} z ${expressTotal} pytań. Wracaj kiedy chcesz, wszystko zapisane.`
-                : '15 pytań w 3 częściach, około 20 minut. Po skończeniu wracasz tu i agenty pracują w Twoich realiach.'}
+                : '15 pytań w 3 częściach, około 20 minut. Po skończeniu wracasz tu i agenci pracują w Twoich realiach.'}
             </p>
           </div>
           <div className="shrink-0">

@@ -118,7 +118,7 @@ export default function RaportKoszty() {
             headers={['Model', 'Input ($/1M)', 'Output ($/1M)', 'Cache read', 'Cache write', 'Zastosowanie']}
             rightCols={[1, 2, 3, 4]}
             rows={[
-              ['Claude Sonnet 4.6', '$3,00', '$15,00', '$0,30', '$3,75', 'Główny silnik, agenty premium'],
+              ['Claude Sonnet 4.6', '$3,00', '$15,00', '$0,30', '$3,75', 'Główny silnik, agenci premium'],
               ['Claude Haiku 4.5', '$1,00', '$5,00', '$0,10', '$1,25', 'Prosty content, klasyfikacje'],
               ['Claude Opus 4.7', '$15,00', '$75,00', '$1,50', '$18,75', 'Tylko trudne zadania (prawo)'],
             ]}
@@ -264,7 +264,7 @@ export default function RaportKoszty() {
             <li><Strong>Free / Trial</Strong>: 7 dni full + 5 wywołań / dzień po trialu (lead magnet)</li>
             <li><Strong>Starter 99 zł</Strong> / mies: 50 wywołań / dzień, Sonnet only</li>
             <li><Strong>Pro 199 zł</Strong> / mies: 200 wywołań / dzień, Sonnet + Haiku routing, baza prawna</li>
-            <li><Strong>Agency 499 zł</Strong> / mies: nielimitowane, multi-user, white-label, własne agenty</li>
+            <li><Strong>Agency 499 zł</Strong> / mies: nielimitowane, multi-user, white-label, własni agenci</li>
           </ul>
 
           <SubHeading>Break-even per tier</SubHeading>

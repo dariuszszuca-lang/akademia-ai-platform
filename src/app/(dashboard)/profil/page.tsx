@@ -22,7 +22,7 @@ export default async function ProfilPage() {
       <header className="space-y-4">
         <p className="eyebrow">Twój profil AI</p>
         <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(40px, 6vw, 64px)' }}>
-          Tak Cię widzą <em>agenty</em>.
+          Tak Cię widzą <em>agenci</em>.
         </h1>
         <p className="text-base text-foreground/55 leading-relaxed max-w-2xl">
           Każdy plik poniżej trafia jako kontekst do każdego agenta na platformie.
