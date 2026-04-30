@@ -87,7 +87,7 @@ export default async function SubscriptionSettingsPage() {
       </div>
 
       <div className="text-foreground/40 text-xs leading-relaxed">
-        Pytania o fakturę / plan / cancel? Napisz na <a href="mailto:hello@akademia-ai.pl" className="text-accent hover:underline">hello@akademia-ai.pl</a>.
+        Pytania o fakturę / plan / cancel? Napisz na <a href="mailto:dariusz.szuca@gmail.com" className="text-accent hover:underline">dariusz.szuca@gmail.com</a>.
       </div>
     </div>
   )
