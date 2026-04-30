@@ -251,6 +251,26 @@ body {
   box-shadow: 0 0 0 3px var(--accent-light);
 }
 
+/* Globalny reset dla textarea/input - user-agent stylesheet daje biale tlo na form
+   elements, co przy tekscie kremowym (--fg w dark) daje niewidoczny tekst.
+   Wymuszamy explicit color stack z palety projektu. Komponenty moga to nadpisac. */
+textarea,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+input[type="tel"],
+input[type="url"] {
+  background-color: var(--card-strong);
+  color: var(--fg);
+  caret-color: var(--accent);
+}
+textarea::placeholder,
+input::placeholder {
+  color: rgba(255, 247, 234, 0.35);
+}
+
 .eyebrow {
   font-size: 0.72rem;
   letter-spacing: 0.18em;
