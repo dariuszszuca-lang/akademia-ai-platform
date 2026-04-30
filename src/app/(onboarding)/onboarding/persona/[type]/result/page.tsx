@@ -41,8 +41,17 @@ export default async function PersonaResultPage({
     )
   }
 
-  const nextHref = isBuyer ? '/onboarding/persona/seller' : '/onboarding'
-  const nextLabel = isBuyer ? 'Dalej: Persona sprzedającego →' : 'Wróć do podsumowania →'
+  const hasDeep = Boolean(state.deepGeneratedAt)
+  const nextHref = isBuyer
+    ? '/onboarding/persona/seller'
+    : hasDeep
+    ? '/agent'
+    : '/agent'
+  const nextLabel = isBuyer
+    ? 'Dalej: Persona sprzedającego →'
+    : 'Przejdź do agentów →'
+  // Po sprzedającym pokazujemy też secondary CTA do profilu pogłębionego (opcja)
+  const showDeepLink = !isBuyer && !hasDeep
 
   return (
     <div className="max-w-3xl mx-auto py-12 sm:py-16 space-y-10 animate-fade-in-up">
@@ -94,12 +103,22 @@ export default async function PersonaResultPage({
             />
           )}
         </div>
-        <Link
-          href={nextHref}
-          className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors"
-        >
-          {nextLabel}
-        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          {showDeepLink && (
+            <Link
+              href="/onboarding/deep"
+              className="text-foreground/50 hover:text-foreground text-xs uppercase tracking-[0.25em] transition-colors"
+            >
+              Profil pogłębiony (opcja) →
+            </Link>
+          )}
+          <Link
+            href={nextHref}
+            className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors"
+          >
+            {nextLabel}
+          </Link>
+        </div>
       </div>
     </div>
   )

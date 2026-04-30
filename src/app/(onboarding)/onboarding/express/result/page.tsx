@@ -68,10 +68,10 @@ export default async function ExpressResultPage() {
           <RegenerateButton endpoint="/api/onboarding/generate-profil" label="Wygeneruj ponownie" />
         </div>
         <Link
-          href="/onboarding"
+          href="/onboarding/persona/buyer"
           className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors"
         >
-          Dalej: Persona klienta →
+          Dalej: Persona kupującego →
         </Link>
       </div>
     </div>

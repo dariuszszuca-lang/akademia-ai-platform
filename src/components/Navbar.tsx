@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -37,6 +38,32 @@ function isActivePath(pathname: string, href: string) {
 export default function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Zamykanie dropdown gdy klikniemy poza nim albo wciśniemy Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  // Zamknij menu przy zmianie ścieżki
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   return (
     <>
@@ -77,14 +104,80 @@ export default function Navbar() {
 
           <div className="flex items-center gap-2">
             {user && (
-              <button
-                className="flex h-10 min-w-10 items-center justify-center rounded-full bg-accent px-3 text-xs font-bold text-white"
-                onClick={logout}
-                title="Wyloguj"
-              >
-                <span className="sm:hidden">{user.name.charAt(0).toUpperCase()}</span>
-                <span className="hidden sm:block">Wyjdź</span>
-              </button>
+              <div ref={menuRef} className="relative">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="flex items-center gap-2.5 rounded-full border border-border bg-background/40 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-background/60"
+                  title={user.email}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),var(--muted-gold))] text-xs font-bold text-white">
+                    {(user.name || user.email).charAt(0).toUpperCase()}
+                  </span>
+                  <span className="hidden max-w-[120px] truncate text-sm text-foreground/80 sm:block">
+                    {user.name || user.email}
+                  </span>
+                  <svg
+                    className={`hidden h-3.5 w-3.5 text-foreground/50 transition-transform sm:block ${menuOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div
+                    className="absolute right-0 mt-3 w-72 overflow-hidden rounded-2xl border border-border bg-[color:var(--card-strong)] shadow-[var(--shadow-soft)]"
+                    role="menu"
+                  >
+                    <div className="border-b border-border/60 px-4 py-3">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {user.name || "—"}
+                      </p>
+                      <p className="truncate text-xs text-foreground/55">{user.email}</p>
+                    </div>
+                    <div className="py-1.5">
+                      <Link
+                        href="/profil"
+                        className="block px-4 py-2 text-sm text-foreground/80 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                        role="menuitem"
+                      >
+                        Mój profil
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="block px-4 py-2 text-sm text-foreground/80 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                        role="menuitem"
+                      >
+                        Ustawienia
+                      </Link>
+                      <Link
+                        href="/onboarding"
+                        className="block px-4 py-2 text-sm text-foreground/80 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                        role="menuitem"
+                      >
+                        Onboarding AI
+                      </Link>
+                    </div>
+                    <div className="border-t border-border/60 py-1.5">
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          logout();
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-foreground/70 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                        role="menuitem"
+                      >
+                        Wyloguj
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
