@@ -1,8 +1,25 @@
 import { storeGet, storeSet } from '@/lib/store'
 import { getServerUserId } from '@/lib/session'
+import { revalidatePath } from 'next/cache'
 import { emptyState, type OnboardingState } from './types'
 
 const DEMO_USER_ID = 'demo-user'
+
+/**
+ * Revaliduje strony ktore renderuja stan onboardingu.
+ * Wolane po kazdym save zeby user nie musial robic refresh.
+ */
+function revalidateOnboardingViews(): void {
+  try {
+    revalidatePath('/onboarding')
+    revalidatePath('/start')
+    revalidatePath('/profil')
+    revalidatePath('/agent')
+  } catch {
+    // revalidatePath dziala tylko w route handlers / server actions.
+    // Cisza gdy wolane z innego kontekstu.
+  }
+}
 
 /**
  * Server-only getUserId.
@@ -61,6 +78,7 @@ export async function saveProfilMd(markdown: string): Promise<void> {
   state.expressGeneratedAt = new Date().toISOString()
   state.currentStep = 'persona-buyer'
   await saveOnboardingState(state)
+  revalidateOnboardingViews()
 }
 
 export async function getProfilMd(): Promise<string | null> {
@@ -139,6 +157,7 @@ export async function saveExtendedProfilMd(markdown: string): Promise<void> {
   state.currentStep = 'complete'
   state.completedAt = new Date().toISOString()
   await saveOnboardingState(state)
+  revalidateOnboardingViews()
 }
 
 export async function savePersonaMd(type: PersonaType, markdown: string): Promise<void> {
@@ -154,4 +173,5 @@ export async function savePersonaMd(type: PersonaType, markdown: string): Promis
     state.currentStep = 'deep'
   }
   await saveOnboardingState(state)
+  revalidateOnboardingViews()
 }
