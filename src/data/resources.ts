@@ -9,7 +9,7 @@ export const resources: Course[] = [
     accentColor: "#8d6170",
     icon: "R",
     lessons: 0,
-    external: "https://rejestrcentransakcyjnych.pl",
+    external: "https://rejestr-cen-transakcyjnych.pl",
     category: "Zewnętrzne",
     enabled: true,
   },

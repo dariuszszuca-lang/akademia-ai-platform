@@ -20,7 +20,7 @@ export default function MembersPage() {
       <header>
         <p className="eyebrow">Ludzie</p>
         <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
-          Kto jest w tej edycji.
+          Kto jest w Akademii.
         </h1>
       </header>
 
@@ -47,7 +47,7 @@ export default function MembersPage() {
             </div>
           )}
           <p className="pt-3 text-xs text-foreground/45">
-            Pozostałe osoby pojawią się kiedy dołączą do edycji.
+            Pozostałe osoby pojawią się kiedy dołączą do Akademii.
           </p>
         </div>
       </section>
@@ -57,10 +57,10 @@ export default function MembersPage() {
           Zaproszenie
         </p>
         <h3 className="mt-2 font-display text-xl text-foreground">
-          Dodaj kolejną osobę do tej edycji.
+          Dodaj kolejną osobę do Akademii.
         </h3>
         <p className="mt-2 text-sm text-foreground/55">
-          Jeden link rejestracyjny dla uczestników bieżącej edycji.
+          Jeden link rejestracyjny dla nowych uczestników.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
