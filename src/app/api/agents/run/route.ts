@@ -86,9 +86,12 @@ export async function POST(req: Request) {
           controller.enqueue(new TextEncoder().encode(meta))
         }
 
+        // max_tokens: 6000 zostawia margines dla dlugich dokumentow (agent
+        // Prawny: umowy, Wycena: protokoly). Krotsze response (CEO, Marketing)
+        // i tak konczy sie wczesniej naturalnie - to limit gorny, nie target.
         const llmStream = await anthropic.messages.stream({
           model: DEFAULT_MODEL,
-          max_tokens: 2500,
+          max_tokens: 6000,
           system,
           messages: [{ role: 'user', content: user }],
         })
