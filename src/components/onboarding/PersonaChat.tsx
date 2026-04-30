@@ -202,7 +202,7 @@ export default function PersonaChat({ type, questions, initialAnswers, resultPat
               onKeyDown={handleKeyDown}
               placeholder={current?.placeholder ?? 'Twoja odpowiedź...'}
               rows={3}
-              className="flex-1 px-4 py-3 bg-foreground/[0.02] border border-foreground/[0.08] rounded-xl text-foreground placeholder:text-foreground/30 text-[14px] leading-relaxed focus:outline-none focus:border-accent/40 focus:bg-foreground/[0.04] transition-colors resize-none"
+              className="flex-1 px-4 py-3 bg-card border border-foreground/[0.08] rounded-xl text-foreground placeholder:text-foreground/30 text-[14px] leading-relaxed focus:outline-none focus:border-accent/40 focus:bg-[color:var(--card-strong)] transition-colors resize-none"
             />
             <button
               onClick={send}
