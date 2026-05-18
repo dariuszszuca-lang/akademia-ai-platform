@@ -35,14 +35,22 @@ export default function AboutPage() {
           Cennik — Edycja 1 (22–25 kwietnia 2026)
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-border bg-background/55 p-5">
+          <div className="flex flex-col rounded-2xl border border-border bg-background/55 p-5">
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-foreground/45">
               Część I
             </p>
             <p className="mt-2 font-display text-2xl text-foreground">750 zł</p>
             <p className="mt-2 text-xs text-foreground/55">Wprowadzenie + Dzień 1 stacjonarny</p>
+            <a
+              href="https://nieruchomoscispodlady.pl/produkt/ai-w-pracy-agenta-nieruchomosci-czesc-i/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center justify-center rounded-full border border-border bg-background/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80 transition hover:border-foreground/40 hover:text-foreground"
+            >
+              Kup Część I →
+            </a>
           </div>
-          <div className="rounded-2xl border-2 border-accent bg-[color:var(--card)] p-5">
+          <div className="flex flex-col rounded-2xl border-2 border-accent bg-[color:var(--card)] p-5">
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-accent">
               Pakiet pełny (I + II)
             </p>
@@ -51,6 +59,14 @@ export default function AboutPage() {
               <p className="text-sm text-foreground/45 line-through">1 500 zł</p>
             </div>
             <p className="mt-2 text-xs text-foreground/55">Wszystkie 4 dni + certyfikat + rok dostępu</p>
+            <a
+              href="https://nieruchomoscispodlady.pl/produkt/ai-w-pracy-agenta-nieruchomosci-czesc-i-i-ii/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-accent/90"
+            >
+              Kup pakiet I + II →
+            </a>
           </div>
         </div>
       </section>
