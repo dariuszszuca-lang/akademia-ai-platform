@@ -3,6 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import type { PropertyFact } from '../properties/domain'
 import { propertyFactValueTypeSchema } from '../properties/domain'
 import { propertyAuditEvents, propertyFacts } from '../properties/schema'
+import { organizationMemberships } from '../properties/schema'
 import {
   createPropertySourceSchema,
   ingestFactProposalSchema,
@@ -480,6 +481,42 @@ export class PostgresPropertySourceRepository<
       throw new Error('PROPOSAL_CONFLICT_CHANGED')
     }
     return outcome.result
+  }
+
+  async exportForUser(userId: string) {
+    const memberships = await this.database
+      .select({ organizationId: organizationMemberships.organizationId })
+      .from(organizationMemberships)
+      .where(eq(organizationMemberships.userId, userId))
+
+    if (memberships.length === 0) {
+      return { sources: [], sourceJobs: [], factProposals: [] }
+    }
+
+    const organizationIds = memberships.map(
+      (membership) => membership.organizationId,
+    )
+    const sourceRows = await this.database
+      .select()
+      .from(propertySources)
+      .where(inArray(propertySources.organizationId, organizationIds))
+      .orderBy(propertySources.createdAt)
+    const jobRows = await this.database
+      .select()
+      .from(sourceProcessingJobs)
+      .where(inArray(sourceProcessingJobs.organizationId, organizationIds))
+      .orderBy(sourceProcessingJobs.createdAt)
+    const proposalRows = await this.database
+      .select()
+      .from(propertyFactProposals)
+      .where(inArray(propertyFactProposals.organizationId, organizationIds))
+      .orderBy(propertyFactProposals.createdAt)
+
+    return {
+      sources: sourceRows.map(mapSource),
+      sourceJobs: jobRows.map(mapJob),
+      factProposals: proposalRows.map(mapProposal),
+    }
   }
 }
 

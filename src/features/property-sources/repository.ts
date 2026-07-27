@@ -63,6 +63,12 @@ export type ProposalDecisionResult = {
   fact: PropertyFact | null
 }
 
+export type PropertySourcesExport = {
+  sources: PropertySource[]
+  sourceJobs: SourceProcessingJob[]
+  factProposals: PropertyFactProposal[]
+}
+
 export interface PropertySourceRepository {
   createSource(record: NewPropertySourceRecord): Promise<PropertySource>
   listSources(
@@ -99,4 +105,5 @@ export interface PropertySourceRepository {
   decideProposal(
     command: DecideProposalCommand,
   ): Promise<ProposalDecisionResult>
+  exportForUser(userId: string): Promise<PropertySourcesExport>
 }

@@ -252,17 +252,36 @@ describe('PostgresPropertySourceRepository', () => {
     ).toBeNull()
   })
 
+  it('exports source evidence only for the requested user', async () => {
+    const userA = await createContext({ userId: 'user-a' })
+    await createContext({ userId: 'user-b' })
+
+    const exported = await sourceRepository.exportForUser('user-a')
+
+    expect(exported.sources.map((source) => source.id)).toEqual([
+      userA.source.id,
+    ])
+    expect(exported.sourceJobs.map((job) => job.id)).toEqual([userA.job.id])
+    expect(
+      exported.factProposals.map((proposal) => proposal.id),
+    ).toEqual([userA.proposal.id])
+    expect(exported.factProposals[0].evidenceText).toBe(
+      'Powierzchnia użytkowa: 83,40 m²',
+    )
+  })
+
   async function createContext(
-    options: { existingValue?: number } = {},
+    options: { existingValue?: number; userId?: string } = {},
   ) {
-    const project = await propertyService.createProject('user-a', {
+    const userId = options.userId ?? 'user-a'
+    const project = await propertyService.createProject(userId, {
       title: `Mieszkanie Jeżyce ${crypto.randomUUID()}`,
       propertyType: 'apartment',
       transactionType: 'sale',
       city: 'Poznań',
       addressMode: 'hidden',
     })
-    const source = await sourceService.registerSource('user-a', project.id, {
+    const source = await sourceService.registerSource(userId, project.id, {
       fileName: 'operat.pdf',
       mediaType: 'application/pdf',
       sizeBytes: 12_000,
@@ -277,7 +296,7 @@ describe('PostgresPropertySourceRepository', () => {
     const currentFact =
       options.existingValue === undefined
         ? null
-        : await propertyService.createFact('user-a', project.id, {
+        : await propertyService.createFact(userId, project.id, {
             key: 'area.usable',
             label: 'Powierzchnia użytkowa',
             category: 'Powierzchnia',

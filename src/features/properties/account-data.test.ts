@@ -6,22 +6,39 @@ import {
 } from './account-data'
 
 describe('property studio account data workflows', () => {
-  it('includes property projects, facts and audit in account export', async () => {
-    const propertyStudio = {
+  it('includes property truth and source review data in account export', async () => {
+    const propertyTruth = {
       projects: [{ id: 'project-1' }],
       facts: [{ id: 'fact-1' }],
       audit: [{ id: 'audit-1' }],
     }
+    const propertySources = {
+      sources: [{ id: 'source-1' }],
+      sourceJobs: [{ id: 'job-1' }],
+      factProposals: [
+        {
+          id: 'proposal-1',
+          evidenceText: 'Powierzchnia użytkowa: 83,40 m²',
+          decision: { action: 'accept' },
+        },
+      ],
+    }
     const getValue = vi.fn(async (key: string) => `value:${key}`)
-    const exportForUser = vi.fn(async () => propertyStudio)
+    const exportForUser = vi.fn(async () => propertyTruth)
+    const exportSourcesForUser = vi.fn(async () => propertySources)
 
     const result = await exportAccountData('user-a', {
       getValue,
       exportForUser,
+      exportSourcesForUser,
     })
 
-    expect(result.propertyStudio).toEqual(propertyStudio)
+    expect(result.propertyStudio).toEqual({
+      ...propertyTruth,
+      ...propertySources,
+    })
     expect(exportForUser).toHaveBeenCalledWith('user-a')
+    expect(exportSourcesForUser).toHaveBeenCalledWith('user-a')
     expect(getValue).toHaveBeenCalledTimes(5)
   })
 

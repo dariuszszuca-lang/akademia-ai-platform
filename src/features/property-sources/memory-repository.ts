@@ -331,6 +331,34 @@ export class MemoryPropertySourceRepository
     )
     return facts.find((fact) => fact.key === proposal.factKey) ?? null
   }
+
+  async exportForUser(userId: string) {
+    const propertyExport = await this.propertyRepository.exportForUser(userId)
+    const projectIds = new Set(
+      propertyExport.projects.map((project) => project.id),
+    )
+    const organizationIds = new Set(
+      propertyExport.projects.map((project) => project.organizationId),
+    )
+
+    return clone({
+      sources: this.sources.filter(
+        (source) =>
+          organizationIds.has(source.organizationId) &&
+          projectIds.has(source.propertyProjectId),
+      ),
+      sourceJobs: this.jobs.filter(
+        (job) =>
+          organizationIds.has(job.organizationId) &&
+          projectIds.has(job.propertyProjectId),
+      ),
+      factProposals: this.proposals.filter(
+        (proposal) =>
+          organizationIds.has(proposal.organizationId) &&
+          projectIds.has(proposal.propertyProjectId),
+      ),
+    })
+  }
 }
 
 function clone<T>(value: T): T {

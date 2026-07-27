@@ -4,9 +4,16 @@ type PropertyStudioExport = {
   audit: unknown[]
 }
 
+type PropertySourcesExport = {
+  sources: unknown[]
+  sourceJobs: unknown[]
+  factProposals: unknown[]
+}
+
 type ExportAccountDependencies = {
   getValue: (key: string) => Promise<unknown>
   exportForUser: (userId: string) => Promise<PropertyStudioExport>
+  exportSourcesForUser: (userId: string) => Promise<PropertySourcesExport>
 }
 
 type DeleteAccountDependencies = {
@@ -29,17 +36,18 @@ export async function exportAccountData(
   dependencies: ExportAccountDependencies,
 ) {
   const keys = getAccountKeys(userId)
+  const [accountValues, propertyStudio, propertySources] = await Promise.all([
+    Promise.all(keys.map((key) => dependencies.getValue(key))),
+    dependencies.exportForUser(userId),
+    dependencies.exportSourcesForUser(userId),
+  ])
   const [
     profil,
     personaBuyer,
     personaSeller,
     onboarding,
     subscription,
-    propertyStudio,
-  ] = await Promise.all([
-    ...keys.map((key) => dependencies.getValue(key)),
-    dependencies.exportForUser(userId),
-  ])
+  ] = accountValues
 
   return {
     profil,
@@ -47,7 +55,10 @@ export async function exportAccountData(
     personaSeller,
     onboarding,
     subscription,
-    propertyStudio,
+    propertyStudio: {
+      ...propertyStudio,
+      ...propertySources,
+    },
   }
 }
 
