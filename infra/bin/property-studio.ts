@@ -4,7 +4,7 @@ import { readInfrastructureConfigFromEnv } from '../config'
 import { PropertySourceStorageStack } from '../property-source-storage-stack'
 
 const config = readInfrastructureConfigFromEnv()
-const app = new App()
+const app = new App({ outdir: 'cdk.out' })
 
 new PropertySourceStorageStack(
   app,

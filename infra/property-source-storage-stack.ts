@@ -1,5 +1,6 @@
 import {
   ArnFormat,
+  CfnOutput,
   Duration,
   RemovalPolicy,
   Stack,
@@ -244,5 +245,73 @@ export class PropertySourceStorageStack extends Stack {
     if (this.bucket.policy) {
       malwareProtectionPlan.node.addDependency(this.bucket.policy)
     }
+
+    const oidcProviderArn =
+      config.oidcProviderArn ??
+      new iam.CfnOIDCProvider(this, 'VercelOidcProvider', {
+        url: `https://oidc.vercel.com/${config.vercelTeamSlug}`,
+        clientIdList: ['sts.amazonaws.com'],
+      }).attrArn
+    const issuerConditionPrefix =
+      `oidc.vercel.com/${config.vercelTeamSlug}`
+    const signerRole = new iam.Role(this, 'PropertySourceSignerRole', {
+      assumedBy: new iam.WebIdentityPrincipal(
+        oidcProviderArn,
+        {
+          StringEquals: {
+            [`${issuerConditionPrefix}:aud`]: 'sts.amazonaws.com',
+            [`${issuerConditionPrefix}:sub`]: config.vercelSubjects,
+          },
+        },
+      ),
+      description:
+        'Signs exact Property Intelligence Studio S3 uploads and clean downloads',
+      maxSessionDuration: Duration.hours(1),
+    })
+
+    signerRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:PutObject'],
+        resources: [originalsArn],
+      }),
+    )
+    signerRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject', 's3:GetObjectTagging'],
+        resources: [originalsArn],
+      }),
+    )
+    signerRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:GenerateDataKey', 'kms:Encrypt', 'kms:Decrypt'],
+        resources: [this.encryptionKey.keyArn],
+        conditions: {
+          StringEquals: {
+            'kms:ViaService': `s3.${config.region}.amazonaws.com`,
+          },
+        },
+      }),
+    )
+
+    new CfnOutput(this, 'PropertySourceBucketName', {
+      description: 'Private property source bucket name',
+      value: this.bucket.bucketName,
+    })
+    new CfnOutput(this, 'PropertySourceKmsKeyArn', {
+      description: 'Property source KMS key ARN',
+      value: this.encryptionKey.keyArn,
+    })
+    new CfnOutput(this, 'PropertySourceSignerRoleArn', {
+      description: 'Vercel OIDC property source signer role ARN',
+      value: signerRole.roleArn,
+    })
+    new CfnOutput(this, 'PropertySourceRegion', {
+      description: 'Property source AWS region',
+      value: config.region,
+    })
+    new CfnOutput(this, 'PropertySourceMalwareProtectionPlanId', {
+      description: 'GuardDuty property source malware protection plan ID',
+      value: malwareProtectionPlan.attrMalwareProtectionPlanId,
+    })
   }
 }

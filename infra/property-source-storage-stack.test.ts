@@ -14,11 +14,13 @@ const config = parseInfrastructureConfig({
   billingAlertEmail: 'alerts@example.com',
 })
 
-function createTemplate(): Template {
+function createTemplate(
+  stackConfig = config,
+): Template {
   const app = new App()
   const stack = new PropertySourceStorageStack(app, 'TestStorage', {
-    env: { account: config.account, region: config.region },
-    config,
+    env: { account: stackConfig.account, region: stackConfig.region },
+    config: stackConfig,
   })
 
   return Template.fromStack(stack)
@@ -311,5 +313,132 @@ describe('PropertySourceStorageStack malware protection', () => {
         ]),
       },
     })
+  })
+})
+
+describe('PropertySourceStorageStack Vercel OIDC signer', () => {
+  it('creates one team-scoped provider with the AWS STS audience', () => {
+    const template = createTemplate()
+
+    template.resourceCountIs('AWS::IAM::OIDCProvider', 1)
+    template.hasResourceProperties('AWS::IAM::OIDCProvider', {
+      ClientIdList: ['sts.amazonaws.com'],
+      Url: 'https://oidc.vercel.com/ai-team',
+    })
+  })
+
+  it('imports a matching provider without creating a duplicate', () => {
+    const template = createTemplate(
+      parseInfrastructureConfig({
+        ...config,
+        oidcProviderArn:
+          'arn:aws:iam::111122223333:oidc-provider/oidc.vercel.com/ai-team',
+      }),
+    )
+
+    template.resourceCountIs('AWS::IAM::OIDCProvider', 0)
+    const roles = template.findResources('AWS::IAM::Role')
+    expect(JSON.stringify(roles)).toContain(
+      'arn:aws:iam::111122223333:oidc-provider/oidc.vercel.com/ai-team',
+    )
+  })
+
+  it('trusts only exact Vercel subjects through web identity', () => {
+    const template = createTemplate()
+    const roles = template.findResources('AWS::IAM::Role')
+    const signerRole = Object.values(roles).find((role) =>
+      JSON.stringify(role).includes('sts:AssumeRoleWithWebIdentity'),
+    )
+
+    expect(signerRole).toBeDefined()
+    expect(signerRole?.Properties.AssumeRolePolicyDocument).toEqual({
+      Statement: [
+        expect.objectContaining({
+          Action: 'sts:AssumeRoleWithWebIdentity',
+          Condition: {
+            StringEquals: {
+              'oidc.vercel.com/ai-team:aud': 'sts.amazonaws.com',
+              'oidc.vercel.com/ai-team:sub': [
+                'owner:ai-team:project:akademia-ai-platform:environment:development',
+                'owner:ai-team:project:akademia-ai-platform:environment:preview',
+              ],
+            },
+          },
+          Effect: 'Allow',
+          Principal: { Federated: expect.anything() },
+        }),
+      ],
+      Version: '2012-10-17',
+    })
+
+    const trustJson = JSON.stringify(
+      signerRole?.Properties.AssumeRolePolicyDocument,
+    )
+    expect(trustJson).not.toContain('StringLike')
+    expect(trustJson).not.toContain(
+      'owner:ai-team:project:akademia-ai-platform:environment:*',
+    )
+  })
+
+  it('limits the signer role to originals and one KMS key', () => {
+    const template = createTemplate()
+    const roles = template.findResources('AWS::IAM::Role')
+    const signerRoleEntry = Object.entries(roles).find(([, role]) =>
+      JSON.stringify(role).includes('sts:AssumeRoleWithWebIdentity'),
+    )
+
+    expect(signerRoleEntry).toBeDefined()
+    const [signerRoleId] = signerRoleEntry!
+    const policies = template.findResources('AWS::IAM::Policy')
+    const signerPolicy = Object.values(policies).find((policy) =>
+      JSON.stringify(policy.Properties.Roles).includes(signerRoleId),
+    )
+
+    expect(signerPolicy).toBeDefined()
+    expect(
+      signerPolicy?.Properties.PolicyDocument.Statement,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Action: 's3:PutObject',
+          Effect: 'Allow',
+        }),
+        expect.objectContaining({
+          Action: ['s3:GetObject', 's3:GetObjectTagging'],
+          Effect: 'Allow',
+        }),
+        expect.objectContaining({
+          Action: ['kms:GenerateDataKey', 'kms:Encrypt', 'kms:Decrypt'],
+          Effect: 'Allow',
+        }),
+      ]),
+    )
+
+    const policyJson = JSON.stringify(signerPolicy)
+    expect(policyJson).toContain('/originals/*')
+    expect(policyJson).not.toContain('s3:ListBucket')
+    expect(policyJson).not.toContain('s3:PutObjectTagging')
+    expect(policyJson).not.toMatch(
+      /bedrock:|transcribe:|events:|states:|s3:\*/,
+    )
+    expect(policyJson).not.toContain('"Resource":"*"')
+  })
+
+  it('exports only non-secret deployment identifiers', () => {
+    const template = createTemplate()
+    const outputs = template.toJSON().Outputs
+
+    expect(Object.keys(outputs)).toEqual(
+      expect.arrayContaining([
+        'PropertySourceBucketName',
+        'PropertySourceKmsKeyArn',
+        'PropertySourceSignerRoleArn',
+        'PropertySourceRegion',
+        'PropertySourceMalwareProtectionPlanId',
+      ]),
+    )
+    expect(JSON.stringify(outputs)).not.toMatch(
+      /AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY/,
+    )
   })
 })
