@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { deleteAccountData } from '@/features/properties/account-data'
+import { getPropertyRepository } from '@/features/properties/server-repository'
 import { getServerUserId, SESSION_COOKIE } from '@/lib/session'
 import { storeDelete } from '@/lib/store'
 
@@ -25,19 +27,28 @@ export async function POST(req: Request) {
     )
   }
 
-  const keys = [
-    `user:${userId}:profil`,
-    `user:${userId}:persona-buyer`,
-    `user:${userId}:persona-seller`,
-    `user:${userId}:onboarding`,
-    `user:${userId}:subscription`,
-  ]
-  for (const k of keys) {
-    await storeDelete(k)
+  let keys: string[]
+  try {
+    keys = await deleteAccountData(userId, {
+      deletePropertiesForUser: (accountUserId) =>
+        getPropertyRepository().deleteForUser(accountUserId),
+      deleteValue: storeDelete,
+    })
+  } catch (error) {
+    console.error('[account-delete] deletion_failed', {
+      type: error instanceof Error ? error.name : 'unknown',
+    })
+    return NextResponse.json({ error: 'deletion_failed' }, { status: 500 })
   }
 
   // Czyść cookie session
-  const res = NextResponse.json({ ok: true, deleted: keys })
+  const res = NextResponse.json({
+    ok: true,
+    deleted: {
+      propertyStudio: true,
+      accountKeys: keys.length,
+    },
+  })
   res.cookies.set({
     name: SESSION_COOKIE,
     value: '',

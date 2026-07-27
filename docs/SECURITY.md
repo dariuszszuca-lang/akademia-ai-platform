@@ -2,7 +2,7 @@
 
 Dokument opisuje warstwy zabezpieczeń platformy Akademia AI dla agentów nieruchomości.
 
-Stan: **2026-04-26** (wersja MVP po Fazie 2)
+Stan: **2026-07-27** (fundament Property Intelligence Studio)
 
 ## Spis warstw
 
@@ -42,11 +42,32 @@ Stan: **2026-04-26** (wersja MVP po Fazie 2)
   - `user:<sub>:subscription` — plan + Stripe customer/subscription IDs
 - **Server-side enforcement**: każde API i każdy server component pobiera userId WYŁĄCZNIE z cookie (`getServerUserId()`), nigdy z body requestu
 - **Brak IDOR**: nie ma endpointu który przyjmuje `userId` z body. User może czytać/pisać tylko swoje dane.
+- Dane Property Intelligence Studio są przypisane do organizacji. Dostęp do
+  projektu wymaga rekordu w `organization_memberships` dla `userId` pobranego
+  z sesji.
+- Repozytorium PostgreSQL filtruje projekty przez członkostwo organizacji przy
+  każdym odczycie i zapisie. Brak projektu oraz brak członkostwa dają ten sam
+  wynik `404`, aby nie ujawniać istnienia cudzej nieruchomości.
+- Identyfikatory użytkownika przesłane w body faktu są ignorowane. Serwer
+  podstawia użytkownika z podpisanej sesji.
 
 ## Przechowywanie danych {#dane}
 
-- **Vercel KV** (Upstash Redis) — szyfrowanie at-rest po stronie infra Vercel/Upstash
-- Brak SQL — niemożliwy SQL injection
+- **Vercel KV** (Upstash Redis) przechowuje profil, persony, onboarding i stan
+  subskrypcji.
+- **PostgreSQL** jest źródłem prawdy dla Property Intelligence Studio.
+  Przechowuje organizacje, członkostwa, teczki nieruchomości, fakty i historię
+  zmian.
+- Dostęp do PostgreSQL odbywa się przez Drizzle ORM i zapytania
+  parametryzowane. Adres bazy jest przekazywany wyłącznie przez
+  `DATABASE_URL`; dokumentacja i logi nie zawierają jego wartości.
+- Teczka może zawierać miasto, dzielnicę, dokładny albo przybliżony adres,
+  identyfikator działki oraz metadane procesu.
+- Fakt może zawierać wartość, jednostkę, status wiarygodności, widoczność,
+  identyfikatory źródeł, autora potwierdzenia i numer wersji.
+- `property_audit_events` zapisuje rodzaj operacji, aktora, stan przed zmianą i
+  stan po zmianie. Historia jest usuwana kaskadowo razem z organizacją
+  użytkownika.
 - **Profile / persony**: zwykły markdown (treść biznesowa, nie szczególnie wrażliwa, ale prywatna per user)
 - **Pinecone** (vector DB dla RAG prawnego): zawiera publiczny tekst Kodeksu cywilnego — brak danych userów
 - **Anthropic API logs**: Anthropic loguje promptу do 30 dni dla bezpieczeństwa (zgodnie z ich SOC 2). Promptу zawierają profil + persony usera. Można poprosić o opt-out dla wrażliwych branż, ale dla MVP akceptujemy.
@@ -62,13 +83,20 @@ Przy każdym wywołaniu agenta:
 - Email, hasło, telefon, dane Cognito
 - Klucze API
 - Dane innych userów
+- Fakty, adresy i dokumenty Property Intelligence Studio. Fundament M1 nie
+  wysyła tych danych do modelu językowego.
 
 ## API security {#api}
 
 - **Wszystkie state-changing endpoints**: cookie session check
 - **Admin endpoints** (`/api/admin/*`, `/api/onboarding/reset`): osobny Bearer `ADMIN_PASSWORD`
 - **Stripe webhook**: signature verification (`stripe-signature` header)
-- **Walidacja**: zod-style typeof checks na input. Nie używamy `eval`, `Function()`, `dangerouslySetInnerHTML`.
+- **Walidacja**: endpointy Property Intelligence Studio walidują body przez
+  Zod. Błędny JSON i błędne dane zwracają `400`.
+- **Granica potwierdzenia**: AI nie może samodzielnie nadać faktowi statusu
+  `confirmed`. Potwierdzenie wymaga źródła albo użytkownika z aktywnej sesji.
+- Nie używamy `eval`, `Function()` ani `dangerouslySetInnerHTML`. Dane JSON
+  faktu są renderowane jako tekst w elemencie `<pre>`.
 - **CORS**: domyślne Vercel (same-origin only) — żadne zewnętrzne strony nie mogą wywoływać API
 
 ## Headery HTTP {#headery}
@@ -122,17 +150,35 @@ Po przekroczeniu: 429 Too Many Requests + `Retry-After`.
 
 - `console.error` używamy do błędów infrastrukturalnych (KV failure, Stripe webhook fail)
 - **Nie logujemy** treści profilu, person, odpowiedzi agenta
+- Endpointy nieruchomości nie logują body requestu, tytułu nieruchomości,
+  adresu, wartości faktu ani identyfikatorów źródeł. Przy błędzie wewnętrznym
+  zapisują tylko stałą nazwę zdarzenia i typ błędu.
 - **Auth-context** loguje tylko `error.message` od Cognito (np. "User does not exist") — nie hasło, nie email w plain text
 - Vercel logs retain 7 dni dla Pro plan, 30 dni dla Enterprise
 
 ## GDPR / RODO {#rodo}
 
-- **Right of access** (Art. 15 RODO): `GET /api/account/export` zwraca pełny JSON wszystkich danych usera
-- **Right to erasure** (Art. 17 RODO): `POST /api/account/delete` z `{ confirm: "DELETE" }` usuwa wszystkie klucze `user:<sub>:*` z KV i czyści cookie
+- **Right of access** (Art. 15 RODO): `GET /api/account/export` zwraca JSON z
+  profilem, personami, onboardingiem, subskrypcją oraz sekcją
+  `propertyStudio`. Sekcja zawiera projekty, fakty i audyt należące do
+  organizacji użytkownika. Eksport nie zawiera sekretów dostawców ani
+  podpisanych adresów plików.
+- **Right to erasure** (Art. 17 RODO): `POST /api/account/delete` z
+  `{ confirm: "DELETE" }` najpierw usuwa dane Property Intelligence Studio z
+  PostgreSQL, następnie klucze `user:<sub>:*` z KV i na końcu czyści cookie.
+- Jeśli usunięcie PostgreSQL nie powiedzie się, endpoint zwraca `500`, nie
+  rozpoczyna usuwania KV i nie czyści sesji. Użytkownik nie otrzymuje
+  fałszywego potwierdzenia pełnego usunięcia.
+- PostgreSQL i KV nie wspierają wspólnej transakcji. Jeżeli błąd wystąpi już
+  podczas czyszczenia KV, operacja wymaga ponowienia i kontroli operacyjnej.
 - **Right to rectification** (Art. 16): user edytuje profil/persony przez UI, regeneruje przez button
-- **Data minimization**: zbieramy tylko to co potrzebne (email, imię, profil agenta — bez PESEL, adresu, telefonu)
+- **Data minimization**: dokładny adres jest opcjonalny, ma osobny tryb
+  prywatności i nie pojawia się na karcie portfolio. Widoczność każdego faktu
+  jest jawnie oznaczona jako wewnętrzna, kliencka albo publiczna.
 - **Polityka prywatności / regulamin**: TODO — Wojtek powinien sporządzić z prawnikiem przed publicznym uruchomieniem
-- **Retencja**: dane usera trzymamy dopóki konto istnieje. Po usunięciu konta — natychmiast wyczyszczone z KV. Stripe trzyma faktury 7 lat (wymóg podatkowy).
+- **Retencja**: dane użytkownika są przechowywane, dopóki konto istnieje. Po
+  poprawnym wykonaniu usunięcia są kasowane z PostgreSQL i KV. Stripe trzyma
+  faktury zgodnie z obowiązkami podatkowymi.
 
 ## Co NIE jest jeszcze zrobione {#todo}
 
@@ -140,7 +186,9 @@ Po przekroczeniu: 429 Too Many Requests + `Retry-After`.
 |------|-----------|---------|
 | Content Security Policy (CSP) | Średni | Wymaga rozważenia (Next.js inline scripts, Stripe checkout iframe) |
 | WAF / DDoS protection | Niski | Vercel ma podstawowy DDoS, ale dla większego ruchu warto Cloudflare przed |
-| Audit logs (kto co kiedy zmienił) | Średni | Przy multi-user (Agency tier) konieczne |
+| Audyt zdarzeń administracyjnych | Średni | Audyt zmian faktów istnieje; osobny log bezpieczeństwa wymaga wdrożenia |
+| Automatyczna retencja teczek | Wysoki | Ustalić okres z Wojtkiem i prawnikiem przed pilotażem |
+| Kopie zapasowe PostgreSQL | Wysoki | Ustalić RPO, RTO i procedurę testowego odtworzenia przed produkcją |
 | 2FA / MFA | Średni | Cognito to wspiera, trzeba włączyć w pool |
 | Backup KV | Niski | Vercel KV ma snapshoty (Upstash) |
 | Penetration test | Niski | Przed publicznym uruchomieniem warto |

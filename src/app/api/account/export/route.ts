@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { exportAccountData } from '@/features/properties/account-data'
+import { getPropertyRepository } from '@/features/properties/server-repository'
 import { getServerUserId } from '@/lib/session'
 import { storeGet } from '@/lib/store'
 
@@ -13,22 +15,16 @@ export async function GET() {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const [profil, personaBuyer, personaSeller, onboarding, subscription] = await Promise.all([
-    storeGet<string>(`user:${userId}:profil`),
-    storeGet<string>(`user:${userId}:persona-buyer`),
-    storeGet<string>(`user:${userId}:persona-seller`),
-    storeGet<unknown>(`user:${userId}:onboarding`),
-    storeGet<unknown>(`user:${userId}:subscription`),
-  ])
+  const accountData = await exportAccountData(userId, {
+    getValue: (key) => storeGet(key),
+    exportForUser: (accountUserId) =>
+      getPropertyRepository().exportForUser(accountUserId),
+  })
 
   const data = {
     exportedAt: new Date().toISOString(),
     userId,
-    profil,
-    personaBuyer,
-    personaSeller,
-    onboarding,
-    subscription,
+    ...accountData,
     note: 'Eksport zgodny z art. 15 RODO. Zawiera wszystkie dane Twojego konta.',
   }
 

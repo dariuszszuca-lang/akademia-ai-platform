@@ -38,7 +38,11 @@ export default function SettingsPage() {
     }
     setDeleting(true);
     try {
-      const res = await fetch("/api/account/delete", { method: "POST" });
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
       if (!res.ok) throw new Error("Usunięcie się nie powiodło");
       window.location.href = "/login";
     } catch (err) {
@@ -110,7 +114,7 @@ export default function SettingsPage() {
             <div className="min-w-0">
               <p className="text-foreground text-base font-medium">Eksport danych</p>
               <p className="text-foreground/55 text-sm mt-1">
-                Pobierz wszystkie swoje dane jako plik JSON (profil, persony, odpowiedzi).
+                Pobierz wszystkie swoje dane jako plik JSON, w tym profil, persony, teczki nieruchomości, fakty i historię zmian.
               </p>
             </div>
             <button
