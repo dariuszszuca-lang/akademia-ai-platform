@@ -387,7 +387,6 @@ function createWorker(
       logGroup,
       memorySize: props.memorySize ?? 256,
       timeout: Duration.seconds(props.timeoutSeconds ?? 30),
-      reservedConcurrentExecutions: 5,
       environment: props.environment,
       depsLockFilePath: path.join(__dirname, '..', 'package-lock.json'),
       bundling: {

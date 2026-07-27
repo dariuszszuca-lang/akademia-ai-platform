@@ -636,7 +636,7 @@ describe('PropertySourceStorageStack extraction pipeline foundation', () => {
       Runtime: 'nodejs24.x',
       MemorySize: Match.anyValue(),
       Timeout: Match.anyValue(),
-      ReservedConcurrentExecutions: 5,
+      ReservedConcurrentExecutions: Match.absent(),
     })
     template.hasResourceProperties('AWS::Lambda::Function', {
       FunctionName: 'property-source-pipeline-dev-starter',
