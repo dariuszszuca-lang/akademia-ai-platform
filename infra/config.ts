@@ -118,6 +118,12 @@ export type InfrastructureConfig = ParsedInfrastructureConfig & {
   vercelSubjects: string[]
 }
 
+export function shouldProtectStackFromTermination(
+  studioEnv: InfrastructureConfig['studioEnv'],
+): boolean {
+  return studioEnv === 'prod'
+}
+
 export function parseInfrastructureConfig(
   input: unknown,
 ): InfrastructureConfig {

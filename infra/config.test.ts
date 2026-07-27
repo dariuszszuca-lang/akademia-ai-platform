@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseInfrastructureConfig,
   readInfrastructureConfigFromEnv,
+  shouldProtectStackFromTermination,
 } from './config'
 
 const devConfig = {
@@ -16,6 +17,11 @@ const devConfig = {
 }
 
 describe('AWS infrastructure configuration', () => {
+  it('protects production stacks from termination only', () => {
+    expect(shouldProtectStackFromTermination('prod')).toBe(true)
+    expect(shouldProtectStackFromTermination('dev')).toBe(false)
+  })
+
   it('builds exact OIDC subjects for every project and environment', () => {
     const config = parseInfrastructureConfig({
       ...devConfig,
