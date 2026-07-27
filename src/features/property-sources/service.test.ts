@@ -511,6 +511,35 @@ describe('PropertySourceService', () => {
     )
   })
 
+  it('keeps the original idempotent response after the fact changes later', async () => {
+    const { project, proposal } = await createProposal()
+    const decision = { action: 'accept' as const }
+    const first = await sourceService.decideProposal(
+      'user-a',
+      project.id,
+      proposal.id,
+      decision,
+    )
+    await propertyService.updateFact(
+      'user-a',
+      project.id,
+      first.fact!.id,
+      { value: 90 },
+    )
+
+    const repeated = await sourceService.decideProposal(
+      'user-a',
+      project.id,
+      proposal.id,
+      decision,
+    )
+
+    expect(repeated).toEqual(first)
+    expect(
+      (await propertyService.listFacts('user-a', project.id))[0].value,
+    ).toBe(90)
+  })
+
   it('rejects a different second decision', async () => {
     const { project, proposal } = await createProposal()
     await sourceService.decideProposal(
@@ -572,6 +601,20 @@ describe('PropertySourceService', () => {
         { action: 'accept' },
       ),
     ).rejects.toThrow('PROPOSAL_CONFLICT_CHANGED')
+
+    expect(
+      (await sourceService.listProposals('user-a', project.id))[0],
+    ).toMatchObject({
+      id: proposal.id,
+      status: 'conflict',
+    })
+    expect(
+      (await propertyService.listAudit('user-a', project.id)).some(
+        (event) =>
+          event.action === 'proposal.conflict_detected' &&
+          event.actorType === 'user',
+      ),
+    ).toBe(true)
   })
 
   async function createSource() {

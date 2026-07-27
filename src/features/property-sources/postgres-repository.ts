@@ -2,12 +2,16 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import type { PropertyFact } from '../properties/domain'
 import { propertyFactValueTypeSchema } from '../properties/domain'
-import { propertyAuditEvents, propertyFacts } from '../properties/schema'
-import { organizationMemberships } from '../properties/schema'
+import {
+  organizationMemberships,
+  propertyAuditEvents,
+  propertyFacts,
+} from '../properties/schema'
 import {
   createPropertySourceSchema,
   ingestFactProposalSchema,
   proposalDecisionSchema,
+  type DecisionFactSnapshot,
   type PropertyFactProposal,
   type PropertySource,
   type SourceProcessingJob,
@@ -250,6 +254,21 @@ export class PostgresPropertySourceRepository<
   async decideProposal(command: DecideProposalCommand) {
     const outcome = await this.database.transaction<TransactionOutcome>(
       async (transaction) => {
+        const [membership] = await transaction
+          .select({ userId: organizationMemberships.userId })
+          .from(organizationMemberships)
+          .where(
+            and(
+              eq(
+                organizationMemberships.organizationId,
+                command.organizationId,
+              ),
+              eq(organizationMemberships.userId, command.userId),
+            ),
+          )
+          .limit(1)
+        if (!membership) throw new Error('PROPOSAL_NOT_FOUND')
+
         const [proposal] = await transaction
           .select()
           .from(propertyFactProposals)
@@ -276,10 +295,9 @@ export class PostgresPropertySourceRepository<
             kind: 'success',
             result: {
               proposal: mapProposal(proposal),
-              fact: await findFactForExistingDecision(
-                transaction,
-                proposal,
-              ),
+              fact: proposal.decisionFactSnapshot
+                ? deserializeFactSnapshot(proposal.decisionFactSnapshot)
+                : null,
             },
           }
         }
@@ -308,7 +326,7 @@ export class PostgresPropertySourceRepository<
           currentFact &&
           !propertyFactValuesEqual(currentFact.value, proposal.value)
         ) {
-          await transaction
+          const [updatedConflict] = await transaction
             .update(propertyFactProposals)
             .set({
               status: 'conflict',
@@ -316,6 +334,19 @@ export class PostgresPropertySourceRepository<
               updatedAt: new Date(),
             })
             .where(eq(propertyFactProposals.id, proposal.id))
+            .returning()
+
+          await transaction.insert(propertyAuditEvents).values({
+            organizationId: command.organizationId,
+            propertyProjectId: command.propertyProjectId,
+            actorType: 'user',
+            actorId: command.userId,
+            action: 'proposal.conflict_detected',
+            entityType: 'property_fact_proposal',
+            entityId: proposal.id,
+            before: proposal,
+            after: updatedConflict,
+          })
 
           return { kind: 'conflict_changed' }
         }
@@ -438,6 +469,9 @@ export class PostgresPropertySourceRepository<
                 : null,
             decision: command.decision,
             decisionFingerprint: command.decisionFingerprint,
+            decisionFactSnapshot: fact
+              ? serializeFactSnapshot(fact)
+              : null,
             decidedAt,
             updatedAt: decidedAt,
           })
@@ -520,29 +554,6 @@ export class PostgresPropertySourceRepository<
   }
 }
 
-async function findFactForExistingDecision<
-  TQueryResult extends PgQueryResultHKT,
-  TFullSchema extends Record<string, unknown>,
->(
-  database: PgDatabase<TQueryResult, TFullSchema>,
-  proposal: ProposalRow,
-) {
-  if (proposal.decision?.action === 'reject') return null
-
-  const [fact] = await database
-    .select()
-    .from(propertyFacts)
-    .where(
-      and(
-        eq(propertyFacts.propertyProjectId, proposal.propertyProjectId),
-        eq(propertyFacts.key, proposal.factKey),
-      ),
-    )
-    .limit(1)
-
-  return fact ? mapFact(fact) : null
-}
-
 function mapSource(row: SourceRow): PropertySource {
   const sourceInput = createPropertySourceSchema.parse({
     fileName: row.fileName,
@@ -616,6 +627,32 @@ function mapFact(row: FactRow): PropertyFact {
     unit: row.unit ?? undefined,
     sourceIds: row.sourceIds,
     confirmedByUserId: row.confirmedByUserId ?? undefined,
+  }
+}
+
+function serializeFactSnapshot(row: FactRow): DecisionFactSnapshot {
+  const fact = mapFact(row)
+
+  return {
+    ...fact,
+    unit: fact.unit ?? null,
+    confirmedByUserId: fact.confirmedByUserId ?? null,
+    confirmedAt: fact.confirmedAt?.toISOString() ?? null,
+    createdAt: fact.createdAt.toISOString(),
+    updatedAt: fact.updatedAt.toISOString(),
+  }
+}
+
+function deserializeFactSnapshot(snapshot: DecisionFactSnapshot): PropertyFact {
+  return {
+    ...snapshot,
+    unit: snapshot.unit ?? undefined,
+    confirmedByUserId: snapshot.confirmedByUserId ?? undefined,
+    confirmedAt: snapshot.confirmedAt
+      ? new Date(snapshot.confirmedAt)
+      : null,
+    createdAt: new Date(snapshot.createdAt),
+    updatedAt: new Date(snapshot.updatedAt),
   }
 }
 

@@ -133,6 +133,8 @@ export const updatePropertyFactSchema = factBaseSchema
   .partial()
   .extend({
     actorType: z.enum(actorTypes),
+    visibility: z.enum(propertyFactVisibilities).optional(),
+    sourceIds: z.array(z.string().min(1)).optional(),
   })
   .superRefine(validateConfirmation)
 

@@ -234,6 +234,90 @@ describe('PostgresPropertySourceRepository', () => {
     )
   })
 
+  it('checks organization membership inside the decision transaction', async () => {
+    const context = await createContext()
+
+    await expect(
+      sourceRepository.decideProposal({
+        userId: 'user-b',
+        organizationId: context.project.organizationId,
+        propertyProjectId: context.project.id,
+        proposalId: context.proposal.id,
+        decision: { action: 'accept' },
+        decisionFingerprint: 'forged-fingerprint',
+      }),
+    ).rejects.toThrow('PROPOSAL_NOT_FOUND')
+    expect(
+      await propertyService.listFacts('user-a', context.project.id),
+    ).toEqual([])
+  })
+
+  it('returns the original decision snapshot after the fact changes later', async () => {
+    const context = await createContext()
+    const decision = { action: 'accept' as const }
+    const first = await sourceService.decideProposal(
+      'user-a',
+      context.project.id,
+      context.proposal.id,
+      decision,
+    )
+    await propertyService.updateFact(
+      'user-a',
+      context.project.id,
+      first.fact!.id,
+      { value: 90 },
+    )
+
+    const repeated = await sourceService.decideProposal(
+      'user-a',
+      context.project.id,
+      context.proposal.id,
+      decision,
+    )
+
+    expect(repeated).toEqual(first)
+    expect(
+      (await propertyService.listFacts('user-a', context.project.id))[0].value,
+    ).toBe(90)
+  })
+
+  it('audits a conflict discovered between extraction and decision', async () => {
+    const context = await createContext()
+    await propertyService.createFact('user-a', context.project.id, {
+      key: 'area.usable',
+      label: 'Powierzchnia użytkowa',
+      category: 'Powierzchnia',
+      valueType: 'number',
+      value: 81,
+      unit: 'm²',
+      status: 'confirmed',
+      visibility: 'client',
+      sourceIds: ['late-document'],
+    })
+
+    await expect(
+      sourceService.decideProposal(
+        'user-a',
+        context.project.id,
+        context.proposal.id,
+        { action: 'accept' },
+      ),
+    ).rejects.toThrow('PROPOSAL_CONFLICT_CHANGED')
+
+    expect(
+      await sourceRepository.getProposal(
+        context.project.organizationId,
+        context.project.id,
+        context.proposal.id,
+      ),
+    ).toMatchObject({ status: 'conflict' })
+    expect(
+      (await propertyRepository.listAudit('user-a', context.project.id)).some(
+        (event) => event.action === 'proposal.conflict_detected',
+      ),
+    ).toBe(true)
+  })
+
   it('cascades source, job and proposal rows with account deletion', async () => {
     const context = await createContext()
 

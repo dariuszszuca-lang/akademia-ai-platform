@@ -1,5 +1,8 @@
 import { z } from 'zod'
-import { propertyFactValueTypeSchema } from '../properties/domain'
+import {
+  propertyFactValueTypeSchema,
+  type PropertyFact,
+} from '../properties/domain'
 
 export const propertySourceStatuses = [
   'upload_pending',
@@ -176,6 +179,21 @@ export type SourceProcessingJob = {
   completedAt: Date | null
   createdAt: Date
   updatedAt: Date
+}
+
+export type DecisionFactSnapshot = Omit<
+  PropertyFact,
+  | 'unit'
+  | 'confirmedByUserId'
+  | 'confirmedAt'
+  | 'createdAt'
+  | 'updatedAt'
+> & {
+  unit: string | null
+  confirmedByUserId: string | null
+  confirmedAt: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export type PropertyFactProposal = IngestFactProposalInput & {

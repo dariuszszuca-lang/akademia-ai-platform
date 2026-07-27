@@ -53,6 +53,7 @@ describe('property source database schema', () => {
     expect(columns.conflictsWithFactId).toBeDefined()
     expect(columns.decidedByUserId).toBeDefined()
     expect(columns.decisionFingerprint).toBeDefined()
+    expect(columns.decisionFactSnapshot).toBeDefined()
   })
 
   it('stores single-use callback nonce lifecycle', () => {

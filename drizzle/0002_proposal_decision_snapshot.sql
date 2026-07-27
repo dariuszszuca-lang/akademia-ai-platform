@@ -1,0 +1,1 @@
+ALTER TABLE "property_fact_proposals" ADD COLUMN "decision_fact_snapshot" jsonb;

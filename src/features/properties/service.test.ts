@@ -88,6 +88,31 @@ describe('PropertyService', () => {
     expect(updated.createdByType).toBe('user')
   })
 
+  it('preserves fact sources and visibility when an update omits them', async () => {
+    const project = await createApartment(service)
+    const fact = await service.createFact('user-a', project.id, {
+      key: 'area.usable',
+      label: 'Powierzchnia użytkowa',
+      category: 'Powierzchnia',
+      valueType: 'number',
+      value: 52.4,
+      unit: 'm²',
+      status: 'confirmed',
+      visibility: 'client',
+      sourceIds: ['source-document'],
+    })
+
+    const updated = await service.updateFact(
+      'user-a',
+      project.id,
+      fact.id,
+      { value: 53 },
+    )
+
+    expect(updated.sourceIds).toEqual(['source-document'])
+    expect(updated.visibility).toBe('client')
+  })
+
   it('keeps distinct before and after values in the audit trail', async () => {
     const project = await createApartment(service)
     const fact = await service.createFact('user-a', project.id, {

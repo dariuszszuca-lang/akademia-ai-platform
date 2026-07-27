@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import type { PropertyFact } from '../properties/domain'
 import type { PropertyRepository } from '../properties/repository'
 import type {
   DecideProposalCommand,
@@ -22,6 +23,7 @@ export class MemoryPropertySourceRepository
   private sources: PropertySource[] = []
   private jobs: SourceProcessingJob[] = []
   private proposals: PropertyFactProposal[] = []
+  private decisionFactSnapshots = new Map<string, PropertyFact | null>()
 
   constructor(private readonly propertyRepository: PropertyRepository) {}
 
@@ -189,7 +191,10 @@ export class MemoryPropertySourceRepository
     if (proposal.decisionFingerprint === command.decisionFingerprint) {
       return {
         proposal: clone(proposal),
-        fact: await this.factForExistingDecision(command.userId, proposal),
+        fact: this.getDecisionFactSnapshot(
+          proposal.id,
+          command.decisionFingerprint,
+        ),
       }
     }
 
@@ -217,6 +222,17 @@ export class MemoryPropertySourceRepository
       proposal.status = 'conflict'
       proposal.conflictsWithFactId = currentFact.id
       proposal.updatedAt = new Date()
+      await this.propertyRepository.appendAudit({
+        organizationId: command.organizationId,
+        propertyProjectId: command.propertyProjectId,
+        actorType: 'user',
+        actorId: command.userId,
+        action: 'proposal.conflict_detected',
+        entityType: 'property_fact_proposal',
+        entityId: proposal.id,
+        before,
+        after: clone(proposal),
+      })
       throw new Error('PROPOSAL_CONFLICT_CHANGED')
     }
 
@@ -303,6 +319,10 @@ export class MemoryPropertySourceRepository
     proposal.decisionFingerprint = command.decisionFingerprint
     proposal.decidedAt = decidedAt
     proposal.updatedAt = decidedAt
+    this.decisionFactSnapshots.set(
+      decisionSnapshotKey(proposal.id, command.decisionFingerprint),
+      fact ? clone(fact) : null,
+    )
 
     await this.propertyRepository.appendAudit({
       organizationId: command.organizationId,
@@ -319,17 +339,14 @@ export class MemoryPropertySourceRepository
     return { proposal: clone(proposal), fact: fact ? clone(fact) : null }
   }
 
-  private async factForExistingDecision(
-    userId: string,
-    proposal: PropertyFactProposal,
+  private getDecisionFactSnapshot(
+    proposalId: string,
+    decisionFingerprint: string,
   ) {
-    if (proposal.decision?.action === 'reject') return null
-
-    const facts = await this.propertyRepository.listFacts(
-      userId,
-      proposal.propertyProjectId,
+    const snapshot = this.decisionFactSnapshots.get(
+      decisionSnapshotKey(proposalId, decisionFingerprint),
     )
-    return facts.find((fact) => fact.key === proposal.factKey) ?? null
+    return snapshot ? clone(snapshot) : null
   }
 
   async exportForUser(userId: string) {
@@ -367,4 +384,8 @@ function clone<T>(value: T): T {
 
 function isFinalProposalStatus(status: PropertyFactProposal['status']) {
   return ['accepted', 'corrected', 'rejected'].includes(status)
+}
+
+function decisionSnapshotKey(proposalId: string, fingerprint: string) {
+  return `${proposalId}:${fingerprint}`
 }

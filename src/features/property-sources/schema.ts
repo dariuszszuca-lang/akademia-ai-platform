@@ -17,6 +17,7 @@ import {
   factProposalStatuses,
   propertySourceStatuses,
   sourceJobStatuses,
+  type DecisionFactSnapshot,
   type EvidenceLocator,
   type ProposalDecision,
 } from './domain'
@@ -168,6 +169,8 @@ export const propertyFactProposals = pgTable(
     decisionNote: text('decision_note'),
     decision: jsonb('decision').$type<ProposalDecision>(),
     decisionFingerprint: text('decision_fingerprint'),
+    decisionFactSnapshot:
+      jsonb('decision_fact_snapshot').$type<DecisionFactSnapshot>(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
