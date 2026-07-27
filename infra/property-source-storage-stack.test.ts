@@ -442,3 +442,120 @@ describe('PropertySourceStorageStack Vercel OIDC signer', () => {
     )
   })
 })
+
+describe('PropertySourceStorageStack cost guardrails', () => {
+  it('alerts at 50, 80 and 100 percent of the USD 10 dev budget', () => {
+    const template = createTemplate()
+
+    template.resourceCountIs('AWS::Budgets::Budget', 1)
+    template.hasResourceProperties('AWS::Budgets::Budget', {
+      Budget: Match.objectLike({
+        BudgetLimit: { Amount: 10, Unit: 'USD' },
+        BudgetType: 'COST',
+        FilterExpression: {
+          And: [
+            {
+              Tags: {
+                Key: 'CostCenter',
+                MatchOptions: ['EQUALS'],
+                Values: ['PropertyStudio'],
+              },
+            },
+            {
+              Tags: {
+                Key: 'Env',
+                MatchOptions: ['EQUALS'],
+                Values: ['dev'],
+              },
+            },
+          ],
+        },
+        TimeUnit: 'MONTHLY',
+      }),
+      NotificationsWithSubscribers: [
+        {
+          Notification: {
+            ComparisonOperator: 'GREATER_THAN',
+            NotificationType: 'ACTUAL',
+            Threshold: 50,
+            ThresholdType: 'PERCENTAGE',
+          },
+          Subscribers: [
+            {
+              Address: 'alerts@example.com',
+              SubscriptionType: 'EMAIL',
+            },
+          ],
+        },
+        {
+          Notification: {
+            ComparisonOperator: 'GREATER_THAN',
+            NotificationType: 'ACTUAL',
+            Threshold: 80,
+            ThresholdType: 'PERCENTAGE',
+          },
+          Subscribers: [
+            {
+              Address: 'alerts@example.com',
+              SubscriptionType: 'EMAIL',
+            },
+          ],
+        },
+        {
+          Notification: {
+            ComparisonOperator: 'GREATER_THAN',
+            NotificationType: 'ACTUAL',
+            Threshold: 100,
+            ThresholdType: 'PERCENTAGE',
+          },
+          Subscribers: [
+            {
+              Address: 'alerts@example.com',
+              SubscriptionType: 'EMAIL',
+            },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('uses a separate USD 25 production alert budget', () => {
+    const prodConfig = parseInfrastructureConfig({
+      ...config,
+      studioEnv: 'prod',
+      vercelEnvironments: ['production'],
+    })
+    const template = createTemplate(prodConfig)
+
+    template.hasResourceProperties('AWS::Budgets::Budget', {
+      Budget: Match.objectLike({
+        BudgetLimit: { Amount: 25, Unit: 'USD' },
+        BudgetType: 'COST',
+        TimeUnit: 'MONTHLY',
+      }),
+    })
+  })
+
+  it('gives every deployment output a stable description', () => {
+    const outputs = createTemplate().toJSON().Outputs
+
+    expect(outputs).toMatchObject({
+      PropertySourceBucketName: {
+        Description: 'Private property source bucket name',
+      },
+      PropertySourceKmsKeyArn: {
+        Description: 'Property source KMS key ARN',
+      },
+      PropertySourceSignerRoleArn: {
+        Description: 'Vercel OIDC property source signer role ARN',
+      },
+      PropertySourceRegion: {
+        Description: 'Property source AWS region',
+      },
+      PropertySourceMalwareProtectionPlanId: {
+        Description:
+          'GuardDuty property source malware protection plan ID',
+      },
+    })
+  })
+})

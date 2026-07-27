@@ -105,7 +105,7 @@ function splitCsv(value: string | undefined): string[] {
 }
 
 export function readInfrastructureConfigFromEnv(
-  environment: NodeJS.ProcessEnv = process.env,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
 ): InfrastructureConfig {
   return parseInfrastructureConfig({
     studioEnv: environment.STUDIO_ENV,
@@ -113,7 +113,10 @@ export function readInfrastructureConfigFromEnv(
     account: environment.CDK_DEFAULT_ACCOUNT,
     vercelTeamSlug: environment.VERCEL_TEAM_SLUG,
     vercelProjectNames: splitCsv(environment.VERCEL_PROJECT_NAMES),
-    vercelEnvironments: splitCsv(environment.VERCEL_ENVIRONMENTS),
+    vercelEnvironments: splitCsv(
+      environment.VERCEL_OIDC_ENVIRONMENTS ??
+        environment.VERCEL_ENVIRONMENTS,
+    ),
     billingAlertEmail: environment.BILLING_ALERT_EMAIL || undefined,
     oidcProviderArn: environment.VERCEL_OIDC_PROVIDER_ARN || undefined,
   })

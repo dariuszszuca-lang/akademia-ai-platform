@@ -11,6 +11,7 @@ import * as guardduty from 'aws-cdk-lib/aws-guardduty'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as kms from 'aws-cdk-lib/aws-kms'
 import * as s3 from 'aws-cdk-lib/aws-s3'
+import * as budgets from 'aws-cdk-lib/aws-budgets'
 import type { Construct } from 'constructs'
 import type { InfrastructureConfig } from './config'
 
@@ -292,6 +293,55 @@ export class PropertySourceStorageStack extends Stack {
         },
       }),
     )
+
+    const notificationsWithSubscribers = config.billingAlertEmail
+      ? [50, 80, 100].map((threshold) => ({
+          notification: {
+            comparisonOperator: 'GREATER_THAN',
+            notificationType: 'ACTUAL',
+            threshold,
+            thresholdType: 'PERCENTAGE',
+          },
+          subscribers: [
+            {
+              address: config.billingAlertEmail!,
+              subscriptionType: 'EMAIL',
+            },
+          ],
+        }))
+      : undefined
+
+    new budgets.CfnBudget(this, 'PropertySourceMonthlyBudget', {
+      budget: {
+        budgetLimit: {
+          amount: config.studioEnv === 'prod' ? 25 : 10,
+          unit: 'USD',
+        },
+        budgetName:
+          `property-intelligence-studio-${config.studioEnv}-monthly`,
+        budgetType: 'COST',
+        filterExpression: {
+          and: [
+            {
+              tags: {
+                key: 'CostCenter',
+                matchOptions: ['EQUALS'],
+                values: ['PropertyStudio'],
+              },
+            },
+            {
+              tags: {
+                key: 'Env',
+                matchOptions: ['EQUALS'],
+                values: [config.studioEnv],
+              },
+            },
+          ],
+        },
+        timeUnit: 'MONTHLY',
+      },
+      notificationsWithSubscribers,
+    })
 
     new CfnOutput(this, 'PropertySourceBucketName', {
       description: 'Private property source bucket name',

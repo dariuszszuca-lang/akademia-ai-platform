@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { parseInfrastructureConfig } from './config'
+import {
+  parseInfrastructureConfig,
+  readInfrastructureConfigFromEnv,
+} from './config'
 
 const devConfig = {
   studioEnv: 'dev',
@@ -89,5 +92,19 @@ describe('AWS infrastructure configuration', () => {
           'arn:aws:iam::999900001111:oidc-provider/oidc.vercel.com/ai-team',
       }),
     ).toThrow('oidcProviderArn')
+  })
+
+  it('reads explicit OIDC environments from synthesis variables', () => {
+    expect(
+      readInfrastructureConfigFromEnv({
+        STUDIO_ENV: 'dev',
+        CDK_DEFAULT_ACCOUNT: '111122223333',
+        CDK_DEFAULT_REGION: 'eu-central-1',
+        VERCEL_TEAM_SLUG: 'ai-team',
+        VERCEL_PROJECT_NAMES: 'akademia-ai-platform',
+        VERCEL_OIDC_ENVIRONMENTS: 'development,preview',
+        BILLING_ALERT_EMAIL: 'alerts@example.com',
+      }).vercelEnvironments,
+    ).toEqual(['development', 'preview'])
   })
 })
