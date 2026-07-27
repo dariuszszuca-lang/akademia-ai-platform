@@ -288,11 +288,15 @@ produktu może być większy, ale worker przygotowuje mniejsze części.
 
 ## 10. Analiza AI
 
-Pierwszym dostawcą jest Amazon Bedrock Converse. Podstawowym modelem jest Claude
-Haiku 4.5. Claude Sonnet 4.6 jest używany tylko po nieudanej walidacji wyniku
-albo dla złożonego konfliktu. Dokładne identyfikatory profili inferencji są
-wybierane z listy dostępnej na koncie i przechowywane w konfiguracji, nie w
-kodzie.
+Pierwszym dostawcą jest Amazon Bedrock Converse. Podstawowym modelem jest
+Claude Sonnet 4.6 przez profil
+`eu.anthropic.claude-sonnet-4-6`. Model został wybrany do pierwszego pilota
+produkcyjnego ze względu na analizę sprzeczności, tabel i dowodów. Haiku 4.5
+może być później użyty jako optymalizacja kosztowa dopiero po porównaniu
+jakości na reprezentatywnym zbiorze. Sonnet 5 i Opus 4.8 były widoczne w
+katalogu 27 lipca 2026, ale konto nie miało prawa ich wywołania. Dozwolony
+identyfikator profilu EU jest przypięty w walidowanej konfiguracji, a role IAM
+obejmują wyłącznie ten profil i jego sześć jawnych regionów docelowych.
 
 ### 10.1. Przebieg pierwszy: mapa dowodów
 

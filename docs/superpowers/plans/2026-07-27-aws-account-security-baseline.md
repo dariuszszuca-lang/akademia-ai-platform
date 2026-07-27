@@ -434,7 +434,7 @@ VERCEL_PROJECT_NAMES=akademia-ai-platform \
 VERCEL_OIDC_ENVIRONMENTS=production \
 STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app \
 PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1 \
-PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-haiku-4-5-20251001-v1:0 \
+PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6 \
 BILLING_ALERT_EMAIL=dariusz.szuca@gmail.com \
 npm run infra:cdk -- diff PropertySourceStorage-prod \
   --profile akademia-ai

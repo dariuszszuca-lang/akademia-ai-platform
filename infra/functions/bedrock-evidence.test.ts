@@ -30,7 +30,7 @@ describe('Bedrock evidence mapper worker', () => {
       metrics: { latencyMs: 480 },
     })
     const handler = createBedrockEvidenceHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
     })
 
@@ -49,7 +49,7 @@ describe('Bedrock evidence mapper worker', () => {
 
     expect(converse).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+        modelId: 'eu.anthropic.claude-sonnet-4-6',
         inferenceConfig: {
           maxTokens: 2048,
           temperature: 0,
@@ -73,7 +73,7 @@ describe('Bedrock evidence mapper worker', () => {
       },
       modelMetrics: {
         provider: 'amazon-bedrock',
-        modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+        modelId: 'eu.anthropic.claude-sonnet-4-6',
         inputTokens: 120,
         outputTokens: 30,
         durationMs: 480,
@@ -83,7 +83,7 @@ describe('Bedrock evidence mapper worker', () => {
 
   it('returns no evidence when the model provides no valid citation', async () => {
     const handler = createBedrockEvidenceHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse: vi.fn().mockResolvedValue({
         output: {
           message: { role: 'assistant', content: [{ text: 'uncited' }] },
@@ -108,7 +108,7 @@ describe('Bedrock evidence mapper worker', () => {
 
   it('maps character citations from prepared spreadsheets back to a cell', async () => {
     const handler = createBedrockEvidenceHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse: vi.fn().mockResolvedValue({
         output: {
           message: {
@@ -187,7 +187,7 @@ describe('Bedrock evidence mapper worker', () => {
       usage: { inputTokens: 50, outputTokens: 20 },
     })
     const handler = createBedrockEvidenceHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
     })
 
@@ -237,7 +237,7 @@ describe('Bedrock evidence mapper worker', () => {
       metrics: { latencyMs: 60 },
     })
     const handler = createBedrockEvidenceHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
     })
 

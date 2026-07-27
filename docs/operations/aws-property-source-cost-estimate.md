@@ -36,9 +36,9 @@ zostanie usunięte. To założenie pojemności, a nie wycena.
 - Secrets Manager, Step Functions, Lambda, EventBridge, SQS, CloudWatch
   Alarms i Dashboard są rozliczane według własnych cenników. Ich udział trzeba
   zweryfikować po pilocie na realnej liczbie wykonań.
-- Standardowy Claude Haiku 4.5 kosztuje obecnie 1 USD za milion tokenów
-  wejściowych i 5 USD za milion tokenów wyjściowych. Pipeline zapisuje
-  estymację w mikrojednostkach USD: 1 na token wejściowy i 5 na wyjściowy.
+- Standardowy Claude Sonnet 4.6 kosztuje obecnie 3 USD za milion tokenów
+  wejściowych i 15 USD za milion tokenów wyjściowych. Pipeline zapisuje
+  estymację w mikrojednostkach USD: 3 na token wejściowy i 15 na wyjściowy.
   Rzeczywisty rachunek pozostaje źródłem rozstrzygającym.
 
 Źródła:

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const DEFAULT_PROPERTY_SOURCE_BEDROCK_MODEL_ID =
-  'eu.anthropic.claude-haiku-4-5-20251001-v1:0'
+  'eu.anthropic.claude-sonnet-4-6'
 
 const safeIdentifier = z
   .string()

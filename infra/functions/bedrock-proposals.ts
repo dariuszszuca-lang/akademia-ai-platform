@@ -11,7 +11,7 @@ import {
   runStructuredProposalPass,
   type ProposalPassRequest,
 } from '../../src/features/property-sources/pipeline/evidence-proposals'
-import { calculateHaiku45CostMicrounits } from '../../src/features/property-sources/pipeline/provider-cost'
+import { calculateSonnet46CostMicrounits } from '../../src/features/property-sources/pipeline/provider-cost'
 
 const boundedModelIdSchema = z
   .string()
@@ -101,7 +101,7 @@ export function createBedrockProposalHandler({
       inputTokens,
       outputTokens,
       durationMs,
-      providerCostMicrounits: calculateHaiku45CostMicrounits({
+      providerCostMicrounits: calculateSonnet46CostMicrounits({
         inputTokens,
         outputTokens,
       }),

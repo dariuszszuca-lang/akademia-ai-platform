@@ -6,7 +6,7 @@ import {
 } from '@aws-sdk/client-bedrock-runtime'
 import { z } from 'zod'
 import { evidenceMapSchema } from '../../src/features/property-sources/pipeline/evidence-proposals'
-import { calculateHaiku45CostMicrounits } from '../../src/features/property-sources/pipeline/provider-cost'
+import { calculateSonnet46CostMicrounits } from '../../src/features/property-sources/pipeline/provider-cost'
 
 const boundedModelIdSchema = z
   .string()
@@ -488,7 +488,7 @@ function createManualReviewResult(
     inputTokens,
     outputTokens,
     durationMs,
-    providerCostMicrounits: calculateHaiku45CostMicrounits({
+    providerCostMicrounits: calculateSonnet46CostMicrounits({
       inputTokens,
       outputTokens,
     }),

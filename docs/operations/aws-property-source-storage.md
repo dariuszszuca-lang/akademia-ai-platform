@@ -65,8 +65,8 @@ originals/organizations/<organizationId>/properties/<propertyId>/sources/<source
 - bucket i klucz mają `RemovalPolicy.RETAIN`, więc usunięcie stacka nie usuwa
   danych;
 - workflow jest typu Standard, ma ograniczone retry, catch, alarmy i DLQ;
-- workery Bedrock mogą wywołać wyłącznie zatwierdzony profil EU Claude Haiku
-  4.5 i jego sześć jawnych regionów docelowych;
+- workery Bedrock mogą wywołać wyłącznie zatwierdzony profil EU Claude
+  Sonnet 4.6 i jego sześć jawnych regionów docelowych;
 - callback może odczytać wyłącznie jeden sekret w Secrets Manager;
 - wynik zadania zapisuje model, tokeny, łączny czas odpowiedzi i estymowany
   koszt dostawcy;
@@ -109,7 +109,7 @@ VERCEL_PROJECT_NAMES=akademia-ai-platform
 VERCEL_OIDC_ENVIRONMENTS=development,preview
 STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app
 PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1
-PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-haiku-4-5-20251001-v1:0
+PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6
 BILLING_ALERT_EMAIL=alerts@example.com
 # Opcjonalnie, gdy provider zespołu już istnieje:
 VERCEL_OIDC_PROVIDER_ARN=
@@ -132,7 +132,7 @@ VERCEL_PROJECT_NAMES=akademia-ai-platform \
 VERCEL_OIDC_ENVIRONMENTS=development,preview \
 STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app \
 PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1 \
-PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-haiku-4-5-20251001-v1:0 \
+PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-6 \
 BILLING_ALERT_EMAIL=alerts@example.com \
 npm run infra:synth
 ```
@@ -229,7 +229,7 @@ Oficjalne źródła:
 - [GuardDuty Malware Protection for S3](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection-s3.html)
 - [Tag-based access control](https://docs.aws.amazon.com/guardduty/latest/ug/tag-based-access-s3-malware-protection.html)
 - [Step Functions i CloudWatch Logs](https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html)
-- [Claude Haiku 4.5 w Bedrock i regiony profilu EU](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-4-5.html)
+- [Claude Sonnet 4.6 w Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-4-6.html)
 - [IAM Amazon Transcribe](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazontranscribe.html)
 
 ## Reakcja na problemy

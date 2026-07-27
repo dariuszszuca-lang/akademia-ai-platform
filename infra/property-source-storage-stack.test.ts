@@ -728,10 +728,10 @@ describe('PropertySourceStorageStack extraction pipeline foundation', () => {
     expect(policies).toContain('kms:GenerateDataKey')
     expect(policies).toContain('bedrock:InvokeModel')
     expect(policies).toContain(
-      'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      'eu.anthropic.claude-sonnet-4-6',
     )
     expect(policies).toContain(
-      'foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+      'foundation-model/anthropic.claude-sonnet-4-6',
     )
     expect(policies).not.toContain('transcribe:StartTranscriptionJob')
     expect(policies).not.toContain('"Action":"bedrock:*"')

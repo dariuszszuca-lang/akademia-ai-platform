@@ -53,7 +53,7 @@ describe('Bedrock proposal builder worker', () => {
       metrics: { latencyMs: 220 },
     })
     const handler = createBedrockProposalHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
     })
 
@@ -62,7 +62,7 @@ describe('Bedrock proposal builder worker', () => {
       modelMetrics: {
         provider: 'amazon-bedrock',
         modelId:
-          'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+          'eu.anthropic.claude-sonnet-4-6',
         inputTokens: 100,
         outputTokens: 20,
         durationMs: 480,
@@ -83,7 +83,7 @@ describe('Bedrock proposal builder worker', () => {
       checksumSha256: baseEvent.context.source.checksumSha256,
       outcome: 'succeeded',
       provider: 'amazon-bedrock',
-      providerCostMicrounits: 600,
+      providerCostMicrounits: 1800,
       durationMs: 700,
       proposals: [
         {
@@ -104,7 +104,7 @@ describe('Bedrock proposal builder worker', () => {
       },
     })
     const handler = createBedrockProposalHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
     })
 
@@ -121,7 +121,7 @@ describe('Bedrock proposal builder worker', () => {
   it('skips Bedrock entirely when there is no cited evidence', async () => {
     const converse = vi.fn()
     const handler = createBedrockProposalHandler({
-      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
     })
 

@@ -120,16 +120,18 @@ describe('AWS infrastructure configuration', () => {
         'https://akademia-ai-platform.vercel.app',
       pipelineVersion: 'property-source-v1',
       bedrockModelId:
-        'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+        'eu.anthropic.claude-sonnet-4-6',
     })
   })
 
-  it('rejects a global or unapproved Bedrock model fallback', () => {
+  it.each([
+    'global.anthropic.claude-sonnet-4-6',
+    'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+  ])('rejects a global or unapproved Bedrock model fallback: %s', (modelId) => {
     expect(() =>
       parseInfrastructureConfig({
         ...devConfig,
-        bedrockModelId:
-          'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+        bedrockModelId: modelId,
       }),
     ).toThrow('bedrockModelId')
   })

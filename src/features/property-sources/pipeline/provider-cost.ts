@@ -1,7 +1,7 @@
-const HAIKU_45_INPUT_USD_MICROUNITS_PER_TOKEN = 1
-const HAIKU_45_OUTPUT_USD_MICROUNITS_PER_TOKEN = 5
+const SONNET_46_INPUT_USD_MICROUNITS_PER_TOKEN = 3
+const SONNET_46_OUTPUT_USD_MICROUNITS_PER_TOKEN = 15
 
-export function calculateHaiku45CostMicrounits({
+export function calculateSonnet46CostMicrounits({
   inputTokens,
   outputTokens,
 }: {
@@ -17,8 +17,8 @@ export function calculateHaiku45CostMicrounits({
     throw new Error('INVALID_TOKEN_COUNT')
   }
   const microunits =
-    inputTokens * HAIKU_45_INPUT_USD_MICROUNITS_PER_TOKEN +
-    outputTokens * HAIKU_45_OUTPUT_USD_MICROUNITS_PER_TOKEN
+    inputTokens * SONNET_46_INPUT_USD_MICROUNITS_PER_TOKEN +
+    outputTokens * SONNET_46_OUTPUT_USD_MICROUNITS_PER_TOKEN
   if (!Number.isSafeInteger(microunits)) {
     throw new Error('INVALID_TOKEN_COUNT')
   }
