@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { PRODUCT_NAME } from "@/lib/product";
 
 const VALID_TOKEN = "akademia-ai-2026-edycja1";
 
@@ -72,10 +73,10 @@ export default function InviteRegisterPage() {
         <div className="w-full max-w-md">
           <div className="flex items-center justify-center gap-2.5 mb-10">
             <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
-              AI
+              PI
             </div>
             <span className="text-sm font-bold text-foreground tracking-tight">
-              Akademia AI
+              {PRODUCT_NAME}
             </span>
           </div>
 
@@ -117,10 +118,10 @@ export default function InviteRegisterPage() {
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-10">
           <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
-            AI
+            PI
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            Akademia AI
+            {PRODUCT_NAME}
           </span>
         </div>
 
@@ -132,7 +133,7 @@ export default function InviteRegisterPage() {
                   Utwórz konto
                 </h2>
                 <p className="text-sm text-foreground/40 mt-2">
-                  Akademia AI — Edycja #1
+                  Dostęp pilotażowy
                 </p>
               </div>
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Fraunces } from "next/font/google";
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/product";
 import "./globals.css";
 
 const jakarta = localFont({
@@ -17,8 +18,8 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Akademia AI",
-  description: "Prywatna przestrzeń do nauki, wdrożeń i pracy z AI.",
+  title: PRODUCT_NAME,
+  description: PRODUCT_DESCRIPTION,
 };
 
 export default function RootLayout({

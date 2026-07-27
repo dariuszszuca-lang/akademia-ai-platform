@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PRODUCT_NAME } from "@/lib/product";
 
 export default function RegisterPage() {
   return (
@@ -9,10 +10,10 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-10">
           <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
-            AI
+            PI
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
-            Akademia AI
+            {PRODUCT_NAME}
           </span>
         </div>
 

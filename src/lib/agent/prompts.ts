@@ -2,6 +2,7 @@ import type { Agent, AgentTool } from '@/data/agents'
 import { userContextAsBlock, type UserContext } from './user-context'
 import type { LegalChunk } from '@/lib/legal/pinecone'
 import { formatChunksForPrompt } from '@/lib/legal/search'
+import { PRODUCT_NAME } from '@/lib/product'
 
 /**
  * Buduje system prompt dla agenta na bazie:
@@ -30,7 +31,9 @@ ZASADY DLA AGENTA PRAWNEGO:
 - Nie udzielaj porady prawnej, tylko informacji o przepisach`
       : ''
 
-  return `Jesteś agentem "${agent.name}" na platformie Akademia AI dla agentów nieruchomości.
+  return `Jesteś agentem "${agent.name}" w ${PRODUCT_NAME} dla agentów nieruchomości.
+Pracujesz na profilu użytkownika i — jeśli został podany — na zatwierdzonych danych teczki nieruchomości.
+Nie przedstawiaj informacji wywnioskowanej jako potwierdzonego faktu.
 
 ROLA: ${agent.tagline}
 ${agent.description}

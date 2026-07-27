@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { PRODUCT_NAME } from "@/lib/product";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -31,12 +32,14 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="w-12 h-12 rounded-xl bg-[#0D9488] text-white font-extrabold text-lg flex items-center justify-center mx-auto mb-3">
-            AI
+            PI
           </div>
           <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-            Akademia AI
+            {PRODUCT_NAME}
           </h1>
-          <p className="text-foreground/50 text-sm mt-1">Platforma szkoleniowa</p>
+          <p className="text-foreground/50 text-sm mt-1">
+            Studio pracy agenta nieruchomości
+          </p>
         </div>
 
         {/* Form */}

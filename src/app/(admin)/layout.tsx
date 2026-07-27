@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { PRODUCT_NAME } from "@/lib/product";
 import "../globals.css";
 
 export const metadata: Metadata = {
-  title: "Admin — Akademia AI",
+  title: `Admin — ${PRODUCT_NAME}`,
   description: "Panel administracyjny",
   robots: "noindex, nofollow",
 };

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PRODUCT_SHORT_NAME } from '@/lib/product'
 
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,9 +16,8 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
       {/* Header */}
       <header className="relative z-10 px-6 sm:px-10 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-medium tracking-tight">
-            <span className="text-accent">Akademia</span>
-            <span className="text-foreground/60 ml-1">AI</span>
+          <span className="text-xl font-medium tracking-tight text-foreground">
+            {PRODUCT_SHORT_NAME}
           </span>
         </div>
         <Link

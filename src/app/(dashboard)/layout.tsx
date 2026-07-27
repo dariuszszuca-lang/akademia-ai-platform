@@ -23,11 +23,11 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center gap-5">
           <div className="relative">
             <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
-              <span className="text-white font-extrabold text-lg">AI</span>
+              <span className="text-white font-extrabold text-lg">PI</span>
             </div>
             <div className="absolute inset-0 w-12 h-12 rounded-xl border-2 border-accent/30 animate-ping" />
           </div>
-          <p className="text-sm text-foreground/40 tracking-wide">Ładowanie platformy...</p>
+          <p className="text-sm text-foreground/40 tracking-wide">Ładowanie Studio...</p>
         </div>
       </div>
     );
