@@ -1,153 +1,236 @@
-import Link from "next/link";
-import { getEffectiveModules, getEffectiveResources } from "@/lib/module-overrides";
-import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import OnboardingCard from '@/components/onboarding/OnboardingCard'
+import { buildPropertyDashboard } from '@/features/properties/dashboard'
+import { getPropertyService } from '@/features/properties/server-repository'
+import { getServerUserId } from '@/lib/session'
+import PropertyCard from '../nieruchomosci/PropertyCard'
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic'
 
 export default async function StartPage() {
-  const [allModules, allResources] = await Promise.all([
-    getEffectiveModules(),
-    getEffectiveResources(),
-  ]);
+  const userId = await getServerUserId()
+  if (!userId) redirect('/login')
 
-  const enabledModules = allModules.filter((m) => m.enabled && (m.items?.length ?? 0) > 0);
-
-  const enabledResources = allResources.filter((r) => r.enabled).slice(0, 3);
-
-  const nextLive =
-    enabledModules.find((m) => m.id === "dzien-1-online") ??
-    enabledModules.find((m) => m.id === "dzien-4-qa-online");
+  const service = getPropertyService()
+  const projects = await service.listProjects(userId)
+  const factEntries = await Promise.all(
+    projects.map(async (project) => [
+      project.id,
+      await service.listFacts(userId, project.id),
+    ] as const),
+  )
+  const dashboard = buildPropertyDashboard(projects, new Map(factEntries))
+  const nextAction = getNextAction(
+    dashboard.conflictingCount,
+    dashboard.missingCount,
+    dashboard.activeCount,
+  )
 
   return (
-    <div className="mx-auto max-w-4xl space-y-10 animate-fade-in-up">
-      <header className="space-y-4">
-        <p className="eyebrow">Akademia AI</p>
-        <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(40px, 6vw, 64px)' }}>
-          Cześć. Zacznijmy od <em>najważniejszego</em>.
-        </h1>
-        <p className="text-foreground/50 text-base sm:text-lg max-w-xl leading-relaxed">
-          Twój kokpit AI dla pracy agenta nieruchomości. Naciśnij <span className="kbd">⌘</span> <span className="kbd">K</span> żeby od razu otworzyć agenta albo plik.
-        </p>
+    <div className="animate-fade-in-up space-y-7">
+      <header className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#0d171b] px-5 py-8 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] sm:px-8 lg:px-10 lg:py-10">
+        <div
+          aria-hidden="true"
+          className="absolute -right-20 -top-32 h-80 w-80 rounded-full border border-[#bd9360]/20"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute -right-2 -top-16 h-56 w-56 rounded-full border border-[#2d6b68]/45"
+        />
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)] lg:items-end">
+          <div>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d8b784]">
+              Property Intelligence Studio
+            </p>
+            <h1 className="mt-4 max-w-4xl font-display text-[clamp(2.7rem,7vw,5.35rem)] leading-[0.92] tracking-[-0.04em] text-[#f7f2e7]">
+              Dowody, decyzje
+              <br />
+              <em className="font-normal text-[#79aaa4]">i następny ruch.</em>
+            </h1>
+            <p className="mt-5 max-w-2xl text-sm leading-6 text-[#bdc9c5] sm:text-base">
+              Każda oferta zaczyna się od jednej teczki. Studio pokazuje, co
+              jest potwierdzone, czego brakuje i gdzie potrzebna jest Twoja
+              decyzja.
+            </p>
+          </div>
+
+          <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-5 backdrop-blur-sm sm:p-6">
+            <p className="text-[0.64rem] font-semibold uppercase tracking-[0.2em] text-[#d8b784]">
+              Następne działanie
+            </p>
+            <h2 className="mt-3 font-display text-2xl text-[#f7f2e7]">
+              {nextAction.title}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#9fafaa]">
+              {nextAction.description}
+            </p>
+            <Link
+              href={nextAction.href}
+              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[#f7f2e7] px-5 text-sm font-semibold text-[#162026] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#bd9360]"
+            >
+              {nextAction.label} →
+            </Link>
+          </section>
+        </div>
       </header>
 
-      <Link
-        href="/nieruchomosci"
-        className="group relative block overflow-hidden rounded-[2rem] border border-white/10 bg-[#0d171b] p-6 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] outline-none transition duration-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#bd9360] focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transform-none sm:p-8"
+      <section
+        aria-label="Stan portfolio"
+        className="grid gap-3 sm:grid-cols-3"
       >
-        <span
-          aria-hidden="true"
-          className="absolute -right-16 -top-24 h-64 w-64 rounded-full border border-[#bd9360]/20"
+        <Metric
+          label="Aktywne teczki"
+          value={dashboard.activeCount}
+          tone="teal"
         />
-        <span
-          aria-hidden="true"
-          className="absolute -right-2 -top-14 h-44 w-44 rounded-full border border-[#2d6b68]/40"
+        <Metric
+          label="Brakujące fakty"
+          value={dashboard.missingCount}
+          tone="gold"
         />
-        <span className="relative flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
-          <span>
-            <span className="text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-[#d8b784]">
-              Property Intelligence Studio
-            </span>
-            <span className="mt-3 block max-w-2xl font-display text-3xl leading-tight text-[#f7f2e7] sm:text-4xl">
-              Otwórz teczkę nieruchomości.
-            </span>
-            <span className="mt-3 block max-w-2xl text-sm leading-6 text-[#aebdb8]">
-              Zbierz fakty, oznacz braki i przygotuj ofertę na jednym źródle
-              prawdy.
-            </span>
-          </span>
-          <span className="inline-flex min-h-12 shrink-0 items-center gap-3 self-start rounded-full bg-[#f7f2e7] px-5 text-sm font-semibold text-[#162026] sm:self-auto">
-            Wejdź do Studio
-            <span
-              aria-hidden="true"
-              className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none"
-            >
-              →
-            </span>
-          </span>
-        </span>
-      </Link>
+        <Metric
+          label="Konflikty danych"
+          value={dashboard.conflictingCount}
+          tone="alert"
+        />
+      </section>
 
-      {/* Onboarding card, widoczny dopóki profil i persony niegotowe */}
-      <OnboardingCard />
-
-      <div className="grid gap-6 sm:grid-cols-2">
-        {nextLive && (
-          <section className="rounded-[2rem] border border-border bg-background/55 p-6">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
-              Na żywo
+      <section className="rounded-[2.25rem] bg-[#f2ede3] p-4 text-[#162026] shadow-[0_30px_90px_-48px_rgba(0,0,0,0.75)] sm:p-6 lg:p-8">
+        <div className="mb-6 flex flex-col gap-4 border-b border-[#d9d2c5] pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-[#8b693e]">
+              Ostatnia praca
             </p>
-            <h3 className="mt-3 font-display text-xl text-foreground">
-              {nextLive.title}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-foreground/55">{nextLive.description}</p>
-            {nextLive.meta && (
-              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--muted-gold)]">
-                {nextLive.meta}
-              </p>
-            )}
-            <Link
-              href="/na-zywo"
-              className="mt-4 inline-block text-sm font-semibold text-foreground/80 underline-offset-4 hover:underline"
-            >
-              Kalendarz →
-            </Link>
-          </section>
-        )}
-
-        {enabledResources.length > 0 && (
-          <section className="rounded-[2rem] border border-border bg-background/55 p-6">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
-              Skarbiec — najnowsze
-            </p>
-            <ul className="mt-4 space-y-3">
-              {enabledResources.map((r) => (
-                <li key={r.id}>
-                  <Link
-                    href={r.external ?? `/skarbiec`}
-                    target={r.external ? "_blank" : undefined}
-                    rel={r.external ? "noopener noreferrer" : undefined}
-                    className="flex items-start gap-3 text-sm text-foreground/75 hover:text-foreground"
-                  >
-                    <span
-                      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[0.65rem] font-extrabold"
-                      style={{
-                        background: `${r.accentColor}18`,
-                        color: r.accentColor,
-                      }}
-                    >
-                      {r.icon}
-                    </span>
-                    <span className="flex-1 leading-snug">{r.title}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/skarbiec"
-              className="mt-4 inline-block text-sm font-semibold text-foreground/80 underline-offset-4 hover:underline"
-            >
-              Cały skarbiec →
-            </Link>
-          </section>
-        )}
-      </div>
-
-      <div className="flex flex-col items-start gap-4 rounded-[2rem] border border-border bg-[color:var(--card)] p-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-foreground/40">
-            Twój asystent
-          </p>
-          <h3 className="mt-2 font-display text-xl text-foreground">
-            Pracuj z AI przy codziennych zadaniach.
-          </h3>
+            <h2 className="mt-2 font-display text-3xl tracking-[-0.02em]">
+              Teczki, do których wracasz
+            </h2>
+          </div>
+          <Link
+            href="/nieruchomosci"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-[#285d5a] underline-offset-4 hover:underline"
+          >
+            Całe Portfolio →
+          </Link>
         </div>
-        <Link
-          href="/agent"
-          className="inline-flex items-center gap-2 rounded-full border border-border bg-background/55 px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-foreground/40"
-        >
-          Otwórz Agenta →
-        </Link>
+
+        {dashboard.recentProjects.length > 0 ? (
+          <div className="stagger-children grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {dashboard.recentProjects.map((project) => (
+              <PropertyCard key={project.id} project={project} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-[#bbb4a7] bg-[#fffdf8]/70 px-6 text-center">
+            <span className="font-display text-4xl text-[#2d6b68]">01</span>
+            <h3 className="mt-4 font-display text-2xl">
+              Zacznij od prawdziwej nieruchomości
+            </h3>
+            <p className="mt-2 max-w-md text-sm leading-6 text-[#66716d]">
+              Załóż pierwszą teczkę i uporządkuj fakty, zanim powstanie opis,
+              rolka lub kampania.
+            </p>
+            <Link
+              href="/nieruchomosci"
+              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[#162026] px-5 text-sm font-semibold text-[#f7f2e7]"
+            >
+              Utwórz pierwszą teczkę →
+            </Link>
+          </div>
+        )}
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
+        <OnboardingCard />
+        <section className="rounded-[2rem] border border-white/10 bg-[#15252a] p-6 text-[#f7f2e7]">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#79aaa4]">
+            Zespół AI
+          </p>
+          <h2 className="mt-3 font-display text-2xl">
+            Specjaliści do konkretnych zadań
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#aebdb8]">
+            Wybierz agenta do analizy, wyceny, marketingu albo spraw prawnych.
+          </p>
+          <Link
+            href="/agent"
+            className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-[#d8b784] hover:text-[#f0d4aa]"
+          >
+            Otwórz Zespół AI →
+          </Link>
+        </section>
       </div>
     </div>
-  );
+  )
+}
+
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'teal' | 'gold' | 'alert'
+}) {
+  const styles = {
+    teal: 'border-[#365d59] bg-[#152b2d] text-[#9bc5bf]',
+    gold: 'border-[#5d4b35] bg-[#2b251d] text-[#dfbd8b]',
+    alert: 'border-[#67433c] bg-[#2d201e] text-[#e0a89d]',
+  }
+
+  return (
+    <div className={`rounded-[1.5rem] border p-5 ${styles[tone]}`}>
+      <p className="font-mono text-3xl font-semibold">{value}</p>
+      <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-current/70">
+        {label}
+      </p>
+    </div>
+  )
+}
+
+function getNextAction(
+  conflictingCount: number,
+  missingCount: number,
+  activeCount: number,
+) {
+  if (conflictingCount > 0) {
+    return {
+      title: 'Wyjaśnij konflikty danych',
+      description: `${conflictingCount} ${
+        conflictingCount === 1 ? 'fakt wymaga' : 'fakty wymagają'
+      } porównania ze źródłami.`,
+      href: '/nieruchomosci',
+      label: 'Przejdź do teczek',
+    }
+  }
+
+  if (missingCount > 0) {
+    return {
+      title: 'Uzupełnij brakujące fakty',
+      description: `${missingCount} ${
+        missingCount === 1 ? 'informacja czeka' : 'informacje czekają'
+      } na potwierdzenie.`,
+      href: '/nieruchomosci',
+      label: 'Otwórz Portfolio',
+    }
+  }
+
+  if (activeCount > 0) {
+    return {
+      title: 'Teczki są gotowe do dalszej pracy',
+      description:
+        'Przejdź do wybranej nieruchomości albo uruchom specjalistę z Zespołu AI.',
+      href: '/agent',
+      label: 'Otwórz Zespół AI',
+    }
+  }
+
+  return {
+    title: 'Załóż pierwszą teczkę',
+    description:
+      'Dodaj prawdziwą nieruchomość i zbuduj dla niej jedno źródło prawdy.',
+    href: '/nieruchomosci',
+    label: 'Otwórz Portfolio',
+  }
 }
