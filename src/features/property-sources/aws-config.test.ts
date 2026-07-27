@@ -34,6 +34,25 @@ describe('AWS property source runtime configuration', () => {
     ).toThrow('Invalid runtime variable: AWS_REGION')
   })
 
+  it('normalizes deployment transport whitespace around identifiers', () => {
+    expect(
+      readAwsPropertySourceConfig(
+        Object.fromEntries(
+          Object.entries(validEnvironment).map(([key, value]) => [
+            key,
+            `  ${value}\n`,
+          ]),
+        ),
+      ),
+    ).toEqual({
+      region: 'eu-central-1',
+      bucket: validEnvironment.PROPERTY_SOURCE_BUCKET,
+      kmsKeyArn: validEnvironment.PROPERTY_SOURCE_KMS_KEY_ARN,
+      signerRoleArn:
+        validEnvironment.PROPERTY_SOURCE_SIGNER_ROLE_ARN,
+    })
+  })
+
   it.each([
     {
       PROPERTY_SOURCE_BUCKET: 'Invalid_Bucket',

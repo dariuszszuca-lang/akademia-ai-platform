@@ -51,19 +51,27 @@ export type AwsPropertySourceConfig = {
 export function readAwsPropertySourceConfig(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): AwsPropertySourceConfig {
+  const normalizedEnvironment = Object.fromEntries(
+    requiredRuntimeVariables.map((variableName) => [
+      variableName,
+      environment[variableName]?.trim(),
+    ]),
+  )
+
   for (const variableName of requiredRuntimeVariables) {
-    if (!environment[variableName]) {
+    if (!normalizedEnvironment[variableName]) {
       throw new Error(`Missing runtime variable: ${variableName}`)
     }
   }
 
   const result = runtimeConfigSchema.safeParse({
-    AWS_REGION: environment.AWS_REGION,
-    PROPERTY_SOURCE_BUCKET: environment.PROPERTY_SOURCE_BUCKET,
+    AWS_REGION: normalizedEnvironment.AWS_REGION,
+    PROPERTY_SOURCE_BUCKET:
+      normalizedEnvironment.PROPERTY_SOURCE_BUCKET,
     PROPERTY_SOURCE_KMS_KEY_ARN:
-      environment.PROPERTY_SOURCE_KMS_KEY_ARN,
+      normalizedEnvironment.PROPERTY_SOURCE_KMS_KEY_ARN,
     PROPERTY_SOURCE_SIGNER_ROLE_ARN:
-      environment.PROPERTY_SOURCE_SIGNER_ROLE_ARN,
+      normalizedEnvironment.PROPERTY_SOURCE_SIGNER_ROLE_ARN,
   })
 
   if (!result.success) {
