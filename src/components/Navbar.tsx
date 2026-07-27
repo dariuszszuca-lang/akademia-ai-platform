@@ -40,7 +40,10 @@ export default function Navbar() {
       <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-border bg-[color:var(--card)] px-4 py-3 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <Link href="/start" className="flex items-center gap-3">
+            <Link
+              href="/start"
+              className="flex min-h-11 items-center gap-3 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
               <div className="soft-ring flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),var(--muted-gold))] text-sm font-extrabold text-white">
                 PI
               </div>
@@ -60,7 +63,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-full px-4 py-2 text-sm transition-colors ${
+                  className={`inline-flex min-h-11 items-center rounded-full px-4 py-2 text-sm transition-colors ${
                     active
                       ? "bg-foreground text-background"
                       : "text-foreground/55 hover:text-foreground"
@@ -152,7 +155,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="mx-auto mt-3 flex max-w-7xl gap-2 overflow-x-auto pb-1 lg:hidden">
+        <div className="mx-auto mt-3 grid max-w-7xl grid-cols-4 gap-1 pb-1 lg:hidden">
           {PRODUCT_NAVIGATION.map((item) => {
             const active = isProductPathActive(pathname, item.href);
 
@@ -160,7 +163,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm ${
+                className={`inline-flex min-h-11 items-center justify-center rounded-full border px-2 py-2 text-center text-xs ${
                   active
                     ? "border-foreground bg-foreground text-background"
                     : "border-border bg-[color:var(--card)] text-foreground/60"

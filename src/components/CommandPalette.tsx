@@ -96,7 +96,7 @@ export default function CommandPalette() {
                   key={a.id}
                   value={`agent ${a.name} ${a.tagline}`}
                   onSelect={() => go(`/agent/${a.id}`)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-foreground/80 data-[selected=true]:bg-foreground/[0.06] data-[selected=true]:text-foreground transition-colors"
+                  className="flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-foreground/80 data-[selected=true]:bg-foreground/[0.06] data-[selected=true]:text-foreground transition-colors"
                 >
                   <span className="text-lg" style={{ color: a.color }}>{a.icon}</span>
                   <div className="flex-1 min-w-0">
@@ -113,7 +113,7 @@ export default function CommandPalette() {
                   key={item.href}
                   value={item.label + ' ' + (item.hint ?? '')}
                   onSelect={() => go(item.href)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-foreground/80 data-[selected=true]:bg-foreground/[0.06] data-[selected=true]:text-foreground transition-colors"
+                  className="flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-foreground/80 data-[selected=true]:bg-foreground/[0.06] data-[selected=true]:text-foreground transition-colors"
                 >
                   <span className="text-foreground/30 text-xs font-mono">md</span>
                   <div className="flex-1 min-w-0">
@@ -130,7 +130,7 @@ export default function CommandPalette() {
                   key={item.href}
                   value={item.label + ' ' + (item.hint ?? '')}
                   onSelect={() => go(item.href)}
-                  className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-foreground/80 data-[selected=true]:bg-foreground/[0.06] data-[selected=true]:text-foreground transition-colors"
+                  className="flex min-h-11 items-center justify-between gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-foreground/80 data-[selected=true]:bg-foreground/[0.06] data-[selected=true]:text-foreground transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm">{item.label}</div>

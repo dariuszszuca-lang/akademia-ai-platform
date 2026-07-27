@@ -182,7 +182,7 @@ function Metric({
   return (
     <div className={`rounded-[1.5rem] border p-5 ${styles[tone]}`}>
       <p className="font-mono text-3xl font-semibold">{value}</p>
-      <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-current/70">
+      <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] opacity-70">
         {label}
       </p>
     </div>

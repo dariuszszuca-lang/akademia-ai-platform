@@ -40,4 +40,20 @@ describe('public product surfaces', () => {
     expect(api).toContain('property-studio-export-')
     expect(settings).toContain('property-studio-export-')
   })
+
+  it('keeps the dashboard shell accessible on keyboard and mobile', () => {
+    const layout = readFileSync(
+      resolve(process.cwd(), 'src/app/(dashboard)/layout.tsx'),
+      'utf8',
+    )
+    const navbar = readFileSync(
+      resolve(process.cwd(), 'src/components/Navbar.tsx'),
+      'utf8',
+    )
+
+    expect(layout).toContain('href="#main-content"')
+    expect(layout).toContain('id="main-content"')
+    expect(navbar).toContain('grid-cols-4')
+    expect(navbar).not.toContain('overflow-x-auto')
+  })
 })

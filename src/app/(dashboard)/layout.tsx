@@ -25,7 +25,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
             <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
               <span className="text-white font-extrabold text-lg">PI</span>
             </div>
-            <div className="absolute inset-0 w-12 h-12 rounded-xl border-2 border-accent/30 animate-ping" />
+            <div className="absolute inset-0 w-12 h-12 rounded-xl border-2 border-accent/30 animate-ping motion-reduce:animate-none" />
           </div>
           <p className="text-sm text-foreground/40 tracking-wide">Ładowanie Studio...</p>
         </div>
@@ -37,9 +37,15 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:not-sr-only focus:rounded-full focus:bg-foreground focus:px-5 focus:py-3 focus:text-sm focus:font-semibold focus:text-background"
+      >
+        Przejdź do treści
+      </a>
       <Navbar />
       <CommandPalette />
-      <main className="pt-36 pb-32 sm:pt-40">
+      <main id="main-content" className="pt-36 pb-32 sm:pt-40">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {children}
         </div>
