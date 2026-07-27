@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 
-const CALLBACK_MAX_AGE_SECONDS = 300
-const CALLBACK_MAX_FUTURE_SKEW_SECONDS = 30
+export const CALLBACK_MAX_AGE_SECONDS = 300
+export const CALLBACK_MAX_FUTURE_SKEW_SECONDS = 30
 const callbackNoncePattern = /^[A-Za-z0-9_-]{32,128}$/
 const callbackSignaturePattern = /^[a-f0-9]{64}$/
 const callbackNonceHashPattern = /^[a-f0-9]{64}$/
