@@ -1,5 +1,5 @@
 /**
- * Plany subskrypcji Akademia AI.
+ * Plany subskrypcji Property Intelligence Studio.
  *
  * Trial: 14 dni od pierwszego logowania, pełne funkcje Pro.
  * Starter: 99 zł/mies, ograniczone.
@@ -85,13 +85,14 @@ export const PLAN_DISPLAY: PlanDisplay[] = [
     name: 'Starter',
     price: '99 zł',
     priceMonthly: 99,
-    description: 'Dla agenta który dopiero zaczyna z AI.',
+    description: 'Dla agenta porządkującego własne oferty w Studio.',
     features: [
-      '50 wywołań agenta / dzień',
-      'Wszystkie 6 agentów (CEO, Marketing, Wycena, Publikacja, Nieruchomości, Prawny*)',
+      '50 wywołań Zespołu AI / dzień',
+      'Portfolio i teczki nieruchomości',
+      '6 specjalistów AI: CEO, Marketing, Wycena, Publikacja, Nieruchomości i Prawny*',
       'Profil + persony (Path B)',
       'Bez bazy prawnej (RAG)',
-      'Email support',
+      'Wsparcie email',
     ],
     ctaLabel: 'Zacznij Starter →',
   },
@@ -100,13 +101,14 @@ export const PLAN_DISPLAY: PlanDisplay[] = [
     name: 'Pro',
     price: '199 zł',
     priceMonthly: 199,
-    description: 'Pełne wykorzystanie. Najczęstszy wybór.',
+    description: 'Pełna praca z teczkami i Zespołem AI.',
     features: [
-      '200 wywołań agenta / dzień',
-      'Wszyscy agenci + RAG na Kodeksie cywilnym',
+      '200 wywołań Zespołu AI / dzień',
+      'Portfolio i Property Truth Engine',
+      'Zespół AI + RAG na Kodeksie cywilnym',
       'Persona Path A (AI proponuje 3 typy)',
       'Profil pogłębiony (20 dodatkowych pytań)',
-      'Priorytetowy support',
+      'Priorytetowe wsparcie',
     ],
     highlight: true,
     ctaLabel: 'Zacznij Pro →',
@@ -119,10 +121,10 @@ export const PLAN_DISPLAY: PlanDisplay[] = [
     description: 'Dla biur i zespołów.',
     features: [
       'Nielimitowane wywołania',
-      'Wszyscy agenci + Opus dla trudnych spraw prawnych',
+      'Pełny Zespół AI + Opus dla trudnych spraw prawnych',
       'Multi-user (do 5 agentów w zespole)',
-      'White-label (Twoje logo)',
-      'Dedykowany account manager',
+      'Własna identyfikacja zespołu',
+      'Dedykowany opiekun',
     ],
     ctaLabel: 'Skontaktuj się →',
   },
