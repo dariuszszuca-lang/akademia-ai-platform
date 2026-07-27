@@ -19,11 +19,15 @@ function getVerifier() {
   if (verifier) return verifier
 
   const userPoolId =
-    process.env.COGNITO_USER_POOL_ID ??
-    process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID
+    (
+      process.env.COGNITO_USER_POOL_ID ??
+      process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID
+    )?.trim()
   const clientId =
-    process.env.COGNITO_CLIENT_ID ??
-    process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID
+    (
+      process.env.COGNITO_CLIENT_ID ??
+      process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID
+    )?.trim()
 
   if (!userPoolId || !clientId) {
     throw new SessionConfigurationError()
