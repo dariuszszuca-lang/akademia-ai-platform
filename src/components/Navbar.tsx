@@ -8,6 +8,7 @@ import QuickActionsPanel from "./QuickActionsPanel";
 
 const navItems = [
   { name: "Start", href: "/start" },
+  { name: "Nieruchomości", href: "/nieruchomosci" },
   { name: "Mój profil", href: "/profil" },
   { name: "Agent", href: "/agent" },
   { name: "Warsztaty", href: "/programy" },

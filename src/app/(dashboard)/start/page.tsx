@@ -30,6 +30,43 @@ export default async function StartPage() {
         </p>
       </header>
 
+      <Link
+        href="/nieruchomosci"
+        className="group relative block overflow-hidden rounded-[2rem] border border-white/10 bg-[#0d171b] p-6 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] outline-none transition duration-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-[#bd9360] focus-visible:ring-offset-4 focus-visible:ring-offset-background motion-reduce:transform-none sm:p-8"
+      >
+        <span
+          aria-hidden="true"
+          className="absolute -right-16 -top-24 h-64 w-64 rounded-full border border-[#bd9360]/20"
+        />
+        <span
+          aria-hidden="true"
+          className="absolute -right-2 -top-14 h-44 w-44 rounded-full border border-[#2d6b68]/40"
+        />
+        <span className="relative flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
+          <span>
+            <span className="text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-[#d8b784]">
+              Property Intelligence Studio
+            </span>
+            <span className="mt-3 block max-w-2xl font-display text-3xl leading-tight text-[#f7f2e7] sm:text-4xl">
+              Otwórz teczkę nieruchomości.
+            </span>
+            <span className="mt-3 block max-w-2xl text-sm leading-6 text-[#aebdb8]">
+              Zbierz fakty, oznacz braki i przygotuj ofertę na jednym źródle
+              prawdy.
+            </span>
+          </span>
+          <span className="inline-flex min-h-12 shrink-0 items-center gap-3 self-start rounded-full bg-[#f7f2e7] px-5 text-sm font-semibold text-[#162026] sm:self-auto">
+            Wejdź do Studio
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none"
+            >
+              →
+            </span>
+          </span>
+        </span>
+      </Link>
+
       {/* Onboarding card, widoczny dopóki profil i persony niegotowe */}
       <OnboardingCard />
 
