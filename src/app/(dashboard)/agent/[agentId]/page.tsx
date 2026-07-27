@@ -7,16 +7,17 @@ import AgentWorkspace from "./AgentWorkspace";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: { agentId: string } };
+type Props = { params: Promise<{ agentId: string }> };
 
 export default async function AgentDetailPage({ params }: Props) {
+  const { agentId } = await params;
   const profilMd = await getProfilMd();
   if (!profilMd) {
     return <AgentGate />;
   }
 
   const agents = await getEffectiveAgents();
-  const agent = agents.find((a) => a.id === params.agentId);
+  const agent = agents.find((a) => a.id === agentId);
   if (!agent) notFound();
 
   if (!agent.enabled) {

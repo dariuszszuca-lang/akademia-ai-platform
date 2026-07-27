@@ -5,7 +5,7 @@ import AdminDashboard from "./AdminDashboard";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminPage() {
+export default async function AdminPage() {
   if (!isAdminConfigured()) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16">
@@ -30,7 +30,7 @@ KV_REST_API_READ_ONLY_TOKEN=...`}
     );
   }
 
-  if (!isAuthenticated()) {
+  if (!(await isAuthenticated())) {
     redirect("/admin/login");
   }
 

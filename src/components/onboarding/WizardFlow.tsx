@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { OnboardingQuestion, ExpressAnswers } from '@/lib/onboarding/types'
 import ProgressBar from './ProgressBar'
@@ -66,9 +66,9 @@ export default function WizardFlow({
     }
   }
 
-  function back() {
-    if (currentIndex > 0) setCurrentIndex(i => i - 1)
-  }
+  const back = useCallback(() => {
+    setCurrentIndex(i => (i > 0 ? i - 1 : i))
+  }, [])
 
   async function generate() {
     setGenerating(true)
@@ -99,7 +99,7 @@ export default function WizardFlow({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [currentIndex, generating])
+  }, [back, generating])
 
   if (generating) {
     return (

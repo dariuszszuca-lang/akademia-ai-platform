@@ -14,11 +14,6 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
   const [value, setValue] = useState(initialValue)
   const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null)
 
-  // Reset state gdy zmienia sie pytanie
-  useEffect(() => {
-    setValue(initialValue)
-  }, [question.id, initialValue])
-
   // Focus input on mount
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 320)

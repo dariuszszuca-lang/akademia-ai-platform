@@ -29,7 +29,7 @@ export default function PricingCards({ plans, currentPlan }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Błąd')
-      if (data.url) window.location.href = data.url
+      if (data.url) window.location.assign(data.url)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'unknown')
       setLoading(null)

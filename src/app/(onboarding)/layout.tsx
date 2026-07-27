@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full bg-background relative overflow-hidden">
@@ -18,12 +20,12 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
             <span className="text-foreground/60 ml-1">AI</span>
           </span>
         </div>
-        <a
+        <Link
           href="/"
           className="text-foreground/40 hover:text-foreground/70 text-xs uppercase tracking-[0.25em] transition-colors"
         >
           Wstrzymaj
-        </a>
+        </Link>
       </header>
 
       {/* Content */}

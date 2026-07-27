@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function ProgramDetailPage({
+export default async function ProgramDetailPage({
   params,
 }: {
-  params: { courseId: string };
+  params: Promise<{ courseId: string }>;
 }) {
-  redirect(`/classroom/${params.courseId}`);
+  const { courseId } = await params;
+  redirect(`/classroom/${courseId}`);
 }

@@ -39,7 +39,8 @@ function isActivePath(pathname: string, href: string) {
 export default function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPath, setMenuPath] = useState<string | null>(null);
+  const menuOpen = menuPath === pathname;
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Zamykanie dropdown gdy klikniemy poza nim albo wciśniemy Escape
@@ -47,11 +48,11 @@ export default function Navbar() {
     if (!menuOpen) return;
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
+        setMenuPath(null);
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") setMenuPath(null);
     }
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
@@ -60,11 +61,6 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKey);
     };
   }, [menuOpen]);
-
-  // Zamknij menu przy zmianie ścieżki
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
 
   return (
     <>
@@ -107,7 +103,7 @@ export default function Navbar() {
             {user && (
               <div ref={menuRef} className="relative">
                 <button
-                  onClick={() => setMenuOpen((v) => !v)}
+                  onClick={() => setMenuPath(menuOpen ? null : pathname)}
                   className="flex items-center gap-2.5 rounded-full border border-border bg-background/40 py-1.5 pl-1.5 pr-3 transition-colors hover:bg-background/60"
                   title={user.email}
                   aria-haspopup="menu"
@@ -167,7 +163,7 @@ export default function Navbar() {
                     <div className="border-t border-border/60 py-1.5">
                       <button
                         onClick={() => {
-                          setMenuOpen(false);
+                          setMenuPath(null);
                           logout();
                         }}
                         className="block w-full px-4 py-2 text-left text-sm text-foreground/70 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"

@@ -92,7 +92,7 @@ describe('property HTTP handlers', () => {
     })
 
     const response = await handlers.getProject(new Request('http://localhost'), {
-      params: { propertyId: project.id },
+      params: Promise.resolve({ propertyId: project.id }),
     })
 
     expect(response.status).toBe(404)
@@ -108,7 +108,7 @@ describe('property HTTP handlers', () => {
       city: 'Poznań',
       addressMode: 'approximate',
     })
-    const context = { params: { propertyId: project.id } }
+    const context = { params: Promise.resolve({ propertyId: project.id }) }
     const createdResponse = await handlers.createFact(
       jsonRequest('POST', {
         key: 'plotArea',
@@ -126,7 +126,12 @@ describe('property HTTP handlers', () => {
     const { fact } = await createdResponse.json()
     const updatedResponse = await handlers.updateFact(
       jsonRequest('PATCH', { status: 'confirmed' }),
-      { params: { propertyId: project.id, factId: fact.id } },
+      {
+        params: Promise.resolve({
+          propertyId: project.id,
+          factId: fact.id,
+        }),
+      },
     )
     const listResponse = await handlers.listFacts(
       new Request('http://localhost'),

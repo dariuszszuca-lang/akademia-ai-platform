@@ -6,14 +6,18 @@ import CourseLayout from "./CourseLayout";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  params: { courseId: string };
-  searchParams: { lesson?: string };
+  params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ lesson?: string }>;
 };
 
 export default async function CoursePage({ params, searchParams }: Props) {
+  const [{ courseId }, { lesson: requestedLesson }] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const effective = await getEffectiveModules();
 
-  const current = effective.find((m) => m.id === params.courseId);
+  const current = effective.find((m) => m.id === courseId);
   if (!current) notFound();
 
   if (!current.enabled) {
@@ -42,7 +46,6 @@ export default async function CoursePage({ params, searchParams }: Props) {
     );
   }
 
-  const requestedLesson = searchParams.lesson;
   const activeLesson =
     lessons.find((l) => l.id === requestedLesson) ?? lessons[0];
 
@@ -107,4 +110,3 @@ export type SidebarLesson = {
   type: Lesson["type"];
   duration?: number;
 };
-

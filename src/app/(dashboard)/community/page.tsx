@@ -18,21 +18,23 @@ export default function CommunityPage() {
   const [formBody, setFormBody] = useState("");
   const [activeFilter, setActiveFilter] = useState<PostCategory | "Wszystkie">("Wszystkie");
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/community/posts", { cache: "no-store" });
-      const data = await res.json();
-      setPosts(data.posts ?? []);
-    } catch {
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    load();
+    let active = true;
+
+    void fetchCommunityPosts()
+      .then((nextPosts) => {
+        if (active) setPosts(nextPosts);
+      })
+      .catch(() => {
+        if (active) setPosts([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -63,7 +65,9 @@ export default function CommunityPage() {
       setFormTitle("");
       setFormBody("");
       setFormOpen(null);
-      await load();
+      setLoading(true);
+      setPosts(await fetchCommunityPosts());
+      setLoading(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Błąd");
     } finally {
@@ -213,6 +217,13 @@ export default function CommunityPage() {
       </section>
     </div>
   );
+}
+
+async function fetchCommunityPosts(): Promise<CommunityPost[]> {
+  const response = await fetch("/api/community/posts", { cache: "no-store" });
+  if (!response.ok) throw new Error("Nie udało się pobrać postów");
+  const data = await response.json();
+  return data.posts ?? [];
 }
 
 function FilterChip({

@@ -30,23 +30,27 @@ export default function AdminDashboard({ kv }: { kv: { configured: boolean } }) 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/modules", { cache: "no-store" });
-      if (!res.ok) throw new Error("Nie udało się pobrać danych");
-      const json: ApiResponse = await res.json();
-      setData(json);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Błąd");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    load();
+    let active = true;
+
+    void fetchAdminData()
+      .then((json) => {
+        if (!active) return;
+        setData(json);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Błąd");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function toggle(id: string, next: boolean) {
@@ -167,6 +171,12 @@ export default function AdminDashboard({ kv }: { kv: { configured: boolean } }) 
       )}
     </div>
   );
+}
+
+async function fetchAdminData(): Promise<ApiResponse> {
+  const response = await fetch("/api/admin/modules", { cache: "no-store" });
+  if (!response.ok) throw new Error("Nie udało się pobrać danych");
+  return response.json();
 }
 
 function courseToItem(c: Course): AdminItem {

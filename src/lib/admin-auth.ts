@@ -20,10 +20,10 @@ export function verifyPassword(input: string): boolean {
   return input === expected;
 }
 
-export function isAuthenticated(): boolean {
+export async function isAuthenticated(): Promise<boolean> {
   const token = getSessionToken();
   if (!token) return false;
-  const cookie = cookies().get(COOKIE_NAME);
+  const cookie = (await cookies()).get(COOKIE_NAME);
   return cookie?.value === token;
 }
 

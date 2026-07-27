@@ -15,21 +15,22 @@ import FactsBoard from './FactsBoard'
 export const dynamic = 'force-dynamic'
 
 type PropertyWorkspacePageProps = {
-  params: {
+  params: Promise<{
     propertyId: string
-  }
+  }>
 }
 
 export default async function PropertyWorkspacePage({
   params,
 }: PropertyWorkspacePageProps) {
+  const { propertyId } = await params
   const userId = await getServerUserId()
   if (!userId) redirect('/login')
 
   const service = getPropertyService()
   const [project, facts] = await loadPropertyWorkspace(
     userId,
-    params.propertyId,
+    propertyId,
   )
   const unresolved = getUnresolvedFacts(facts)
   const confirmedCount = facts.filter(

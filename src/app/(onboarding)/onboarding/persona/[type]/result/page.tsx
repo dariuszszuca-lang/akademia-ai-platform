@@ -10,9 +10,9 @@ export const dynamic = 'force-dynamic'
 export default async function PersonaResultPage({
   params,
 }: {
-  params: { type: string }
+  params: Promise<{ type: string }>
 }) {
-  const t = params.type
+  const { type: t } = await params
   if (t !== 'buyer' && t !== 'seller') notFound()
   const type = t as 'buyer' | 'seller'
   const isBuyer = type === 'buyer'

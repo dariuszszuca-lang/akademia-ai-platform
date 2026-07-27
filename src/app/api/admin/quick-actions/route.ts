@@ -9,22 +9,22 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function requireAuth() {
-  if (!isAuthenticated()) {
+async function requireAuth() {
+  if (!(await isAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;
 }
 
 export async function GET() {
-  const unauth = requireAuth();
+  const unauth = await requireAuth();
   if (unauth) return unauth;
   const actions = await getQuickActions();
   return NextResponse.json({ actions });
 }
 
 export async function POST(request: Request) {
-  const unauth = requireAuth();
+  const unauth = await requireAuth();
   if (unauth) return unauth;
 
   let body: { name?: string; note?: string; href?: string; emoji?: string; tone?: string };
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const unauth = requireAuth();
+  const unauth = await requireAuth();
   if (unauth) return unauth;
 
   let body: { id?: string; name?: string; note?: string; href?: string; emoji?: string; tone?: string };
@@ -83,7 +83,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const unauth = requireAuth();
+  const unauth = await requireAuth();
   if (unauth) return unauth;
 
   const url = new URL(request.url);

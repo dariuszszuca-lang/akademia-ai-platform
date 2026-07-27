@@ -3,16 +3,16 @@ import { ZodError } from 'zod'
 import type { PropertyService } from './service'
 
 type PropertyContext = {
-  params: {
+  params: Promise<{
     propertyId: string
-  }
+  }>
 }
 
 type PropertyFactContext = {
-  params: {
+  params: Promise<{
     propertyId: string
     factId: string
-  }
+  }>
 }
 
 type PropertyHttpDependencies = {
@@ -44,57 +44,56 @@ export function createPropertyHttpHandlers({
       }),
 
     getProject: (_request: Request, context: PropertyContext) =>
-      withAuthenticatedUser(getUserId, async (userId) =>
-        NextResponse.json({
-          project: await getService().getProject(
-            userId,
-            context.params.propertyId,
-          ),
-        }),
-      ),
+      withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId } = await context.params
+        return NextResponse.json({
+          project: await getService().getProject(userId, propertyId),
+        })
+      }),
 
     updateProject: (request: Request, context: PropertyContext) =>
-      withAuthenticatedUser(getUserId, async (userId) =>
-        NextResponse.json({
+      withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId } = await context.params
+        return NextResponse.json({
           project: await getService().updateProject(
             userId,
-            context.params.propertyId,
+            propertyId,
             await readJson(request),
           ),
-        }),
-      ),
+        })
+      }),
 
     listFacts: (_request: Request, context: PropertyContext) =>
-      withAuthenticatedUser(getUserId, async (userId) =>
-        NextResponse.json({
-          facts: await getService().listFacts(
-            userId,
-            context.params.propertyId,
-          ),
-        }),
-      ),
+      withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId } = await context.params
+        return NextResponse.json({
+          facts: await getService().listFacts(userId, propertyId),
+        })
+      }),
 
     createFact: (request: Request, context: PropertyContext) =>
       withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId } = await context.params
         const fact = await getService().createFact(
           userId,
-          context.params.propertyId,
+          propertyId,
           await readJson(request),
         )
         return NextResponse.json({ fact }, { status: 201 })
       }),
 
     updateFact: (request: Request, context: PropertyFactContext) =>
-      withAuthenticatedUser(getUserId, async (userId) =>
-        NextResponse.json({
+      withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId, factId } = await context.params
+        return NextResponse.json({
           fact: await getService().updateFact(
             userId,
-            context.params.propertyId,
-            context.params.factId,
+            propertyId,
+            factId,
             await readJson(request),
           ),
-        }),
-      ),
+        })
+      }),
   }
 }
 
