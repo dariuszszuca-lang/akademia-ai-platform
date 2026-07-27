@@ -248,6 +248,13 @@ Amazon Transcribe działa w trybie batch z językiem `pl-PL`. Wynik zawiera teks
 oraz znaczniki czasu. Transkrypcja staje się źródłem pochodnym i przechodzi przez
 ten sam proces tworzenia propozycji.
 
+Stan implementacji 27 lipca 2026: AWS wymaga `Resource: "*"` dla
+`StartTranscriptionJob`, a polityka COSTSEC zabrania takiego grantu. Dlatego
+audio jest przyjmowane i walidowane, ale automatycznie trafia do ręcznej
+weryfikacji. Transcribe `pl-PL` pozostaje projektem docelowym po jawnym
+zatwierdzeniu wyjątku albo zmianie dostawcy na usługę z dostępem ograniczanym
+do dokładnego zasobu.
+
 ## 9. Przygotowanie dokumentów
 
 Amazon Bedrock Converse przyjmuje dokumenty do 4,5 MB na blok. Dlatego plik
@@ -343,9 +350,10 @@ Ponowne zdarzenie S3:
 - nie nalicza drugi raz zaakceptowanych propozycji.
 
 Workflow ma ograniczoną liczbę prób z wykładniczym opóźnieniem. Trwałe błędy są
-oznaczone jako `failed`, a błąd uruchomienia trafia do DLQ. Użytkownik może
-wybrać „Ponów analizę”; powstaje nowy job z tą samą wersją źródła i kolejnym
-numerem próby.
+oznaczone jako `failed` podpisanym callbackiem z kodem
+`EXTRACTION_FAILED`, a błąd uruchomienia trafia do DLQ. Użytkownik może wybrać
+„Ponów analizę”; powstaje nowy job z tą samą wersją źródła i kolejnym numerem
+próby.
 
 ## 12. Callback z AWS do Studio
 

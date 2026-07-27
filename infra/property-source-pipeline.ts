@@ -1,7 +1,9 @@
+import path from 'node:path'
 import {
   CfnOutput,
   Duration,
   RemovalPolicy,
+  Stack,
 } from 'aws-cdk-lib'
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch'
 import * as events from 'aws-cdk-lib/aws-events'
@@ -9,6 +11,7 @@ import * as targets from 'aws-cdk-lib/aws-events-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as kms from 'aws-cdk-lib/aws-kms'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
+import * as lambdaNodejs from 'aws-cdk-lib/aws-lambda-nodejs'
 import * as logs from 'aws-cdk-lib/aws-logs'
 import * as s3 from 'aws-cdk-lib/aws-s3'
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager'
@@ -23,6 +26,13 @@ type PropertySourcePipelineProps = {
   config: InfrastructureConfig
 }
 
+type WorkerProps = {
+  entry: string
+  environment?: Record<string, string>
+  memorySize?: number
+  timeoutSeconds?: number
+}
+
 export class PropertySourcePipeline extends Construct {
   readonly stateMachineArn: string
   readonly callbackSecretArn: string
@@ -34,51 +44,135 @@ export class PropertySourcePipeline extends Construct {
   ) {
     super(scope, id)
 
-    const { bucket, config } = props
+    const { bucket, config, encryptionKey } = props
     const retention =
       config.studioEnv === 'prod'
         ? logs.RetentionDays.TWO_WEEKS
         : logs.RetentionDays.THREE_DAYS
 
-    const foundationLogGroup = createLogGroup(
+    const callbackSecret = config.callbackSecretArn
+      ? secretsmanager.Secret.fromSecretCompleteArn(
+          this,
+          'ImportedCallbackSecret',
+          config.callbackSecretArn,
+        )
+      : new secretsmanager.Secret(this, 'CallbackSecret', {
+          secretName:
+            `property-studio/${config.studioEnv}/source-callback`,
+          description:
+            'HMAC secret for Property Intelligence Studio pipeline callbacks',
+          generateSecretString: {
+            excludePunctuation: true,
+            passwordLength: 64,
+          },
+        })
+    if (callbackSecret instanceof secretsmanager.Secret) {
+      callbackSecret.applyRemovalPolicy(RemovalPolicy.RETAIN)
+    }
+    this.callbackSecretArn = callbackSecret.secretArn
+
+    const callback = createWorker(
       this,
-      'FoundationWorkerLogs',
-      `/aws/lambda/property-source-pipeline-${config.studioEnv}-foundation`,
+      'Callback',
+      config,
       retention,
-    )
-    const foundationRole = createLambdaRole(
-      this,
-      'FoundationWorkerRole',
-      foundationLogGroup,
-    )
-    const foundationWorker = new lambda.Function(
-      this,
-      'FoundationWorker',
       {
-        functionName:
-          `property-source-pipeline-${config.studioEnv}-foundation`,
-        runtime: lambda.Runtime.NODEJS_24_X,
-        handler: 'index.handler',
-        code: lambda.Code.fromInline(FOUNDATION_WORKER_CODE),
-        role: foundationRole,
-        logGroup: foundationLogGroup,
-        memorySize: 256,
-        timeout: Duration.seconds(10),
-        reservedConcurrentExecutions: 5,
+        entry: 'callback-sender',
         environment: {
-          PIPELINE_VERSION: config.pipelineVersion,
+          CALLBACK_SECRET_ARN: callbackSecret.secretArn,
           STUDIO_CALLBACK_BASE_URL: config.studioCallbackBaseUrl,
         },
+        timeoutSeconds: 15,
       },
     )
-    const foundationAlias = new lambda.Alias(
+    callback.role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['secretsmanager:GetSecretValue'],
+        resources: [callbackSecret.secretArn],
+      }),
+    )
+
+    const validator = createWorker(
       this,
-      'FoundationWorkerAlias',
+      'Validator',
+      config,
+      retention,
       {
-        aliasName: config.studioEnv,
-        version: foundationWorker.currentVersion,
+        entry: 'validator',
+        memorySize: 512,
+        timeoutSeconds: 30,
       },
     )
+    validator.role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          's3:GetObject',
+          's3:GetObjectVersion',
+          's3:GetObjectTagging',
+          's3:GetObjectVersionTagging',
+        ],
+        resources: [bucket.arnForObjects('originals/*')],
+      }),
+    )
+    validator.role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:PutObject'],
+        resources: [bucket.arnForObjects('work/*')],
+      }),
+    )
+    addS3KmsDecryptPermission(
+      validator.role,
+      encryptionKey,
+      config.region,
+      true,
+    )
+
+    const evidence = createWorker(
+      this,
+      'Evidence',
+      config,
+      retention,
+      {
+        entry: 'bedrock-evidence',
+        environment: {
+          BEDROCK_MODEL_ID: config.bedrockModelId,
+        },
+        memorySize: 512,
+        timeoutSeconds: 90,
+      },
+    )
+    evidence.role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject', 's3:GetObjectVersion'],
+        resources: [
+          bucket.arnForObjects('originals/*'),
+          bucket.arnForObjects('work/*'),
+          bucket.arnForObjects('transcripts/*'),
+        ],
+      }),
+    )
+    addS3KmsDecryptPermission(
+      evidence.role,
+      encryptionKey,
+      config.region,
+    )
+    addBedrockPermissions(evidence.role, config)
+
+    const proposals = createWorker(
+      this,
+      'Proposals',
+      config,
+      retention,
+      {
+        entry: 'bedrock-proposals',
+        environment: {
+          BEDROCK_MODEL_ID: config.bedrockModelId,
+        },
+        memorySize: 512,
+        timeoutSeconds: 90,
+      },
+    )
+    addBedrockPermissions(proposals.role, config)
 
     const stateMachineRole = new iam.Role(
       this,
@@ -92,7 +186,12 @@ export class PropertySourcePipeline extends Construct {
     stateMachineRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],
-        resources: [foundationAlias.functionArn],
+        resources: [
+          callback.alias.functionArn,
+          validator.alias.functionArn,
+          evidence.alias.functionArn,
+          proposals.alias.functionArn,
+        ],
       }),
     )
     const stateMachine = new sfn.CfnStateMachine(
@@ -103,93 +202,41 @@ export class PropertySourcePipeline extends Construct {
         stateMachineName:
           `property-source-pipeline-${config.studioEnv}`,
         stateMachineType: 'STANDARD',
-        definitionString: JSON.stringify({
-          Comment:
-            'Property source extraction pipeline foundation',
-          StartAt: 'FoundationWorker',
-          TimeoutSeconds: 1800,
-          States: {
-            FoundationWorker: {
-              Type: 'Task',
-              Resource: '${FoundationWorkerArn}',
-              Retry: [
-                {
-                  ErrorEquals: [
-                    'Lambda.ServiceException',
-                    'Lambda.AWSLambdaException',
-                    'Lambda.SdkClientException',
-                  ],
-                  IntervalSeconds: 2,
-                  BackoffRate: 2,
-                  MaxAttempts: 2,
-                },
-              ],
-              Catch: [
-                {
-                  ErrorEquals: ['States.ALL'],
-                  ResultPath: '$.technicalError',
-                  Next: 'PipelineFailed',
-                },
-              ],
-              Next: 'PipelineSucceeded',
-            },
-            PipelineSucceeded: {
-              Type: 'Succeed',
-            },
-            PipelineFailed: {
-              Type: 'Fail',
-              Error: 'PROPERTY_SOURCE_PIPELINE_FAILED',
-              Cause: 'A bounded pipeline step failed.',
-            },
-          },
-        }),
+        definitionString: JSON.stringify(
+          createStateMachineDefinition(),
+        ),
         definitionSubstitutions: {
-          FoundationWorkerArn: foundationAlias.functionArn,
+          CallbackWorkerArn: callback.alias.functionArn,
+          ValidatorWorkerArn: validator.alias.functionArn,
+          EvidenceWorkerArn: evidence.alias.functionArn,
+          ProposalWorkerArn: proposals.alias.functionArn,
         },
       },
     )
     stateMachine.node.addDependency(stateMachineRole)
     this.stateMachineArn = stateMachine.attrArn
 
-    const starterLogGroup = createLogGroup(
+    const starter = createWorker(
       this,
-      'StarterLogs',
-      `/aws/lambda/property-source-pipeline-${config.studioEnv}-starter`,
+      'Starter',
+      config,
       retention,
+      {
+        entry: 'starter',
+        environment: {
+          SELECTED_BUCKET: bucket.bucketName,
+          PIPELINE_VERSION: config.pipelineVersion,
+          STATE_MACHINE_ARN: stateMachine.attrArn,
+        },
+        timeoutSeconds: 10,
+      },
     )
-    const starterRole = createLambdaRole(
-      this,
-      'StarterRole',
-      starterLogGroup,
-    )
-    starterRole.addToPolicy(
+    starter.role.addToPolicy(
       new iam.PolicyStatement({
         actions: ['states:StartExecution'],
         resources: [stateMachine.attrArn],
       }),
     )
-    const starter = new lambda.Function(this, 'Starter', {
-      functionName:
-        `property-source-pipeline-${config.studioEnv}-starter`,
-      runtime: lambda.Runtime.NODEJS_24_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromInline(STARTER_CODE),
-      role: starterRole,
-      logGroup: starterLogGroup,
-      memorySize: 256,
-      timeout: Duration.seconds(10),
-      reservedConcurrentExecutions: 5,
-      environment: {
-        SELECTED_BUCKET: bucket.bucketName,
-        SELECTED_PREFIX: 'originals/',
-        PIPELINE_VERSION: config.pipelineVersion,
-        STATE_MACHINE_ARN: stateMachine.attrArn,
-      },
-    })
-    const starterAlias = new lambda.Alias(this, 'StarterAlias', {
-      aliasName: config.studioEnv,
-      version: starter.currentVersion,
-    })
 
     const deadLetterQueue = new sqs.Queue(this, 'EventDeadLetterQueue', {
       queueName:
@@ -218,35 +265,14 @@ export class PropertySourcePipeline extends Construct {
       },
     })
     scanRule.addTarget(
-      new targets.LambdaFunction(starterAlias, {
+      new targets.LambdaFunction(starter.alias, {
         deadLetterQueue,
         maxEventAge: Duration.hours(1),
         retryAttempts: 2,
       }),
     )
 
-    const callbackSecret = config.callbackSecretArn
-      ? secretsmanager.Secret.fromSecretCompleteArn(
-          this,
-          'ImportedCallbackSecret',
-          config.callbackSecretArn,
-        )
-      : new secretsmanager.Secret(this, 'CallbackSecret', {
-          secretName:
-            `property-studio/${config.studioEnv}/source-callback`,
-          description:
-            'HMAC secret for Property Intelligence Studio pipeline callbacks',
-          generateSecretString: {
-            excludePunctuation: true,
-            passwordLength: 64,
-          },
-        })
-    if (callbackSecret instanceof secretsmanager.Secret) {
-      callbackSecret.applyRemovalPolicy(RemovalPolicy.RETAIN)
-    }
-    this.callbackSecretArn = callbackSecret.secretArn
-
-    const starterErrors = starterAlias.metricErrors({
+    const starterErrors = starter.alias.metricErrors({
       period: Duration.minutes(5),
       statistic: 'sum',
     })
@@ -258,10 +284,11 @@ export class PropertySourcePipeline extends Construct {
       'ExecutionsTimedOut',
       stateMachine.attrArn,
     )
-    const dlqMessages = deadLetterQueue.metricApproximateNumberOfMessagesVisible({
-      period: Duration.minutes(5),
-      statistic: 'max',
-    })
+    const dlqMessages =
+      deadLetterQueue.metricApproximateNumberOfMessagesVisible({
+        period: Duration.minutes(5),
+        statistic: 'max',
+      })
 
     createAlarm(this, 'StarterErrorsAlarm', starterErrors)
     createAlarm(this, 'FailedExecutionsAlarm', failedExecutions)
@@ -320,18 +347,293 @@ export class PropertySourcePipeline extends Construct {
   }
 }
 
+function createWorker(
+  scope: Construct,
+  logicalName: string,
+  config: InfrastructureConfig,
+  retention: logs.RetentionDays,
+  props: WorkerProps,
+) {
+  const workerName = props.entry
+    .replace('bedrock-', '')
+    .replace('-sender', '')
+  const functionName =
+    `property-source-pipeline-${config.studioEnv}-${workerName}`
+  const logGroup = createLogGroup(
+    scope,
+    `${logicalName}Logs`,
+    `/aws/lambda/${functionName}`,
+    retention,
+  )
+  const role = createLambdaRole(
+    scope,
+    `${logicalName}Role`,
+    logGroup,
+  )
+  const fn = new lambdaNodejs.NodejsFunction(
+    scope,
+    `${logicalName}Worker`,
+    {
+      functionName,
+      entry: path.join(
+        __dirname,
+        'functions',
+        `${props.entry}.ts`,
+      ),
+      handler: 'handler',
+      runtime: lambda.Runtime.NODEJS_24_X,
+      architecture: lambda.Architecture.X86_64,
+      role,
+      logGroup,
+      memorySize: props.memorySize ?? 256,
+      timeout: Duration.seconds(props.timeoutSeconds ?? 30),
+      reservedConcurrentExecutions: 5,
+      environment: props.environment,
+      depsLockFilePath: path.join(__dirname, '..', 'package-lock.json'),
+      bundling: {
+        bundleAwsSDK: true,
+        minify: true,
+        nodeModules:
+          props.entry === 'validator' ? ['sharp'] : undefined,
+        environment:
+          props.entry === 'validator'
+            ? {
+                npm_config_cpu: 'x64',
+                npm_config_include: 'optional',
+                npm_config_libc: 'glibc',
+                npm_config_os: 'linux',
+              }
+            : undefined,
+        sourceMap: false,
+        target: 'node24',
+      },
+    },
+  )
+  const alias = new lambda.Alias(
+    scope,
+    `${logicalName}WorkerAlias`,
+    {
+      aliasName: config.studioEnv,
+      version: fn.currentVersion,
+    },
+  )
+  return { fn, alias, role }
+}
+
+function addS3KmsDecryptPermission(
+  role: iam.Role,
+  key: kms.IKey,
+  region: string,
+  allowWrite = false,
+) {
+  role.addToPolicy(
+    new iam.PolicyStatement({
+      actions: allowWrite
+        ? ['kms:Decrypt', 'kms:GenerateDataKey']
+        : ['kms:Decrypt'],
+      resources: [key.keyArn],
+      conditions: {
+        StringEquals: {
+          'kms:ViaService': `s3.${region}.amazonaws.com`,
+        },
+      },
+    }),
+  )
+}
+
+function addBedrockPermissions(
+  role: iam.Role,
+  config: InfrastructureConfig,
+) {
+  const stack = Stack.of(role)
+  const foundationModelId = config.bedrockModelId.replace(
+    /^eu\./,
+    '',
+  )
+  const inferenceProfileArn = stack.formatArn({
+    service: 'bedrock',
+    resource: 'inference-profile',
+    resourceName: config.bedrockModelId,
+  })
+  const destinationRegions = [
+    'eu-central-1',
+    'eu-north-1',
+    'eu-south-1',
+    'eu-south-2',
+    'eu-west-1',
+    'eu-west-3',
+  ]
+
+  role.addToPolicy(
+    new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: [inferenceProfileArn],
+    }),
+  )
+  role.addToPolicy(
+    new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: destinationRegions.map((region) =>
+        stack.formatArn({
+          service: 'bedrock',
+          region,
+          account: '',
+          resource: 'foundation-model',
+          resourceName: foundationModelId,
+        }),
+      ),
+      conditions: {
+        StringEquals: {
+          'bedrock:InferenceProfileArn': inferenceProfileArn,
+        },
+      },
+    }),
+  )
+}
+
+function createStateMachineDefinition() {
+  const retry = [
+    {
+      ErrorEquals: ['States.TaskFailed'],
+      IntervalSeconds: 2,
+      BackoffRate: 2,
+      MaxAttempts: 2,
+    },
+  ]
+  const catchFailure = [
+    {
+      ErrorEquals: ['States.ALL'],
+      ResultPath: '$.technicalError',
+      Next: 'PipelineFailed',
+    },
+  ]
+  const catchTechnicalFailure = [
+    {
+      ErrorEquals: ['States.ALL'],
+      ResultPath: '$.technicalError',
+      Next: 'TechnicalFailureResult',
+    },
+  ]
+  return {
+    Comment: 'Property Intelligence Studio source extraction',
+    StartAt: 'CallbackContext',
+    TimeoutSeconds: 1800,
+    States: {
+      CallbackContext: {
+        Type: 'Task',
+        Resource: '${CallbackWorkerArn}',
+        Parameters: {
+          action: 'context',
+          payload: {
+            'sourceId.$': '$.sourceId',
+            'idempotencyKey.$': '$.idempotencyKey',
+            'attempt.$': '$.attempt',
+            'pipelineVersion.$': '$.pipelineVersion',
+          },
+          'sourceId.$': '$.sourceId',
+          'bucketName.$': '$.bucketName',
+          'objectKey.$': '$.objectKey',
+          'versionId.$': '$.versionId',
+          'scanResultStatus.$': '$.scanResultStatus',
+          'attempt.$': '$.attempt',
+          'pipelineVersion.$': '$.pipelineVersion',
+        },
+        Retry: retry,
+        Catch: catchFailure,
+        Next: 'ValidateObject',
+      },
+      ValidateObject: {
+        Type: 'Task',
+        Resource: '${ValidatorWorkerArn}',
+        Retry: retry,
+        Catch: catchTechnicalFailure,
+        Next: 'ValidationRoute',
+      },
+      ValidationRoute: {
+        Type: 'Choice',
+        Choices: [
+          {
+            Variable: '$.result',
+            IsPresent: true,
+            Next: 'SubmitResult',
+          },
+        ],
+        Default: 'MapEvidence',
+      },
+      MapEvidence: {
+        Type: 'Task',
+        Resource: '${EvidenceWorkerArn}',
+        Retry: retry,
+        Catch: catchTechnicalFailure,
+        Next: 'EvidenceRoute',
+      },
+      EvidenceRoute: {
+        Type: 'Choice',
+        Choices: [
+          {
+            Variable: '$.result',
+            IsPresent: true,
+            Next: 'SubmitResult',
+          },
+        ],
+        Default: 'BuildProposals',
+      },
+      BuildProposals: {
+        Type: 'Task',
+        Resource: '${ProposalWorkerArn}',
+        Retry: retry,
+        Catch: catchTechnicalFailure,
+        Next: 'SubmitResult',
+      },
+      TechnicalFailureResult: {
+        Type: 'Pass',
+        Parameters: {
+          result: {
+            'sourceId.$': '$.sourceId',
+            'jobId.$': '$.context.jobId',
+            'checksumSha256.$': '$.context.source.checksumSha256',
+            'attempt.$': '$.attempt',
+            'pipelineVersion.$': '$.pipelineVersion',
+            outcome: 'failed',
+            errorCode: 'EXTRACTION_FAILED',
+          },
+        },
+        Next: 'SubmitResult',
+      },
+      SubmitResult: {
+        Type: 'Task',
+        Resource: '${CallbackWorkerArn}',
+        Parameters: {
+          action: 'result',
+          'payload.$': '$.result',
+        },
+        Retry: retry,
+        Catch: catchFailure,
+        Next: 'PipelineSucceeded',
+      },
+      PipelineSucceeded: {
+        Type: 'Succeed',
+      },
+      PipelineFailed: {
+        Type: 'Fail',
+        Error: 'PROPERTY_SOURCE_PIPELINE_FAILED',
+        Cause: 'A bounded pipeline step failed.',
+      },
+    },
+  }
+}
+
 function createLogGroup(
   scope: Construct,
   id: string,
   logGroupName: string,
   retention: logs.RetentionDays,
 ) {
-  const logGroup = new logs.LogGroup(scope, id, {
+  return new logs.LogGroup(scope, id, {
     logGroupName,
     retention,
     removalPolicy: RemovalPolicy.RETAIN,
   })
-  return logGroup
 }
 
 function createLambdaRole(
@@ -382,69 +684,3 @@ function createAlarm(
     treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
   })
 }
-
-const FOUNDATION_WORKER_CODE = `
-'use strict'
-exports.handler = async function handler(event) {
-  return {
-    pipelineVersion: process.env.PIPELINE_VERSION,
-    sourceId: event && event.sourceId,
-    foundationAccepted: true
-  }
-}
-`
-
-const STARTER_CODE = `
-'use strict'
-const crypto = require('node:crypto')
-const {
-  SFNClient,
-  StartExecutionCommand
-} = require('@aws-sdk/client-sfn')
-const client = new SFNClient({})
-const keyPattern = /^originals\\\\/organizations\\\\/([^/]+)\\\\/properties\\\\/([^/]+)\\\\/sources\\\\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\\\\/original$/
-
-exports.handler = async function handler(event) {
-  const detail = event && event.detail
-  const object = detail && detail.s3ObjectDetails
-  const result =
-    detail && detail.scanResultDetails &&
-    detail.scanResultDetails.scanResultStatus
-  if (
-    !object ||
-    object.bucketName !== process.env.SELECTED_BUCKET ||
-    !object.objectKey.startsWith(process.env.SELECTED_PREFIX)
-  ) {
-    throw new Error('UNEXPECTED_SCAN_TARGET')
-  }
-  const match = keyPattern.exec(object.objectKey)
-  if (!match) throw new Error('UNEXPECTED_SCAN_OBJECT_KEY')
-  if (result !== 'NO_THREATS_FOUND') {
-    return { action: 'do_not_process', scanResultStatus: result }
-  }
-
-  const identity = [
-    object.bucketName,
-    object.objectKey,
-    object.versionId,
-    result
-  ].join('\\\\n')
-  const name =
-    'source-' +
-    crypto.createHash('sha256').update(identity).digest('hex')
-  const input = {
-    sourceId: match[3],
-    bucketName: object.bucketName,
-    objectKey: object.objectKey,
-    versionId: object.versionId,
-    scanResultStatus: result,
-    pipelineVersion: process.env.PIPELINE_VERSION
-  }
-  await client.send(new StartExecutionCommand({
-    stateMachineArn: process.env.STATE_MACHINE_ARN,
-    name,
-    input: JSON.stringify(input)
-  }))
-  return { action: 'started', executionName: name }
-}
-`

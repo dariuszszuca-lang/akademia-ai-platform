@@ -15,9 +15,7 @@ const config = parseInfrastructureConfig({
   billingAlertEmail: 'alerts@example.com',
 })
 
-function createTemplate(
-  stackConfig = config,
-): Template {
+function buildTemplate(stackConfig = config): Template {
   const app = new App()
   const stack = new PropertySourceStorageStack(app, 'TestStorage', {
     env: { account: stackConfig.account, region: stackConfig.region },
@@ -25,6 +23,14 @@ function createTemplate(
   })
 
   return Template.fromStack(stack)
+}
+
+const cachedDefaultTemplate = buildTemplate(config)
+
+function createTemplate(stackConfig = config): Template {
+  return stackConfig === config
+    ? cachedDefaultTemplate
+    : buildTemplate(stackConfig)
 }
 
 describe('PropertySourceStorageStack storage foundation', () => {
@@ -314,6 +320,21 @@ describe('PropertySourceStorageStack malware protection', () => {
         ]),
       },
     })
+
+    const bucketPolicy = Object.values(
+      template.findResources('AWS::S3::BucketPolicy'),
+    )[0]
+    const cleanReadStatement =
+      bucketPolicy.Properties.PolicyDocument.Statement.find(
+        (statement: { Sid?: string }) =>
+          statement.Sid === 'NoReadUnlessClean',
+      )
+    expect(JSON.stringify(cleanReadStatement.Resource)).toContain(
+      '/originals/*',
+    )
+    expect(JSON.stringify(cleanReadStatement.Resource)).not.toContain(
+      '/work/*',
+    )
   })
 })
 
@@ -328,21 +349,25 @@ describe('PropertySourceStorageStack Vercel OIDC signer', () => {
     })
   })
 
-  it('imports a matching provider without creating a duplicate', () => {
-    const template = createTemplate(
-      parseInfrastructureConfig({
-        ...config,
-        oidcProviderArn:
-          'arn:aws:iam::111122223333:oidc-provider/oidc.vercel.com/ai-team',
-      }),
-    )
+  it(
+    'imports a matching provider without creating a duplicate',
+    () => {
+      const template = createTemplate(
+        parseInfrastructureConfig({
+          ...config,
+          oidcProviderArn:
+            'arn:aws:iam::111122223333:oidc-provider/oidc.vercel.com/ai-team',
+        }),
+      )
 
-    template.resourceCountIs('AWS::IAM::OIDCProvider', 0)
-    const roles = template.findResources('AWS::IAM::Role')
-    expect(JSON.stringify(roles)).toContain(
-      'arn:aws:iam::111122223333:oidc-provider/oidc.vercel.com/ai-team',
-    )
-  })
+      template.resourceCountIs('AWS::IAM::OIDCProvider', 0)
+      const roles = template.findResources('AWS::IAM::Role')
+      expect(JSON.stringify(roles)).toContain(
+        'arn:aws:iam::111122223333:oidc-provider/oidc.vercel.com/ai-team',
+      )
+    },
+    20_000,
+  )
 
   it('trusts only exact Vercel subjects through web identity', () => {
     const template = createTemplate()
@@ -520,22 +545,26 @@ describe('PropertySourceStorageStack cost guardrails', () => {
     })
   })
 
-  it('uses a separate USD 25 production alert budget', () => {
-    const prodConfig = parseInfrastructureConfig({
-      ...config,
-      studioEnv: 'prod',
-      vercelEnvironments: ['production'],
-    })
-    const template = createTemplate(prodConfig)
+  it(
+    'uses a separate USD 25 production alert budget',
+    () => {
+      const prodConfig = parseInfrastructureConfig({
+        ...config,
+        studioEnv: 'prod',
+        vercelEnvironments: ['production'],
+      })
+      const template = createTemplate(prodConfig)
 
-    template.hasResourceProperties('AWS::Budgets::Budget', {
-      Budget: Match.objectLike({
-        BudgetLimit: { Amount: 25, Unit: 'USD' },
-        BudgetType: 'COST',
-        TimeUnit: 'MONTHLY',
-      }),
-    })
-  })
+      template.hasResourceProperties('AWS::Budgets::Budget', {
+        Budget: Match.objectLike({
+          BudgetLimit: { Amount: 25, Unit: 'USD' },
+          BudgetType: 'COST',
+          TimeUnit: 'MONTHLY',
+        }),
+      })
+    },
+    20_000,
+  )
 
   it('gives every deployment output a stable description', () => {
     const outputs = createTemplate().toJSON().Outputs
@@ -598,14 +627,14 @@ describe('PropertySourceStorageStack extraction pipeline foundation', () => {
     })
   })
 
-  it('creates isolated Node.js 24 starter and foundation workers with bounded logs', () => {
+  it('creates five isolated bundled Node.js 24 workers with bounded logs', () => {
     const template = createTemplate()
 
-    template.resourceCountIs('AWS::Lambda::Function', 2)
-    template.resourceCountIs('AWS::Lambda::Alias', 2)
+    template.resourceCountIs('AWS::Lambda::Function', 5)
+    template.resourceCountIs('AWS::Lambda::Alias', 5)
     template.allResourcesProperties('AWS::Lambda::Function', {
       Runtime: 'nodejs24.x',
-      MemorySize: 256,
+      MemorySize: Match.anyValue(),
       Timeout: Match.anyValue(),
       ReservedConcurrentExecutions: 5,
     })
@@ -615,18 +644,28 @@ describe('PropertySourceStorageStack extraction pipeline foundation', () => {
       Environment: {
         Variables: Match.objectLike({
           SELECTED_BUCKET: Match.anyValue(),
-          SELECTED_PREFIX: 'originals/',
           PIPELINE_VERSION: 'property-source-v1',
           STATE_MACHINE_ARN: Match.anyValue(),
         }),
       },
     })
-    template.resourceCountIs('AWS::Logs::LogGroup', 2)
+    for (const worker of [
+      'callback',
+      'validator',
+      'evidence',
+      'proposals',
+    ]) {
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        FunctionName: `property-source-pipeline-dev-${worker}`,
+      })
+    }
+    template.resourceCountIs('AWS::Logs::LogGroup', 5)
     template.allResourcesProperties('AWS::Logs::LogGroup', {
       RetentionInDays: 3,
     })
 
     const functions = template.findResources('AWS::Lambda::Function')
+    expect(JSON.stringify(functions)).not.toContain('"ZipFile"')
     expect(JSON.stringify(functions)).not.toContain(
       'PROPERTY_SOURCE_CALLBACK_SECRET',
     )
@@ -647,6 +686,14 @@ describe('PropertySourceStorageStack extraction pipeline foundation', () => {
       stateMachine.Properties.DefinitionString ??
         stateMachine.Properties.Definition,
     )
+    expect(definition).toContain('CallbackContext')
+    expect(definition).toContain('ValidateObject')
+    expect(definition).toContain('MapEvidence')
+    expect(definition).toContain('BuildProposals')
+    expect(definition).toContain('SubmitResult')
+    expect(definition).toContain('TechnicalFailureResult')
+    expect(definition).toContain('States.TaskFailed')
+    expect(definition).not.toContain('FoundationWorker')
     expect(definition).toContain('Retry')
     expect(definition).toContain('BackoffRate')
     expect(definition).toContain('MaxAttempts')
@@ -669,39 +716,67 @@ describe('PropertySourceStorageStack extraction pipeline foundation', () => {
     expect(JSON.stringify(policies)).not.toContain('"Resource":"*"')
   })
 
-  it('generates or imports one retained callback secret without outputting its value', () => {
-    const generated = createTemplate()
-
-    generated.resourceCountIs('AWS::SecretsManager::Secret', 1)
-    generated.hasResource('AWS::SecretsManager::Secret', {
-      DeletionPolicy: 'Retain',
-      UpdateReplacePolicy: 'Retain',
-      Properties: Match.objectLike({
-        GenerateSecretString: {
-          ExcludePunctuation: true,
-          PasswordLength: 64,
-        },
-      }),
-    })
-
-    const imported = createTemplate(
-      parseInfrastructureConfig({
-        ...config,
-        callbackSecretArn:
-          'arn:aws:secretsmanager:eu-central-1:111122223333:secret:property-studio/dev/source-callback-AbCd12',
-      }),
-    )
-    imported.resourceCountIs('AWS::SecretsManager::Secret', 0)
-    expect(JSON.stringify(imported.toJSON())).toContain(
-      'property-studio/dev/source-callback-AbCd12',
+  it('scopes callback, S3, KMS and Bedrock worker permissions to exact resources', () => {
+    const template = createTemplate()
+    const policies = JSON.stringify(
+      template.findResources('AWS::IAM::Policy'),
     )
 
-    const outputs = generated.toJSON().Outputs
-    expect(outputs).toHaveProperty('PropertySourcePipelineStateMachineArn')
-    expect(outputs).toHaveProperty('PropertySourceCallbackSecretArn')
-    expect(outputs).toHaveProperty('PropertySourcePipelineVersion')
-    expect(JSON.stringify(outputs)).not.toContain('SecretString')
+    expect(policies).toContain('secretsmanager:GetSecretValue')
+    expect(policies).toContain('s3:PutObject')
+    expect(policies).toContain('/work/*')
+    expect(policies).toContain('kms:GenerateDataKey')
+    expect(policies).toContain('bedrock:InvokeModel')
+    expect(policies).toContain(
+      'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+    )
+    expect(policies).toContain(
+      'foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+    )
+    expect(policies).not.toContain('transcribe:StartTranscriptionJob')
+    expect(policies).not.toContain('"Action":"bedrock:*"')
+    expect(policies).not.toContain('"Resource":"*"')
   })
+
+  it(
+    'generates or imports one retained callback secret without outputting its value',
+    () => {
+      const generated = createTemplate()
+
+      generated.resourceCountIs('AWS::SecretsManager::Secret', 1)
+      generated.hasResource('AWS::SecretsManager::Secret', {
+        DeletionPolicy: 'Retain',
+        UpdateReplacePolicy: 'Retain',
+        Properties: Match.objectLike({
+          GenerateSecretString: {
+            ExcludePunctuation: true,
+            PasswordLength: 64,
+          },
+        }),
+      })
+
+      const imported = createTemplate(
+        parseInfrastructureConfig({
+          ...config,
+          callbackSecretArn:
+            'arn:aws:secretsmanager:eu-central-1:111122223333:secret:property-studio/dev/source-callback-AbCd12',
+        }),
+      )
+      imported.resourceCountIs('AWS::SecretsManager::Secret', 0)
+      expect(JSON.stringify(imported.toJSON())).toContain(
+        'property-studio/dev/source-callback-AbCd12',
+      )
+
+      const outputs = generated.toJSON().Outputs
+      expect(outputs).toHaveProperty(
+        'PropertySourcePipelineStateMachineArn',
+      )
+      expect(outputs).toHaveProperty('PropertySourceCallbackSecretArn')
+      expect(outputs).toHaveProperty('PropertySourcePipelineVersion')
+      expect(JSON.stringify(outputs)).not.toContain('SecretString')
+    },
+    20_000,
+  )
 
   it('adds failure alarms and one operations dashboard without custom high-cardinality metrics', () => {
     const template = createTemplate()

@@ -1,0 +1,274 @@
+import { describe, expect, it, vi } from 'vitest'
+import { createBedrockEvidenceHandler } from './bedrock-evidence'
+
+describe('Bedrock evidence mapper worker', () => {
+  it('maps only Bedrock citations to strict evidence locators', async () => {
+    const converse = vi.fn().mockResolvedValue({
+      output: {
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              citationsContent: {
+                content: [{ text: 'Powierzchnia wynosi 83,4 m².' }],
+                citations: [
+                  {
+                    sourceContent: [
+                      { text: 'Powierzchnia użytkowa: 83,4 m²' },
+                    ],
+                    location: {
+                      documentPage: { start: 1, end: 1 },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      usage: { inputTokens: 120, outputTokens: 30 },
+      metrics: { latencyMs: 480 },
+    })
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      converse,
+    })
+
+    const result = await handler({
+      sourceId: '00000000-0000-4000-8000-000000000003',
+      preparedParts: [
+        {
+          kind: 'document',
+          format: 'pdf',
+          s3Uri:
+            's3://property-studio-dev-sources/work/source/part-001.pdf',
+          pageOffset: 20,
+        },
+      ],
+    })
+
+    expect(converse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+        inferenceConfig: {
+          maxTokens: 2048,
+          temperature: 0,
+        },
+      }),
+    )
+    const request = converse.mock.calls[0][0]
+    expect(request.messages[0].content[1].document).toMatchObject({
+      name: 'property-source',
+      citations: { enabled: true },
+    })
+    expect(result).toMatchObject({
+      evidenceMap: {
+        evidence: [
+          {
+            id: 'evidence-1-1',
+            text: 'Powierzchnia użytkowa: 83,4 m²',
+            locator: { type: 'page', page: 22 },
+          },
+        ],
+      },
+      modelMetrics: {
+        provider: 'amazon-bedrock',
+        modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+        inputTokens: 120,
+        outputTokens: 30,
+        durationMs: 480,
+      },
+    })
+  })
+
+  it('returns no evidence when the model provides no valid citation', async () => {
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      converse: vi.fn().mockResolvedValue({
+        output: {
+          message: { role: 'assistant', content: [{ text: 'uncited' }] },
+        },
+      }),
+    })
+
+    await expect(
+      handler({
+        sourceId: '00000000-0000-4000-8000-000000000003',
+        preparedParts: [
+          {
+            kind: 'document',
+            format: 'txt',
+            s3Uri: 's3://property-studio-dev-sources/work/source/part.txt',
+            pageOffset: 0,
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({ evidenceMap: { evidence: [] } })
+  })
+
+  it('maps character citations from prepared spreadsheets back to a cell', async () => {
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      converse: vi.fn().mockResolvedValue({
+        output: {
+          message: {
+            role: 'assistant',
+            content: [
+              {
+                citationsContent: {
+                  citations: [
+                    {
+                      sourceContent: [{ text: 'B2 750000' }],
+                      location: {
+                        documentChar: { start: 10, end: 19 },
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      }),
+    })
+
+    const result = await handler({
+      sourceId: '00000000-0000-4000-8000-000000000003',
+      preparedParts: [
+        {
+          kind: 'document',
+          format: 'txt',
+          s3Uri:
+            's3://property-studio-dev-sources/work/source/part.txt',
+          pageOffset: 0,
+          locatorMap: [
+            {
+              start: 10,
+              end: 20,
+              sheet: 'Oferta',
+              row: 2,
+              column: 'B',
+            },
+          ],
+        },
+      ],
+    })
+
+    expect('evidenceMap' in result).toBe(true)
+    if (!('evidenceMap' in result)) throw new Error('expected evidence')
+    expect(result.evidenceMap.evidence[0].locator).toEqual({
+      type: 'sheet',
+      sheet: 'Oferta',
+      row: 2,
+      column: 'B',
+    })
+  })
+
+  it('extracts bounded visual evidence from an image with a page-one locator', async () => {
+    const converse = vi.fn().mockResolvedValue({
+      output: {
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              text: JSON.stringify({
+                evidence: [
+                  {
+                    id: 'visible-1',
+                    text: 'Cena ofertowa 750 000 zł',
+                    locator: { type: 'page', page: 1 },
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      },
+      usage: { inputTokens: 50, outputTokens: 20 },
+    })
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      converse,
+    })
+
+    const result = await handler({
+      sourceId: '00000000-0000-4000-8000-000000000003',
+      preparedParts: [
+        {
+          kind: 'image',
+          format: 'jpeg',
+          s3Uri:
+            's3://property-studio-dev-sources/originals/source/original',
+        },
+      ],
+    })
+
+    const request = converse.mock.calls[0][0]
+    expect(request.messages[0].content[1]).toMatchObject({
+      image: {
+        format: 'jpeg',
+        source: {
+          s3Location: {
+            uri: expect.stringMatching(/^s3:\/\//),
+          },
+        },
+      },
+    })
+    expect(request.outputConfig.textFormat.type).toBe('json_schema')
+    expect('evidenceMap' in result).toBe(true)
+    if (!('evidenceMap' in result)) throw new Error('expected evidence')
+    expect(result.evidenceMap.evidence).toEqual([
+      {
+        id: 'evidence-1-1',
+        text: 'Cena ofertowa 750 000 zł',
+        locator: { type: 'page', page: 1 },
+      },
+    ])
+  })
+
+  it('routes two invalid visual responses to manual review', async () => {
+    const converse = vi.fn().mockResolvedValue({
+      output: {
+        message: {
+          role: 'assistant',
+          content: [{ text: '{"unexpected":true}' }],
+        },
+      },
+      metrics: { latencyMs: 60 },
+    })
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+      converse,
+    })
+
+    const result = await handler({
+      sourceId: '00000000-0000-4000-8000-000000000003',
+      attempt: 1,
+      pipelineVersion: 'property-source-v1',
+      context: {
+        jobId: '00000000-0000-4000-8000-000000000004',
+        source: {
+          checksumSha256: 'a'.repeat(64),
+        },
+      },
+      preparedParts: [
+        {
+          kind: 'image',
+          format: 'jpeg',
+          s3Uri:
+            's3://property-studio-dev-sources/originals/source/original',
+        },
+      ],
+    })
+
+    expect(converse).toHaveBeenCalledTimes(2)
+    expect('result' in result).toBe(true)
+    if (!('result' in result)) throw new Error('expected manual review')
+    expect(result.result).toMatchObject({
+      outcome: 'needs_manual_review',
+      errorCode: 'STRUCTURED_OUTPUT_INVALID',
+      provider: 'amazon-bedrock',
+      durationMs: 120,
+    })
+  })
+})

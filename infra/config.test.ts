@@ -119,7 +119,19 @@ describe('AWS infrastructure configuration', () => {
       studioCallbackBaseUrl:
         'https://akademia-ai-platform.vercel.app',
       pipelineVersion: 'property-source-v1',
+      bedrockModelId:
+        'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
     })
+  })
+
+  it('rejects a global or unapproved Bedrock model fallback', () => {
+    expect(() =>
+      parseInfrastructureConfig({
+        ...devConfig,
+        bedrockModelId:
+          'global.anthropic.claude-haiku-4-5-20251001-v1:0',
+      }),
+    ).toThrow('bedrockModelId')
   })
 
   it('accepts only an exact callback secret ARN in the selected account and region', () => {

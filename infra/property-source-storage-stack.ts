@@ -203,7 +203,7 @@ export class PropertySourceStorageStack extends Stack {
         effect: iam.Effect.DENY,
         notPrincipals: guardDutyPrincipals,
         actions: ['s3:GetObject', 's3:GetObjectVersion'],
-        resources: [this.bucket.arnForObjects('*')],
+        resources: [originalsArn],
         conditions: {
           StringNotEquals: {
             's3:ExistingObjectTag/GuardDutyMalwareScanStatus':

@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+export const DEFAULT_PROPERTY_SOURCE_BEDROCK_MODEL_ID =
+  'eu.anthropic.claude-haiku-4-5-20251001-v1:0'
+
 const safeIdentifier = z
   .string()
   .regex(
@@ -25,6 +28,9 @@ const infrastructureConfigSchema = z
       .refine(uniqueList, 'must contain unique environments'),
     studioCallbackBaseUrl: z.url(),
     pipelineVersion: safeIdentifier.default('property-source-v1'),
+    bedrockModelId: z
+      .literal(DEFAULT_PROPERTY_SOURCE_BEDROCK_MODEL_ID)
+      .default(DEFAULT_PROPERTY_SOURCE_BEDROCK_MODEL_ID),
     billingAlertEmail: z.email().optional(),
     oidcProviderArn: z.string().optional(),
     callbackSecretArn: z.string().optional(),
@@ -151,6 +157,8 @@ export function readInfrastructureConfigFromEnv(
     studioCallbackBaseUrl: environment.STUDIO_CALLBACK_BASE_URL,
     pipelineVersion:
       environment.PROPERTY_SOURCE_PIPELINE_VERSION || undefined,
+    bedrockModelId:
+      environment.PROPERTY_SOURCE_BEDROCK_MODEL_ID || undefined,
     billingAlertEmail: environment.BILLING_ALERT_EMAIL || undefined,
     oidcProviderArn: environment.VERCEL_OIDC_PROVIDER_ARN || undefined,
     callbackSecretArn:

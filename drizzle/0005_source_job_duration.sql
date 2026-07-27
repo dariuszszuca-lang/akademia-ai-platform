@@ -1,0 +1,2 @@
+ALTER TABLE "property_source_processing_jobs" ADD COLUMN "duration_ms" integer;--> statement-breakpoint
+ALTER TABLE "property_source_processing_jobs" ADD CONSTRAINT "property_source_jobs_duration_nonnegative" CHECK ("property_source_processing_jobs"."duration_ms" IS NULL OR "property_source_processing_jobs"."duration_ms" >= 0);

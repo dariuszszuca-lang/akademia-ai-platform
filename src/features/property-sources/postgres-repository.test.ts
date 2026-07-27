@@ -178,6 +178,7 @@ describe('PostgresPropertySourceRepository', () => {
     await expect(
       sourceRepository.updateJobInternal(job.id, {
         status: 'queued',
+        durationMs: 730,
         providerCostMicrounits: 99,
         currency: 'USD',
         errorCode: 'SHOULD_ROLL_BACK',
@@ -187,6 +188,7 @@ describe('PostgresPropertySourceRepository', () => {
 
     expect(await sourceRepository.getJobInternal(job.id)).toMatchObject({
       status: 'running',
+      durationMs: null,
       providerCostMicrounits: null,
       currency: null,
       errorCode: null,

@@ -230,6 +230,9 @@ export class PostgresPropertySourceRepository<
           ...(update.outputTokens !== undefined
             ? { outputTokens: update.outputTokens }
             : {}),
+          ...(update.durationMs !== undefined
+            ? { durationMs: update.durationMs }
+            : {}),
           ...(update.estimatedCostUsd !== undefined
             ? { estimatedCostUsd: update.estimatedCostUsd }
             : {}),

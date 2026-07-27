@@ -8,9 +8,9 @@ wyłącznie krótko ważny formularz uploadu. Oryginał nie jest dostępny do od
 dopóki GuardDuty nie oznaczy go jako wolny od wykrytych zagrożeń.
 
 Warstwa storage bezpiecznie przyjmuje i skanuje plik. Po czystym wyniku
-EventBridge uruchamia osobny, standardowy workflow ekstrakcji. Na obecnym
-etapie workflow ma bezpieczny szkielet; kolejne, izolowane workery są
-wdrażane osobno.
+EventBridge uruchamia osobny, standardowy workflow ekstrakcji. Workflow ma
+izolowane workery do startu, callbacku, walidacji i przygotowania pliku, mapy
+dowodów oraz propozycji faktów.
 
 ## Przepływ
 
@@ -28,6 +28,18 @@ wdrażane osobno.
    prefiksu `originals/`.
 10. Starter używa deterministycznej nazwy wykonania, więc ponowne dostarczenie
     tego samego zdarzenia nie tworzy drugiej pracy.
+11. Callback HMAC pobiera minimalny kontekst źródła z aplikacji, bez dostępu
+    AWS do PostgreSQL.
+12. Walidator ponownie sprawdza rozmiar, SHA-256, tag skanu, sygnaturę oraz
+    strukturę pliku.
+13. PDF, DOCX, XLSX, CSV i obrazy są przygotowywane do limitów Bedrock w
+    `work/`; pliki pochodne wygasają po 7 dniach.
+14. Bedrock najpierw tworzy mapę dowodów, a potem — w osobnym wywołaniu —
+    propozycje z dozwolonego katalogu. AI nigdy nie potwierdza faktu.
+15. Wynik wraca podpisanym callbackiem i trafia do stołu weryfikacyjnego.
+    Po wyczerpaniu ograniczonych prób błąd techniczny również wraca bezpiecznym
+    callbackiem jako `EXTRACTION_FAILED`, więc zadanie nie pozostaje w stanie
+    „w toku”.
 
 Klucze obiektów nie zawierają nazwy pliku, adresu nieruchomości ani danych
 klienta:
@@ -47,14 +59,42 @@ originals/organizations/<organizationId>/properties/<propertyId>/sources/<source
   usług AI;
 - trust OIDC dopuszcza wyłącznie jawne projekty i środowiska, bez wildcardów;
 - wyłącznie rola GuardDuty może zmieniać `GuardDutyMalwareScanStatus`;
+- wymóg czystego tagu dotyczy tylko oryginałów; `work/` odczytują wyłącznie
+  dokładnie wskazane role pipeline;
 - `work/` i `transcripts/` wygasają po 7 dniach, stare wersje po 90 dniach;
 - bucket i klucz mają `RemovalPolicy.RETAIN`, więc usunięcie stacka nie usuwa
   danych;
 - workflow jest typu Standard, ma ograniczone retry, catch, alarmy i DLQ;
+- workery Bedrock mogą wywołać wyłącznie zatwierdzony profil EU Claude Haiku
+  4.5 i jego sześć jawnych regionów docelowych;
+- callback może odczytać wyłącznie jeden sekret w Secrets Manager;
+- wynik zadania zapisuje model, tokeny, łączny czas odpowiedzi i estymowany
+  koszt dostawcy;
 - Lambdy mają dedykowane logi z retencją 3 dni w dev i 14 dni w prod;
 - natywne logowanie Step Functions jest wyłączone, bo AWS wymaga dla niego
   `Resource: "*"`, czego polityka COSTSEC zabrania. Historia wykonań Standard,
   metryki, alarmy i logi workerów pozostają dostępne.
+
+## Obsługiwane ścieżki
+
+- PDF: do 100 stron; bezpośrednio do 4,5 MB albo podział na maksymalnie
+  20 stron na część, z przeliczeniem numeru strony na oryginał;
+- DOCX: tylko akapity i tabele z `word/document.xml`; obiekty osadzone są
+  ignorowane;
+- XLSX: tylko widoczne arkusze i zapisane wartości komórek; formuły nie są
+  wykonywane, a dowód zachowuje arkusz, wiersz i kolumnę;
+- CSV/TXT: UTF-8, automatyczne rozpoznanie przecinka, średnika lub tabulatora
+  i dzielenie na części bez przekroczenia limitu modelu;
+- JPEG/PNG/WebP: bezpośrednio w limicie albo normalizacja do WebP poniżej
+  3,75 MB i 8000 px;
+- audio: upload i walidacja są obsługiwane, ale automatyczna transkrypcja jest
+  obecnie zamknięta bramką polityki i trafia do ręcznej weryfikacji.
+
+Amazon Transcribe wymaga dla `StartTranscriptionJob` uprawnienia
+`Resource: "*"`. Jest to sprzeczne z obowiązującą polityką COSTSEC, dlatego
+stack nie zawiera tego uprawnienia. Automatyczne `pl-PL` można uruchomić dopiero
+po jawnie zatwierdzonym wyjątku bezpieczeństwa albo po wyborze usługi, która
+pozwala ograniczyć dostęp do dokładnego zasobu.
 
 ## Konfiguracja syntezy
 
@@ -69,6 +109,7 @@ VERCEL_PROJECT_NAMES=akademia-ai-platform
 VERCEL_OIDC_ENVIRONMENTS=development,preview
 STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app
 PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1
+PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-haiku-4-5-20251001-v1:0
 BILLING_ALERT_EMAIL=alerts@example.com
 # Opcjonalnie, gdy provider zespołu już istnieje:
 VERCEL_OIDC_PROVIDER_ARN=
@@ -91,6 +132,7 @@ VERCEL_PROJECT_NAMES=akademia-ai-platform \
 VERCEL_OIDC_ENVIRONMENTS=development,preview \
 STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app \
 PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1 \
+PROPERTY_SOURCE_BEDROCK_MODEL_ID=eu.anthropic.claude-haiku-4-5-20251001-v1:0 \
 BILLING_ALERT_EMAIL=alerts@example.com \
 npm run infra:synth
 ```
@@ -149,6 +191,8 @@ Oficjalne źródła:
 - [GuardDuty Malware Protection for S3](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection-s3.html)
 - [Tag-based access control](https://docs.aws.amazon.com/guardduty/latest/ug/tag-based-access-s3-malware-protection.html)
 - [Step Functions i CloudWatch Logs](https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html)
+- [Claude Haiku 4.5 w Bedrock i regiony profilu EU](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-4-5.html)
+- [IAM Amazon Transcribe](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazontranscribe.html)
 
 ## Reakcja na problemy
 

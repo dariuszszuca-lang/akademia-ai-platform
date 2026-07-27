@@ -144,6 +144,7 @@ describe('PropertySourceCallbackService', () => {
       modelId: 'eu.test-model',
       inputTokens: 1200,
       outputTokens: 140,
+      durationMs: 730,
       providerCostMicrounits: 99,
       currency: 'USD',
       estimatedCostUsd: '0.000099',
@@ -318,6 +319,7 @@ function successfulResult({
     modelId: 'eu.test-model',
     inputTokens: 1200,
     outputTokens: 140,
+    durationMs: 730,
     providerCostMicrounits: 99,
     currency: 'USD' as const,
     proposals: [

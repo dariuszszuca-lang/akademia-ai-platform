@@ -113,6 +113,7 @@ export const sourceProcessingJobs = pgTable(
     modelId: text('model_id'),
     inputTokens: integer('input_tokens'),
     outputTokens: integer('output_tokens'),
+    durationMs: integer('duration_ms'),
     estimatedCostUsd: numeric('estimated_cost_usd', {
       precision: 12,
       scale: 6,
@@ -144,6 +145,10 @@ export const sourceProcessingJobs = pgTable(
     check(
       'property_source_jobs_provider_cost_nonnegative',
       sql`${table.providerCostMicrounits} IS NULL OR ${table.providerCostMicrounits} >= 0`,
+    ),
+    check(
+      'property_source_jobs_duration_nonnegative',
+      sql`${table.durationMs} IS NULL OR ${table.durationMs} >= 0`,
     ),
   ],
 )

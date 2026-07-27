@@ -37,6 +37,7 @@ export type SourceJobUpdate = {
   modelId?: string | null
   inputTokens?: number | null
   outputTokens?: number | null
+  durationMs?: number | null
   estimatedCostUsd?: string | null
   providerCostMicrounits?: number | null
   currency?: string | null

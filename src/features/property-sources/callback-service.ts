@@ -46,6 +46,7 @@ const modelIdSchema = z
   .max(240)
   .regex(/^[A-Za-z0-9._:/-]+$/)
 const tokenCountSchema = z.number().int().nonnegative().max(10_000_000)
+const durationMsSchema = z.number().int().nonnegative().max(3_600_000)
 const providerCostSchema = z.number().int().nonnegative().max(1_000_000_000)
 const proposalOutputSchema = ingestFactProposalSchema.strict()
 
@@ -57,6 +58,7 @@ const successfulResultSchema = z
     modelId: modelIdSchema,
     inputTokens: tokenCountSchema.optional(),
     outputTokens: tokenCountSchema.optional(),
+    durationMs: durationMsSchema,
     providerCostMicrounits: providerCostSchema,
     currency: z.literal('USD'),
     proposals: z.array(proposalOutputSchema).max(200),
@@ -100,6 +102,7 @@ const manualReviewResultSchema = z
     modelId: modelIdSchema.optional(),
     inputTokens: tokenCountSchema.optional(),
     outputTokens: tokenCountSchema.optional(),
+    durationMs: durationMsSchema.optional(),
     providerCostMicrounits: providerCostSchema.optional(),
     currency: z.literal('USD').optional(),
   })
@@ -364,6 +367,8 @@ export class PropertySourceCallbackService {
         'inputTokens' in result ? (result.inputTokens ?? null) : null,
       outputTokens:
         'outputTokens' in result ? (result.outputTokens ?? null) : null,
+      durationMs:
+        'durationMs' in result ? (result.durationMs ?? null) : null,
       providerCostMicrounits,
       currency,
       estimatedCostUsd:

@@ -214,6 +214,13 @@ Workers:
 Each handler has unit tests with injected SDK clients. Logs contain only
 technical IDs, duration, counts and safe error codes.
 
+Implementation note: the deployed worker set intentionally omits a Transcribe
+API caller. AWS documents `StartTranscriptionJob` as an action without a
+resource type, which requires `Resource: "*"`. The workspace cloud policy
+forbids that grant. Audio therefore reaches a controlled manual-review result
+without invoking Transcribe. Enabling automatic `pl-PL` transcription requires
+an explicit policy exception or a provider with resource-scoped start access.
+
 ### Task 10: Preparation paths
 
 - direct S3 document blocks only when each part is at most 4.5 MB;
@@ -224,6 +231,10 @@ technical IDs, duration, counts and safe error codes.
 - images normalized below 3.75 MB and 8000 px;
 - audio sent to Transcribe `pl-PL`, with output in `transcripts/`;
 - work and transcript keys remain under lifecycle-managed prefixes.
+
+Implemented safe subset: document and image paths are automatic. The audio
+preparation contract remains present, but execution is policy-gated as
+described above; no wildcard IAM statement was introduced.
 
 ## Slice D: Local quality and cloud gate
 
@@ -243,6 +254,12 @@ npm run infra:synth
 Inspect the synthesized state machine, all IAM policies, log retention,
 alarms, retries, secret references and event pattern. Scan tracked source and
 templates for static credentials/private keys.
+
+Status 27 lipca 2026: lokalna bramka zakończona. `npm test` przechodzi
+47 plików i 340 testów, typecheck, lint, build, testy infrastruktury oraz CDK
+synth są zielone. Syntetyczny template zawiera 5 Lambd i 8 polityk IAM,
+nie zawiera szerokiego `Allow` ani statycznych kluczy, a natywny moduł obrazów
+jest spakowany jako Linux x86-64.
 
 ### Task 12: Dev deployment gate
 

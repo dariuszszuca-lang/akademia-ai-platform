@@ -36,6 +36,10 @@ zostanie usunięte. To założenie pojemności, a nie wycena.
 - Secrets Manager, Step Functions, Lambda, EventBridge, SQS, CloudWatch
   Alarms i Dashboard są rozliczane według własnych cenników. Ich udział trzeba
   zweryfikować po pilocie na realnej liczbie wykonań.
+- Standardowy Claude Haiku 4.5 kosztuje obecnie 1 USD za milion tokenów
+  wejściowych i 5 USD za milion tokenów wyjściowych. Pipeline zapisuje
+  estymację w mikrojednostkach USD: 1 na token wejściowy i 5 na wyjściowy.
+  Rzeczywisty rachunek pozostaje źródłem rozstrzygającym.
 
 Źródła:
 
@@ -49,6 +53,8 @@ zostanie usunięte. To założenie pojemności, a nie wycena.
 - [Amazon EventBridge Pricing](https://aws.amazon.com/eventbridge/pricing/)
 - [Amazon SQS Pricing](https://aws.amazon.com/sqs/pricing/)
 - [Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)
+- [Amazon Bedrock Pricing](https://aws.amazon.com/bedrock/pricing/)
+- [AWS: telemetria kosztów Bedrock](https://aws.amazon.com/blogs/aws-cloud-financial-management/optimize-llm-costs-on-amazon-bedrock-from-billing-attribution-to-operational-telemetry/)
 
 ## Wniosek operacyjny
 
@@ -75,6 +81,8 @@ linią ochrony, ponieważ nie każdy koszt usługi musi być przypisany do tagu.
 - liczbę requestów S3 i operacji KMS;
 - liczbę wykonań i przejść stanów Step Functions;
 - liczbę wywołań, błędów i czas Lambd;
+- tokeny wejściowe/wyjściowe, czas odpowiedzi modeli i estymowany koszt
+  Bedrock na zadanie;
 - liczbę wiadomości w DLQ;
 - GB przeskanowane przez GuardDuty;
 - obiekty bez wyniku skanu po oczekiwanym czasie;

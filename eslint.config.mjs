@@ -7,6 +7,7 @@ export default defineConfig([
   ...nextTypeScript,
   globalIgnores([
     '.next/**',
+    'cdk.out/**',
     'coverage/**',
     'drizzle/meta/**',
     'node_modules/**',
