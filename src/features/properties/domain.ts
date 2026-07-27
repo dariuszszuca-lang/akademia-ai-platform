@@ -35,6 +35,16 @@ export const propertyFactStatuses = [
 
 export const propertyFactVisibilities = ['internal', 'client', 'public'] as const
 export const actorTypes = ['user', 'ai', 'integration'] as const
+export const propertyFactValueTypes = [
+  'text',
+  'number',
+  'money',
+  'boolean',
+  'date',
+  'json',
+] as const
+
+export const propertyFactValueTypeSchema = z.enum(propertyFactValueTypes)
 
 const propertyBaseSchema = z.object({
   title: z.string().trim().min(3).max(120),
@@ -78,7 +88,7 @@ const factBaseSchema = z.object({
     .max(100),
   label: z.string().trim().min(2).max(160),
   category: z.string().trim().min(2).max(80),
-  valueType: z.enum(['text', 'number', 'money', 'boolean', 'date', 'json']),
+  valueType: propertyFactValueTypeSchema,
   value: z.unknown(),
   unit: z.string().trim().max(30).optional(),
   status: z.enum(propertyFactStatuses),
