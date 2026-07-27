@@ -14,4 +14,4 @@ const handlers = createPropertySourceHttpHandlers({
   getUserId: getServerUserId,
 })
 
-export const POST = handlers.decideProposal
+export const GET = handlers.downloadSource

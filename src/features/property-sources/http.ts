@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z, ZodError } from 'zod'
 import type { PropertySourceService } from './service'
+import type { PropertySourceUploadService } from './upload-service'
 import { factProposalStatuses } from './domain'
 
 type PropertyContext = {
@@ -16,8 +17,16 @@ type ProposalContext = {
   }>
 }
 
+type SourceContext = {
+  params: Promise<{
+    propertyId: string
+    sourceId: string
+  }>
+}
+
 type PropertySourceHttpDependencies = {
   getService: () => PropertySourceService
+  getUploadService: () => PropertySourceUploadService
   getUserId: () => Promise<string | null>
 }
 
@@ -30,12 +39,18 @@ const proposalParamsSchema = z.object({
   proposalId: z.string().uuid(),
 })
 
+const sourceParamsSchema = z.object({
+  propertyId: z.string().uuid(),
+  sourceId: z.string().uuid(),
+})
+
 const proposalStatusSchema = z.enum(factProposalStatuses)
 
 class InvalidJsonError extends Error {}
 
 export function createPropertySourceHttpHandlers({
   getService,
+  getUploadService,
   getUserId,
 }: PropertySourceHttpDependencies) {
   return {
@@ -45,6 +60,32 @@ export function createPropertySourceHttpHandlers({
         return NextResponse.json({
           sources: await getService().listSources(userId, propertyId),
         })
+      }),
+
+    createSource: (request: Request, context: PropertyContext) =>
+      withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId } = propertyParamsSchema.parse(await context.params)
+        const result = await getUploadService().initiateUpload(
+          userId,
+          propertyId,
+          await readJson(request),
+        )
+
+        return NextResponse.json(result, { status: 201 })
+      }),
+
+    downloadSource: (_request: Request, context: SourceContext) =>
+      withAuthenticatedUser(getUserId, async (userId) => {
+        const { propertyId, sourceId } = sourceParamsSchema.parse(
+          await context.params,
+        )
+        return NextResponse.json(
+          await getUploadService().createDownloadUrl(
+            userId,
+            propertyId,
+            sourceId,
+          ),
+        )
       }),
 
     listProposals: (request: Request, context: PropertyContext) =>
@@ -128,6 +169,35 @@ export function propertySourceErrorResponse(error: unknown) {
     ].includes(error.message)
   ) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
+  }
+
+  if (
+    error instanceof Error &&
+    [
+      'SOURCE_NOT_CLEAN',
+      'SOURCE_NOT_READY',
+    ].includes(error.message)
+  ) {
+    return NextResponse.json(
+      { error: 'source_not_clean' },
+      { status: 409 },
+    )
+  }
+
+  if (
+    error instanceof Error &&
+    ([
+      'UPLOAD_GRANT_FAILED',
+      'SOURCE_UPLOAD_SIGNING_FAILED',
+      'SOURCE_DOWNLOAD_SIGNING_FAILED',
+    ].includes(error.message) ||
+      error.message.startsWith('Missing runtime variable:') ||
+      error.message.startsWith('Invalid runtime variable:'))
+  ) {
+    return NextResponse.json(
+      { error: 'source_storage_unavailable' },
+      { status: 503 },
+    )
   }
 
   if (
