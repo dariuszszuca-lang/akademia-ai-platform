@@ -261,11 +261,14 @@ describe('AwsPropertySourceObjectStore', () => {
 
   it('does not leak AWS identifiers when signing fails', async () => {
     const harness = createHarness()
-    harness.createPresignedPost.mockRejectedValueOnce(
-      new Error(
-        `access-key-secret ${config.bucket} ${config.kmsKeyArn} ${config.signerRoleArn}`,
-      ),
+    const signingError = new Error(
+      `access-key-secret ${config.bucket} ${config.kmsKeyArn} ${config.signerRoleArn}`,
     )
+    signingError.name = 'InvalidIdentityTokenException'
+    harness.createPresignedPost.mockRejectedValueOnce(signingError)
+    const errorLog = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
 
     const result = harness.store.createUploadGrant(source)
     await expect(result).rejects.toThrow('SOURCE_UPLOAD_SIGNING_FAILED')
@@ -273,6 +276,13 @@ describe('AwsPropertySourceObjectStore', () => {
     await expect(result).rejects.not.toThrow(config.kmsKeyArn)
     await expect(result).rejects.not.toThrow(config.signerRoleArn)
     await expect(result).rejects.not.toThrow('access-key-secret')
+    expect(errorLog).toHaveBeenCalledWith(
+      '[property-source-storage] upload_signing_failed',
+      { type: 'InvalidIdentityTokenException' },
+    )
+    expect(JSON.stringify(errorLog.mock.calls)).not.toContain(
+      signingError.message,
+    )
   })
 
   it('does not leak AWS identifiers when scan lookup fails', async () => {

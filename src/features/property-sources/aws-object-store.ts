@@ -108,7 +108,11 @@ export class AwsPropertySourceObjectStore
         fields: upload.fields,
         expiresAt: addSeconds(this.dependencies.now(), 300),
       }
-    } catch {
+    } catch (error) {
+      console.error(
+        '[property-source-storage] upload_signing_failed',
+        { type: safeErrorType(error) },
+      )
       throw new Error('SOURCE_UPLOAD_SIGNING_FAILED')
     }
   }
@@ -184,6 +188,16 @@ export class AwsPropertySourceObjectStore
 }
 
 class SourceNotCleanError extends Error {}
+
+function safeErrorType(error: unknown): string {
+  if (
+    error instanceof Error &&
+    /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(error.name)
+  ) {
+    return error.name
+  }
+  return 'unknown'
+}
 
 function createUploadSessionPolicy(
   config: AwsPropertySourceConfig,
