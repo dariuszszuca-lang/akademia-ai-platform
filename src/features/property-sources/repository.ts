@@ -4,8 +4,10 @@ import type {
   IngestFactProposalInput,
   PropertyFactProposal,
   PropertySource,
+  ProposalDecision,
   SourceProcessingJob,
 } from './domain'
+import type { PropertyFact } from '../properties/domain'
 
 export type NewPropertySourceRecord = CreatePropertySourceInput & {
   id: string
@@ -47,6 +49,20 @@ export type ProposalListFilter = {
   sourceId?: string
 }
 
+export type DecideProposalCommand = {
+  userId: string
+  organizationId: string
+  propertyProjectId: string
+  proposalId: string
+  decision: ProposalDecision
+  decisionFingerprint: string
+}
+
+export type ProposalDecisionResult = {
+  proposal: PropertyFactProposal
+  fact: PropertyFact | null
+}
+
 export interface PropertySourceRepository {
   createSource(record: NewPropertySourceRecord): Promise<PropertySource>
   listSources(
@@ -75,4 +91,12 @@ export interface PropertySourceRepository {
     propertyProjectId: string,
     filter?: ProposalListFilter,
   ): Promise<PropertyFactProposal[]>
+  getProposal(
+    organizationId: string,
+    propertyProjectId: string,
+    proposalId: string,
+  ): Promise<PropertyFactProposal | null>
+  decideProposal(
+    command: DecideProposalCommand,
+  ): Promise<ProposalDecisionResult>
 }

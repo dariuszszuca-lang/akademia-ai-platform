@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import type { PropertyRepository } from '../properties/repository'
 import type {
+  DecideProposalCommand,
   NewSourceJobRecord,
   NewPropertySourceRecord,
   ProposalIngestionContext,
@@ -13,6 +14,7 @@ import type {
   PropertySource,
   SourceProcessingJob,
 } from './domain'
+import { propertyFactValuesEqual } from './value-comparison'
 
 export class MemoryPropertySourceRepository
   implements PropertySourceRepository
@@ -21,9 +23,7 @@ export class MemoryPropertySourceRepository
   private jobs: SourceProcessingJob[] = []
   private proposals: PropertyFactProposal[] = []
 
-  constructor(propertyRepository: PropertyRepository) {
-    void propertyRepository
-  }
+  constructor(private readonly propertyRepository: PropertyRepository) {}
 
   async createSource(record: NewPropertySourceRecord) {
     const now = new Date()
@@ -132,6 +132,8 @@ export class MemoryPropertySourceRepository
         ...context,
         decidedByUserId: null,
         decisionNote: null,
+        decision: null,
+        decisionFingerprint: null,
         decidedAt: null,
         createdAt: now,
         updatedAt: now,
@@ -160,8 +162,181 @@ export class MemoryPropertySourceRepository
         .reverse(),
     )
   }
+
+  async getProposal(
+    organizationId: string,
+    propertyProjectId: string,
+    proposalId: string,
+  ) {
+    const proposal = this.proposals.find(
+      (candidate) =>
+        candidate.id === proposalId &&
+        candidate.organizationId === organizationId &&
+        candidate.propertyProjectId === propertyProjectId,
+    )
+    return proposal ? clone(proposal) : null
+  }
+
+  async decideProposal(command: DecideProposalCommand) {
+    const proposal = this.proposals.find(
+      (candidate) =>
+        candidate.id === command.proposalId &&
+        candidate.organizationId === command.organizationId &&
+        candidate.propertyProjectId === command.propertyProjectId,
+    )
+    if (!proposal) throw new Error('PROPOSAL_NOT_FOUND')
+
+    if (proposal.decisionFingerprint === command.decisionFingerprint) {
+      return {
+        proposal: clone(proposal),
+        fact: await this.factForExistingDecision(command.userId, proposal),
+      }
+    }
+
+    if (isFinalProposalStatus(proposal.status)) {
+      throw new Error('PROPOSAL_ALREADY_DECIDED')
+    }
+
+    const facts = await this.propertyRepository.listFacts(
+      command.userId,
+      command.propertyProjectId,
+    )
+    const currentFact = facts.find((fact) => fact.key === proposal.factKey)
+    const before = clone(proposal)
+    const sourceIds = Array.from(
+      new Set([...(currentFact?.sourceIds ?? []), proposal.sourceId]),
+    )
+    let fact = null
+
+    if (
+      proposal.status === 'pending' &&
+      command.decision.action === 'accept' &&
+      currentFact &&
+      !propertyFactValuesEqual(currentFact.value, proposal.value)
+    ) {
+      proposal.status = 'conflict'
+      proposal.conflictsWithFactId = currentFact.id
+      proposal.updatedAt = new Date()
+      throw new Error('PROPOSAL_CONFLICT_CHANGED')
+    }
+
+    switch (command.decision.action) {
+      case 'accept':
+      case 'accept_new':
+      case 'correct_and_accept': {
+        const value =
+          command.decision.action === 'correct_and_accept'
+            ? command.decision.value
+            : proposal.value
+
+        fact = currentFact
+          ? await this.propertyRepository.updateFact(
+              command.userId,
+              command.propertyProjectId,
+              currentFact.id,
+              {
+                label: proposal.label,
+                category: proposal.category,
+                valueType: proposal.valueType,
+                value,
+                unit: proposal.unit,
+                status: 'confirmed',
+                visibility: currentFact.visibility,
+                sourceIds,
+                confirmedByUserId: command.userId,
+                actorType: 'user',
+              },
+            )
+          : await this.propertyRepository.createFact(
+              command.userId,
+              command.propertyProjectId,
+              {
+                key: proposal.factKey,
+                label: proposal.label,
+                category: proposal.category,
+                valueType: proposal.valueType,
+                value,
+                unit: proposal.unit,
+                status: 'confirmed',
+                visibility: 'internal',
+                sourceIds,
+                confirmedByUserId: command.userId,
+              },
+            )
+        if (!fact) throw new Error('FACT_WRITE_FAILED')
+        proposal.status =
+          command.decision.action === 'correct_and_accept'
+            ? 'corrected'
+            : 'accepted'
+        break
+      }
+      case 'reject':
+        proposal.status = 'rejected'
+        break
+      case 'keep_existing':
+        if (!currentFact) throw new Error('PROPOSAL_CONFLICT_CHANGED')
+        fact = currentFact
+        proposal.status = 'rejected'
+        break
+      case 'keep_open':
+        if (!currentFact) throw new Error('PROPOSAL_CONFLICT_CHANGED')
+        fact = await this.propertyRepository.updateFact(
+          command.userId,
+          command.propertyProjectId,
+          currentFact.id,
+          {
+            status: 'conflicting',
+            sourceIds,
+            actorType: 'user',
+          },
+        )
+        if (!fact) throw new Error('FACT_WRITE_FAILED')
+        proposal.status = 'needs_review'
+        break
+    }
+
+    const decidedAt = new Date()
+    proposal.decidedByUserId = command.userId
+    proposal.decisionNote =
+      'note' in command.decision ? (command.decision.note ?? null) : null
+    proposal.decision = clone(command.decision)
+    proposal.decisionFingerprint = command.decisionFingerprint
+    proposal.decidedAt = decidedAt
+    proposal.updatedAt = decidedAt
+
+    await this.propertyRepository.appendAudit({
+      organizationId: command.organizationId,
+      propertyProjectId: command.propertyProjectId,
+      actorType: 'user',
+      actorId: command.userId,
+      action: 'proposal.decided',
+      entityType: 'property_fact_proposal',
+      entityId: proposal.id,
+      before,
+      after: { proposal: clone(proposal), fact },
+    })
+
+    return { proposal: clone(proposal), fact: fact ? clone(fact) : null }
+  }
+
+  private async factForExistingDecision(
+    userId: string,
+    proposal: PropertyFactProposal,
+  ) {
+    if (proposal.decision?.action === 'reject') return null
+
+    const facts = await this.propertyRepository.listFacts(
+      userId,
+      proposal.propertyProjectId,
+    )
+    return facts.find((fact) => fact.key === proposal.factKey) ?? null
+  }
 }
 
 function clone<T>(value: T): T {
   return structuredClone(value)
+}
+
+function isFinalProposalStatus(status: PropertyFactProposal['status']) {
+  return ['accepted', 'corrected', 'rejected'].includes(status)
 }

@@ -188,6 +188,8 @@ export type PropertyFactProposal = IngestFactProposalInput & {
   conflictsWithFactId: string | null
   decidedByUserId: string | null
   decisionNote: string | null
+  decision: ProposalDecision | null
+  decisionFingerprint: string | null
   decidedAt: Date | null
   createdAt: Date
   updatedAt: Date

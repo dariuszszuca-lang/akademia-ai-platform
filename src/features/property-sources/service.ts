@@ -6,6 +6,7 @@ import {
   createPropertySourceSchema,
   factProposalStatuses,
   ingestFactProposalSchema,
+  proposalDecisionSchema,
 } from './domain'
 import type {
   ProposalListFilter,
@@ -233,6 +234,40 @@ export class PropertySourceService {
     )
   }
 
+  async decideProposal(
+    userId: string,
+    propertyProjectId: string,
+    proposalId: string,
+    rawDecision: unknown,
+  ) {
+    const project = await this.getProject(userId, propertyProjectId)
+    const proposal = await this.sourceRepository.getProposal(
+      project.organizationId,
+      project.id,
+      proposalId,
+    )
+    if (!proposal) throw new Error('PROPOSAL_NOT_FOUND')
+
+    const decision = proposalDecisionSchema.parse(rawDecision)
+    const fingerprint = createDecisionFingerprint(userId, decision)
+
+    if (
+      !proposal.decisionFingerprint ||
+      proposal.decisionFingerprint !== fingerprint
+    ) {
+      validateDecisionForStatus(proposal.status, decision.action)
+    }
+
+    return this.sourceRepository.decideProposal({
+      userId,
+      organizationId: project.organizationId,
+      propertyProjectId: project.id,
+      proposalId: proposal.id,
+      decision,
+      decisionFingerprint: fingerprint,
+    })
+  }
+
   private async getProject(userId: string, propertyProjectId: string) {
     const project = await this.propertyRepository.getProject(
       userId,
@@ -240,5 +275,34 @@ export class PropertySourceService {
     )
     if (!project) throw new Error('PROPERTY_NOT_FOUND')
     return project
+  }
+}
+
+function createDecisionFingerprint(
+  userId: string,
+  decision: ReturnType<typeof proposalDecisionSchema.parse>,
+) {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify({ userId, decision }))
+    .digest('hex')
+}
+
+function validateDecisionForStatus(
+  status: (typeof factProposalStatuses)[number],
+  action: ReturnType<typeof proposalDecisionSchema.parse>['action'],
+) {
+  if (['accepted', 'corrected', 'rejected'].includes(status)) {
+    throw new Error('PROPOSAL_ALREADY_DECIDED')
+  }
+
+  const isConflict = status === 'conflict' || status === 'needs_review'
+  const conflictActions = ['accept_new', 'keep_existing', 'keep_open']
+
+  if (
+    (action === 'accept' && isConflict) ||
+    (conflictActions.includes(action) && !isConflict)
+  ) {
+    throw new Error('INVALID_PROPOSAL_DECISION')
   }
 }
