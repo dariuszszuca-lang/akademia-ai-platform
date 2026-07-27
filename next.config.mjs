@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+import { LEGACY_PRODUCT_REDIRECTS } from './src/lib/legacy-routes.mjs'
 
 const securityHeaders = [
   // HSTS - wymuszamy HTTPS
@@ -44,6 +45,9 @@ const nextConfig = {
         headers: securityHeaders,
       },
     ]
+  },
+  async redirects() {
+    return LEGACY_PRODUCT_REDIRECTS
   },
   // Wyłączamy x-powered-by zeby nie ujawniac ze to Next.js
   poweredByHeader: false,
