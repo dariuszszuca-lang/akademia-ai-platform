@@ -23,8 +23,11 @@ type PropertyFactRow = typeof propertyFacts.$inferSelect
 
 export class PostgresPropertyRepository<
   TQueryResult extends PgQueryResultHKT = PgQueryResultHKT,
+  TFullSchema extends Record<string, unknown> = Record<string, never>,
 > implements PropertyRepository {
-  constructor(private readonly database: PgDatabase<TQueryResult>) {}
+  constructor(
+    private readonly database: PgDatabase<TQueryResult, TFullSchema>,
+  ) {}
 
   async getOrCreatePersonalOrganization(userId: string) {
     const [organization] = await this.database
