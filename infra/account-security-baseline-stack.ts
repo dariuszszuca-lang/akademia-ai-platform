@@ -65,6 +65,54 @@ export class AccountSecurityBaselineStack extends Stack {
       encryptionKey,
     )
 
+    const cloudTrailService = new iam.ServicePrincipal(
+      'cloudtrail.amazonaws.com',
+    )
+    const managementTrailArn = this.formatArn({
+      service: 'cloudtrail',
+      resource: 'trail',
+      resourceName: 'management-trail',
+      arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+    })
+    const cloudTrailEncryptionContextArn = this.formatArn({
+      service: 'cloudtrail',
+      region: '*',
+      resource: 'trail',
+      resourceName: '*',
+      arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+    })
+
+    encryptionKey.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowCloudTrailEncryptLogs',
+        principals: [cloudTrailService],
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey*'],
+        resources: ['*'],
+        conditions: {
+          StringEquals: {
+            'aws:SourceArn': managementTrailArn,
+          },
+          StringLike: {
+            'kms:EncryptionContext:aws:cloudtrail:arn':
+              cloudTrailEncryptionContextArn,
+          },
+        },
+      }),
+    )
+    encryptionKey.addToResourcePolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowCloudTrailDescribeKey',
+        principals: [cloudTrailService],
+        actions: ['kms:DescribeKey'],
+        resources: ['*'],
+        conditions: {
+          StringEquals: {
+            'aws:SourceArn': managementTrailArn,
+          },
+        },
+      }),
+    )
+
     new cloudtrail.Trail(this, 'ManagementTrail', {
       trailName: 'management-trail',
       bucket: cloudTrailBucket,

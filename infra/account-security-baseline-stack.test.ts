@@ -129,6 +129,57 @@ describe('AccountSecurityBaselineStack CloudTrail', () => {
       S3BucketName: Match.anyValue(),
     })
   })
+
+  it('grants CloudTrail scoped access to the audit KMS key', () => {
+    const template = createTemplate()
+    const key = Object.values(
+      template.findResources('AWS::KMS::Key'),
+    )[0]
+    const statements = key.Properties.KeyPolicy.Statement
+    const cloudTrailStatements = statements.filter(
+      (statement: {
+        Principal?: { Service?: string }
+      }) =>
+        statement.Principal?.Service ===
+        'cloudtrail.amazonaws.com',
+    )
+
+    expect(cloudTrailStatements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Action: expect.arrayContaining([
+            'kms:Decrypt',
+            'kms:GenerateDataKey*',
+          ]),
+          Condition: expect.objectContaining({
+            StringEquals: expect.objectContaining({
+              'aws:SourceArn': expect.anything(),
+            }),
+            StringLike: expect.objectContaining({
+              'kms:EncryptionContext:aws:cloudtrail:arn':
+                expect.anything(),
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          Action: 'kms:DescribeKey',
+          Condition: {
+            StringEquals: {
+              'aws:SourceArn': expect.anything(),
+            },
+          },
+        }),
+      ]),
+    )
+
+    const policyJson = JSON.stringify(cloudTrailStatements)
+    expect(policyJson).toContain(
+      ':cloudtrail:eu-central-1:261965598943:trail/management-trail',
+    )
+    expect(policyJson).toContain(
+      ':cloudtrail:*:261965598943:trail/*',
+    )
+  })
 })
 
 describe('AccountSecurityBaselineStack AWS Config', () => {
