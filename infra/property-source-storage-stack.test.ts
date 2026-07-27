@@ -11,6 +11,7 @@ const config = parseInfrastructureConfig({
   vercelTeamSlug: 'ai-team',
   vercelProjectNames: ['akademia-ai-platform'],
   vercelEnvironments: ['development', 'preview'],
+  studioCallbackBaseUrl: 'https://akademia-ai-platform.vercel.app',
   billingAlertEmail: 'alerts@example.com',
 })
 
@@ -557,5 +558,170 @@ describe('PropertySourceStorageStack cost guardrails', () => {
           'GuardDuty property source malware protection plan ID',
       },
     })
+  })
+})
+
+describe('PropertySourceStorageStack extraction pipeline foundation', () => {
+  it('routes exact GuardDuty object scans to a bounded starter target and encrypted DLQ', () => {
+    const template = createTemplate()
+
+    template.resourceCountIs('AWS::SQS::Queue', 1)
+    template.hasResourceProperties('AWS::SQS::Queue', {
+      MessageRetentionPeriod: 1_209_600,
+      SqsManagedSseEnabled: true,
+    })
+    template.resourceCountIs('AWS::Events::Rule', 1)
+    template.hasResourceProperties('AWS::Events::Rule', {
+      EventPattern: {
+        source: ['aws.guardduty'],
+        'detail-type': [
+          'GuardDuty Malware Protection Object Scan Result',
+        ],
+        detail: {
+          resourceType: ['S3_OBJECT'],
+          s3ObjectDetails: {
+            bucketName: [Match.anyValue()],
+            objectKey: [{ prefix: 'originals/' }],
+          },
+        },
+      },
+      State: 'ENABLED',
+      Targets: [
+        Match.objectLike({
+          DeadLetterConfig: { Arn: Match.anyValue() },
+          RetryPolicy: {
+            MaximumEventAgeInSeconds: 3600,
+            MaximumRetryAttempts: 2,
+          },
+        }),
+      ],
+    })
+  })
+
+  it('creates isolated Node.js 24 starter and foundation workers with bounded logs', () => {
+    const template = createTemplate()
+
+    template.resourceCountIs('AWS::Lambda::Function', 2)
+    template.resourceCountIs('AWS::Lambda::Alias', 2)
+    template.allResourcesProperties('AWS::Lambda::Function', {
+      Runtime: 'nodejs24.x',
+      MemorySize: 256,
+      Timeout: Match.anyValue(),
+      ReservedConcurrentExecutions: 5,
+    })
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'property-source-pipeline-dev-starter',
+      Timeout: 10,
+      Environment: {
+        Variables: Match.objectLike({
+          SELECTED_BUCKET: Match.anyValue(),
+          SELECTED_PREFIX: 'originals/',
+          PIPELINE_VERSION: 'property-source-v1',
+          STATE_MACHINE_ARN: Match.anyValue(),
+        }),
+      },
+    })
+    template.resourceCountIs('AWS::Logs::LogGroup', 2)
+    template.allResourcesProperties('AWS::Logs::LogGroup', {
+      RetentionInDays: 3,
+    })
+
+    const functions = template.findResources('AWS::Lambda::Function')
+    expect(JSON.stringify(functions)).not.toContain(
+      'PROPERTY_SOURCE_CALLBACK_SECRET',
+    )
+  })
+
+  it('allows the starter to start only its one Standard workflow', () => {
+    const template = createTemplate()
+
+    template.resourceCountIs('AWS::StepFunctions::StateMachine', 1)
+    template.hasResourceProperties('AWS::StepFunctions::StateMachine', {
+      StateMachineType: 'STANDARD',
+    })
+
+    const stateMachine = Object.values(
+      template.findResources('AWS::StepFunctions::StateMachine'),
+    )[0]
+    const definition = JSON.stringify(
+      stateMachine.Properties.DefinitionString ??
+        stateMachine.Properties.Definition,
+    )
+    expect(definition).toContain('Retry')
+    expect(definition).toContain('BackoffRate')
+    expect(definition).toContain('MaxAttempts')
+    expect(definition).toContain('Catch')
+    expect(definition).toContain('States.ALL')
+    expect(stateMachine.Properties).not.toHaveProperty(
+      'LoggingConfiguration',
+    )
+
+    const policies = template.findResources('AWS::IAM::Policy')
+    const startStatements = Object.values(policies)
+      .flatMap((policy) => policy.Properties.PolicyDocument.Statement)
+      .filter((statement) =>
+        ([] as string[])
+          .concat(statement.Action)
+          .includes('states:StartExecution'),
+      )
+    expect(startStatements).toHaveLength(1)
+    expect(startStatements[0].Resource).not.toBe('*')
+    expect(JSON.stringify(policies)).not.toContain('"Resource":"*"')
+  })
+
+  it('generates or imports one retained callback secret without outputting its value', () => {
+    const generated = createTemplate()
+
+    generated.resourceCountIs('AWS::SecretsManager::Secret', 1)
+    generated.hasResource('AWS::SecretsManager::Secret', {
+      DeletionPolicy: 'Retain',
+      UpdateReplacePolicy: 'Retain',
+      Properties: Match.objectLike({
+        GenerateSecretString: {
+          ExcludePunctuation: true,
+          PasswordLength: 64,
+        },
+      }),
+    })
+
+    const imported = createTemplate(
+      parseInfrastructureConfig({
+        ...config,
+        callbackSecretArn:
+          'arn:aws:secretsmanager:eu-central-1:111122223333:secret:property-studio/dev/source-callback-AbCd12',
+      }),
+    )
+    imported.resourceCountIs('AWS::SecretsManager::Secret', 0)
+    expect(JSON.stringify(imported.toJSON())).toContain(
+      'property-studio/dev/source-callback-AbCd12',
+    )
+
+    const outputs = generated.toJSON().Outputs
+    expect(outputs).toHaveProperty('PropertySourcePipelineStateMachineArn')
+    expect(outputs).toHaveProperty('PropertySourceCallbackSecretArn')
+    expect(outputs).toHaveProperty('PropertySourcePipelineVersion')
+    expect(JSON.stringify(outputs)).not.toContain('SecretString')
+  })
+
+  it('adds failure alarms and one operations dashboard without custom high-cardinality metrics', () => {
+    const template = createTemplate()
+
+    template.resourceCountIs('AWS::CloudWatch::Alarm', 4)
+    template.resourceCountIs('AWS::CloudWatch::Dashboard', 1)
+    const alarms = template.findResources('AWS::CloudWatch::Alarm')
+    const metricNames = Object.values(alarms).map(
+      (alarm) => alarm.Properties.MetricName,
+    )
+
+    expect(metricNames).toEqual(
+      expect.arrayContaining([
+        'Errors',
+        'ExecutionsFailed',
+        'ExecutionsTimedOut',
+        'ApproximateNumberOfMessagesVisible',
+      ]),
+    )
+    expect(JSON.stringify(alarms)).not.toContain('DocumentText')
+    expect(JSON.stringify(alarms)).not.toContain('SourceId')
   })
 })

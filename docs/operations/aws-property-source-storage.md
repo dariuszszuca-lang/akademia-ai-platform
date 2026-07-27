@@ -7,8 +7,10 @@ Przeglądarka wysyła plik bezpośrednio do prywatnego S3, a aplikacja przekazuj
 wyłącznie krótko ważny formularz uploadu. Oryginał nie jest dostępny do odczytu,
 dopóki GuardDuty nie oznaczy go jako wolny od wykrytych zagrożeń.
 
-Moduł nie uruchamia ekstrakcji AI. Jego jedynym zadaniem jest bezpieczne
-przyjęcie, przeskanowanie i udostępnienie czystego pliku dalszym procesom.
+Warstwa storage bezpiecznie przyjmuje i skanuje plik. Po czystym wyniku
+EventBridge uruchamia osobny, standardowy workflow ekstrakcji. Na obecnym
+etapie workflow ma bezpieczny szkielet; kolejne, izolowane workery są
+wdrażane osobno.
 
 ## Przepływ
 
@@ -22,6 +24,10 @@ przyjęcie, przeskanowanie i udostępnienie czystego pliku dalszym procesom.
    `GuardDutyMalwareScanStatus=NO_THREATS_FOUND`.
 8. API może wystawić minutowy link do pobrania dopiero po ponownym sprawdzeniu
    tenantu, statusu aplikacyjnego i tagu skanu.
+9. EventBridge przekazuje wynik GuardDuty tylko dla wybranego bucketa i
+   prefiksu `originals/`.
+10. Starter używa deterministycznej nazwy wykonania, więc ponowne dostarczenie
+    tego samego zdarzenia nie tworzy drugiej pracy.
 
 Klucze obiektów nie zawierają nazwy pliku, adresu nieruchomości ani danych
 klienta:
@@ -43,7 +49,12 @@ originals/organizations/<organizationId>/properties/<propertyId>/sources/<source
 - wyłącznie rola GuardDuty może zmieniać `GuardDutyMalwareScanStatus`;
 - `work/` i `transcripts/` wygasają po 7 dniach, stare wersje po 90 dniach;
 - bucket i klucz mają `RemovalPolicy.RETAIN`, więc usunięcie stacka nie usuwa
-  danych.
+  danych;
+- workflow jest typu Standard, ma ograniczone retry, catch, alarmy i DLQ;
+- Lambdy mają dedykowane logi z retencją 3 dni w dev i 14 dni w prod;
+- natywne logowanie Step Functions jest wyłączone, bo AWS wymaga dla niego
+  `Resource: "*"`, czego polityka COSTSEC zabrania. Historia wykonań Standard,
+  metryki, alarmy i logi workerów pozostają dostępne.
 
 ## Konfiguracja syntezy
 
@@ -56,9 +67,13 @@ CDK_DEFAULT_REGION=eu-central-1
 VERCEL_TEAM_SLUG=example-team
 VERCEL_PROJECT_NAMES=akademia-ai-platform
 VERCEL_OIDC_ENVIRONMENTS=development,preview
+STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app
+PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1
 BILLING_ALERT_EMAIL=alerts@example.com
 # Opcjonalnie, gdy provider zespołu już istnieje:
 VERCEL_OIDC_PROVIDER_ARN=
+# Opcjonalnie, gdy sekret callbacku już istnieje:
+PROPERTY_SOURCE_CALLBACK_SECRET_ARN=
 ```
 
 Środowisko `prod` akceptuje wyłącznie `production` i wymaga adresu alertów.
@@ -74,6 +89,8 @@ CDK_DEFAULT_REGION=eu-central-1 \
 VERCEL_TEAM_SLUG=example-team \
 VERCEL_PROJECT_NAMES=akademia-ai-platform \
 VERCEL_OIDC_ENVIRONMENTS=development,preview \
+STUDIO_CALLBACK_BASE_URL=https://akademia-ai-platform.vercel.app \
+PROPERTY_SOURCE_PIPELINE_VERSION=property-source-v1 \
 BILLING_ALERT_EMAIL=alerts@example.com \
 npm run infra:synth
 ```
@@ -112,11 +129,15 @@ Produkcja pozostaje zablokowana do osobnego, jawnego potwierdzenia.
 4. wykonać lokalny synth i przejrzeć template;
 5. wykonać `cdk diff` na właściwym koncie;
 6. wdrożyć najpierw stack `dev`;
-7. zapisać outputy bucketa, KMS, roli i regionu w zmiennych projektu Vercel;
+7. zapisać outputy bucketa, KMS, roli, regionu, state machine i wersji
+   pipeline w konfiguracji wdrożenia;
 8. ustawić dla tokenu Vercel OIDC audience `sts.amazonaws.com`;
-9. przesłać syntetyczny plik i sprawdzić skan, blokadę przed skanem oraz
-   pobranie po czystym wyniku;
-10. dopiero po smoke teście rozważyć osobny stack `prod`.
+9. skopiować wartość wygenerowanego sekretu callbacku bezpośrednio z
+   Secrets Manager do chronionej zmiennej Vercel. Nie przenosić jej przez
+   czat, log ani repo;
+10. przesłać syntetyczny plik i sprawdzić skan, blokadę przed skanem,
+    pojedyncze wykonanie workflow oraz pobranie po czystym wyniku;
+11. dopiero po smoke teście rozważyć osobny stack `prod`.
 
 Procedurę z plikiem testującym detekcję malware wolno wykonać tylko wtedy,
 gdy aktualne zasady bezpieczeństwa chmury wprost na to pozwalają. W innym
@@ -127,6 +148,7 @@ Oficjalne źródła:
 - [Vercel OIDC](https://vercel.com/docs/oidc/reference)
 - [GuardDuty Malware Protection for S3](https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection-s3.html)
 - [Tag-based access control](https://docs.aws.amazon.com/guardduty/latest/ug/tag-based-access-s3-malware-protection.html)
+- [Step Functions i CloudWatch Logs](https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html)
 
 ## Reakcja na problemy
 

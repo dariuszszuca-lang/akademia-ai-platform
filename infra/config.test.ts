@@ -11,6 +11,7 @@ const devConfig = {
   vercelTeamSlug: 'ai-team',
   vercelProjectNames: ['akademia-ai-platform'],
   vercelEnvironments: ['development', 'preview'],
+  studioCallbackBaseUrl: 'https://akademia-ai-platform.vercel.app',
   billingAlertEmail: 'alerts@example.com',
 }
 
@@ -39,6 +40,12 @@ describe('AWS infrastructure configuration', () => {
     { ...devConfig, vercelTeamSlug: 'ai-*' },
     { ...devConfig, vercelProjectNames: ['*'] },
     { ...devConfig, vercelEnvironments: ['production'] },
+    { ...devConfig, studioCallbackBaseUrl: 'http://localhost:3000' },
+    {
+      ...devConfig,
+      studioCallbackBaseUrl:
+        'https://akademia-ai-platform.vercel.app/unexpected-path',
+    },
   ])('rejects unsafe development config: %j', (input) => {
     expect(() => parseInfrastructureConfig(input)).toThrow()
   })
@@ -103,8 +110,34 @@ describe('AWS infrastructure configuration', () => {
         VERCEL_TEAM_SLUG: 'ai-team',
         VERCEL_PROJECT_NAMES: 'akademia-ai-platform',
         VERCEL_OIDC_ENVIRONMENTS: 'development,preview',
+        STUDIO_CALLBACK_BASE_URL:
+          'https://akademia-ai-platform.vercel.app',
         BILLING_ALERT_EMAIL: 'alerts@example.com',
-      }).vercelEnvironments,
-    ).toEqual(['development', 'preview'])
+      }),
+    ).toMatchObject({
+      vercelEnvironments: ['development', 'preview'],
+      studioCallbackBaseUrl:
+        'https://akademia-ai-platform.vercel.app',
+      pipelineVersion: 'property-source-v1',
+    })
+  })
+
+  it('accepts only an exact callback secret ARN in the selected account and region', () => {
+    const callbackSecretArn =
+      'arn:aws:secretsmanager:eu-central-1:111122223333:secret:property-studio/dev/source-callback-AbCd12'
+
+    expect(
+      parseInfrastructureConfig({
+        ...devConfig,
+        callbackSecretArn,
+      }).callbackSecretArn,
+    ).toBe(callbackSecretArn)
+    expect(() =>
+      parseInfrastructureConfig({
+        ...devConfig,
+        callbackSecretArn:
+          'arn:aws:secretsmanager:us-east-1:999900001111:secret:other',
+      }),
+    ).toThrow('callbackSecretArn')
   })
 })

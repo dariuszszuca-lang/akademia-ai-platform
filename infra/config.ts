@@ -23,8 +23,11 @@ const infrastructureConfigSchema = z
       .array(z.enum(['development', 'preview', 'production']))
       .min(1)
       .refine(uniqueList, 'must contain unique environments'),
+    studioCallbackBaseUrl: z.url(),
+    pipelineVersion: safeIdentifier.default('property-source-v1'),
     billingAlertEmail: z.email().optional(),
     oidcProviderArn: z.string().optional(),
+    callbackSecretArn: z.string().optional(),
   })
   .superRefine((config, context) => {
     if (
@@ -73,6 +76,34 @@ const infrastructureConfigSchema = z
         })
       }
     }
+
+    const allowedCallbackUrls = config.vercelProjectNames.map(
+      (project) => `https://${project}.vercel.app`,
+    )
+    if (!allowedCallbackUrls.includes(config.studioCallbackBaseUrl)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['studioCallbackBaseUrl'],
+        message:
+          'studioCallbackBaseUrl must be an exact configured Vercel project URL',
+      })
+    }
+
+    if (config.callbackSecretArn) {
+      const secretArnPattern = new RegExp(
+        `^arn:aws:secretsmanager:${config.region}:${config.account}:` +
+          `secret:property-studio/${config.studioEnv}/` +
+          'source-callback-[A-Za-z0-9]{6}$',
+      )
+      if (!secretArnPattern.test(config.callbackSecretArn)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['callbackSecretArn'],
+          message:
+            'callbackSecretArn must match the configured account, region, and environment',
+        })
+      }
+    }
   })
 
 type ParsedInfrastructureConfig = z.infer<typeof infrastructureConfigSchema>
@@ -117,7 +148,12 @@ export function readInfrastructureConfigFromEnv(
       environment.VERCEL_OIDC_ENVIRONMENTS ??
         environment.VERCEL_ENVIRONMENTS,
     ),
+    studioCallbackBaseUrl: environment.STUDIO_CALLBACK_BASE_URL,
+    pipelineVersion:
+      environment.PROPERTY_SOURCE_PIPELINE_VERSION || undefined,
     billingAlertEmail: environment.BILLING_ALERT_EMAIL || undefined,
     oidcProviderArn: environment.VERCEL_OIDC_PROVIDER_ARN || undefined,
+    callbackSecretArn:
+      environment.PROPERTY_SOURCE_CALLBACK_SECRET_ARN || undefined,
   })
 }

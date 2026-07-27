@@ -14,6 +14,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3'
 import * as budgets from 'aws-cdk-lib/aws-budgets'
 import type { Construct } from 'constructs'
 import type { InfrastructureConfig } from './config'
+import { PropertySourcePipeline } from './property-source-pipeline'
 
 export interface PropertySourceStorageStackProps extends StackProps {
   config: InfrastructureConfig
@@ -341,6 +342,12 @@ export class PropertySourceStorageStack extends Stack {
         timeUnit: 'MONTHLY',
       },
       notificationsWithSubscribers,
+    })
+
+    new PropertySourcePipeline(this, 'ExtractionPipeline', {
+      bucket: this.bucket,
+      encryptionKey: this.encryptionKey,
+      config,
     })
 
     new CfnOutput(this, 'PropertySourceBucketName', {

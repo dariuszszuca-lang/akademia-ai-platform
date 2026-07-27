@@ -11,7 +11,10 @@ transferu.
 - około 2 GB nowych oryginałów miesięcznie;
 - jeden prywatny bucket na środowisko;
 - jeden zarządzany przez klienta klucz KMS na środowisko;
+- jeden sekret callbacku w Secrets Manager na środowisko;
 - skan każdego nowego obiektu w `originals/`;
+- jedno standardowe wykonanie Step Functions na czysty obiekt;
+- krótkie wywołania Lambd, EventBridge oraz awaryjna kolejka SQS;
 - pliki robocze i transkrypcje usuwane po 7 dniach;
 - stare wersje obiektów usuwane po 90 dniach.
 
@@ -30,6 +33,9 @@ zostanie usunięte. To założenie pojemności, a nie wycena.
   regionu i klasy storage.
 - Budżet AWS wysyła alert. Nie jest limitem wydatków i sam nie zatrzymuje
   zasobów.
+- Secrets Manager, Step Functions, Lambda, EventBridge, SQS, CloudWatch
+  Alarms i Dashboard są rozliczane według własnych cenników. Ich udział trzeba
+  zweryfikować po pilocie na realnej liczbie wykonań.
 
 Źródła:
 
@@ -37,6 +43,12 @@ zostanie usunięte. To założenie pojemności, a nie wycena.
 - [Amazon GuardDuty Pricing](https://aws.amazon.com/guardduty/pricing/)
 - [Amazon S3 Pricing](https://aws.amazon.com/s3/pricing/)
 - [AWS Budgets](https://aws.amazon.com/aws-cost-management/aws-budgets/)
+- [AWS Secrets Manager Pricing](https://aws.amazon.com/secrets-manager/pricing/)
+- [AWS Step Functions Pricing](https://aws.amazon.com/step-functions/pricing/)
+- [AWS Lambda Pricing](https://aws.amazon.com/lambda/pricing/)
+- [Amazon EventBridge Pricing](https://aws.amazon.com/eventbridge/pricing/)
+- [Amazon SQS Pricing](https://aws.amazon.com/sqs/pricing/)
+- [Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)
 
 ## Wniosek operacyjny
 
@@ -61,6 +73,9 @@ linią ochrony, ponieważ nie każdy koszt usługi musi być przypisany do tagu.
 - liczbę i sumaryczny rozmiar uploadów dziennie;
 - średni rozmiar pliku i odsetek ponownych uploadów;
 - liczbę requestów S3 i operacji KMS;
+- liczbę wykonań i przejść stanów Step Functions;
+- liczbę wywołań, błędów i czas Lambd;
+- liczbę wiadomości w DLQ;
 - GB przeskanowane przez GuardDuty;
 - obiekty bez wyniku skanu po oczekiwanym czasie;
 - koszt na źródło i koszt na aktywną nieruchomość;

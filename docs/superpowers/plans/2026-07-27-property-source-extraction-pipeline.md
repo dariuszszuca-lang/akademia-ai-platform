@@ -188,7 +188,10 @@ Extend CDK assertion tests before implementation. Provision:
   `originals/` prefix;
 - starter Lambda with only `states:StartExecution` for one state machine;
 - Standard Step Functions workflow with bounded retry/backoff/catch;
-- dedicated log groups with 3-day dev and 14-day prod retention;
+- dedicated Lambda log groups with 3-day dev and 14-day prod retention;
+- Standard Workflow execution history plus metrics and alarms. Native Step
+  Functions CloudWatch logging stays off because AWS requires
+  `Resource: "*"`, which the workspace cloud policy forbids;
 - generated Secrets Manager callback secret or imported exact ARN;
 - CloudWatch alarms and dashboard;
 - outputs for state machine ARN, callback secret ARN and pipeline version.
