@@ -18,6 +18,8 @@
     "infra:test": "vitest run infra",
     "infra:synth": "tsx infra/bin/property-studio.ts",
     "infra:account-public-block": "tsx infra/bin/enable-account-public-access-block.ts",
+    "infra:baseline:synth": "tsx infra/bin/account-baseline.ts",
+    "infra:baseline:cdk": "cdk --app 'npx tsx infra/bin/account-baseline.ts'",
     "infra:cdk": "cdk --app 'npx tsx infra/bin/property-studio.ts'"
   },
   "dependencies": {

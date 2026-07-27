@@ -143,6 +143,44 @@ Przed każdym `cdk diff`, `bootstrap` lub `deploy` trzeba ponownie wykonać
 preflight bezpieczeństwa chmury opisany w workspace AI-Team. Wdrożenie
 produkcyjne wymaga osobnej zgody Darka.
 
+### Kolejność wdrożenia produkcyjnego
+
+Baseline konta musi być gotowy i zweryfikowany przed stackiem aplikacji.
+Poniższe polecenia są przeznaczone wyłącznie dla konta `261965598943`
+i regionu `eu-central-1`:
+
+```bash
+AWS_PROFILE=akademia-ai npm run infra:account-public-block
+npx cdk bootstrap aws://261965598943/eu-central-1 \
+  --profile akademia-ai --termination-protection \
+  --tags Project=PropertyIntelligenceStudio \
+  --tags Env=prod --tags Owner=AI-Team --tags CostCenter=PropertyStudio
+npm run infra:baseline:cdk -- diff AccountSecurityBaseline \
+  --profile akademia-ai
+npm run infra:baseline:cdk -- deploy AccountSecurityBaseline \
+  --profile akademia-ai --require-approval never
+```
+
+Po wdrożeniu trzeba potwierdzić:
+
+- wszystkie cztery ustawienia Account Public Access Block mają wartość `true`;
+- CloudTrail `management-trail` ma `IsLogging=true`;
+- recorder AWS Config ma `recording=true`;
+- istnieją dokładnie cztery wymagane reguły Config;
+- `CDKToolkit` i `AccountSecurityBaseline` mają włączoną ochronę przed
+  usunięciem.
+
+Dopiero po tym można wykonać `cdk diff` i deploy stacka
+`PropertySourceStorage-prod`.
+
+### Rollback baseline
+
+Rollback aplikacji nie wyłącza Account Public Access Block i nie usuwa
+baseline. Buckety audytowe oraz klucz KMS mają politykę `RETAIN`, dlatego nie
+są usuwane razem ze stackiem. Ich usunięcie, wyłączenie CloudTrail lub AWS
+Config oraz zmiana ustawień publicznego dostępu to osobne operacje produkcyjne,
+które wymagają inwentaryzacji i jawnej zgody.
+
 ### Bramka chmurowa
 
 Przed pierwszym poleceniem korzystającym z konta:
