@@ -49,6 +49,22 @@ describe('property source domain', () => {
     ).toThrow()
   })
 
+  it('rejects proposal values that cannot be stored as JSON', () => {
+    expect(() =>
+      ingestFactProposalSchema.parse({
+        externalKey: 'invalid-value',
+        factKey: 'price.asking',
+        label: 'Cena ofertowa',
+        category: 'Cena',
+        valueType: 'money',
+        value: () => 925000,
+        confidence: 0.8,
+        evidenceText: 'Cena: 925 000 PLN',
+        evidenceLocator: { type: 'page', page: 1 },
+      }),
+    ).toThrow()
+  })
+
   it('does not accept actor, status or organization fields from source input', () => {
     const parsed = createPropertySourceSchema.parse({
       fileName: 'operat.pdf',

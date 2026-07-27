@@ -103,16 +103,14 @@ export const ingestFactProposalSchema = z.object({
   label: z.string().trim().min(2).max(160),
   category: z.string().trim().min(2).max(80),
   valueType: propertyFactValueTypeSchema,
-  value: z.unknown(),
+  value: z.json(),
   unit: z.string().trim().max(30).optional(),
   confidence: z.number().min(0).max(1),
   evidenceText: z.string().trim().min(1).max(4000),
   evidenceLocator: evidenceLocatorSchema,
 })
 
-const correctedValueSchema = z
-  .unknown()
-  .refine((value) => value !== undefined, 'Skorygowana wartość jest wymagana.')
+const correctedValueSchema = z.json()
 
 export const proposalDecisionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('accept') }),
