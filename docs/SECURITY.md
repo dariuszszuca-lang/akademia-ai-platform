@@ -25,6 +25,11 @@ Stan: **2026-07-27** (fundament Property Intelligence Studio)
 - **Wymóg hasła**: 8+ znaków, wielka litera, cyfra, znak specjalny
 - **Rejestracja**: tylko z linkiem zaproszeniowym (`/register/<token>`) — nie publiczna
 - **Sesja serwerowa**: httpOnly cookie `px-session` z user.sub (Cognito UUID) podpisanym HMAC-SHA256
+  - cookie powstaje dopiero po kryptograficznej weryfikacji tokenu dostępowego
+    Cognito,
+  - weryfikowane są podpis, pula użytkowników, `token_use=access`,
+    `client_id` i czas ważności,
+  - endpoint nie przyjmuje już `sub` z body jako źródła tożsamości,
   - `httpOnly` — JavaScript nie ma dostępu (chroni przed XSS-stealem)
   - `secure` w produkcji — tylko HTTPS
   - `sameSite=lax` — chroni przed większością ataków CSRF
@@ -144,6 +149,8 @@ Po przekroczeniu: 429 Too Many Requests + `Retry-After`.
 - **Marked as Sensitive** w Vercel UI = nie pokazują się w logach ani CLI pull
 - Klucze: `ANTHROPIC_API_KEY`, `PINECONE_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `ADMIN_PASSWORD`, `SESSION_SECRET`
 - **Brak hardcoded** kluczy w repo (sprawdzone `git history`)
+- `.gitignore` obejmuje `.env`, `.env.*`, `*.pem`, `*.key`, `credentials` i
+  pliki kont serwisowych; śledzony może być tylko `.env.example`.
 - **Pre-commit hook** w 29 repo blokuje accidentalne commit kluczy (sk_live_, sk-ant-, AKIA, ghp_, AIzaSy, whsec_)
 
 ## Logging {#logi}

@@ -41,19 +41,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await cognito.getUser(accessToken);
       const attrs = data.UserAttributes || [];
       const sub = attrs.find((a) => a.Name === "sub")?.Value || "";
+      if (sub) {
+        await syncServerSession(accessToken);
+      }
       setUser({
         email: attrs.find((a) => a.Name === "email")?.Value || "",
         name: attrs.find((a) => a.Name === "name")?.Value || "",
         sub,
       });
-      // Synchronizuj server-side cookie z Cognito sub
-      if (sub) {
-        fetch("/api/auth/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sub }),
-        }).catch(() => {});
-      }
     } catch {
       // Token expired — try refresh
       const refreshToken = localStorage.getItem("refreshToken");
@@ -66,18 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const userData = await cognito.getUser(refreshData.AuthenticationResult.AccessToken);
             const attrs = userData.UserAttributes || [];
             const sub = attrs.find((a) => a.Name === "sub")?.Value || "";
+            if (sub) {
+              await syncServerSession(
+                refreshData.AuthenticationResult.AccessToken,
+              );
+            }
             setUser({
               email: attrs.find((a) => a.Name === "email")?.Value || "",
               name: attrs.find((a) => a.Name === "name")?.Value || "",
               sub,
             });
-            if (sub) {
-              fetch("/api/auth/session", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sub }),
-              }).catch(() => {});
-            }
           }
         } catch {
           localStorage.clear();
@@ -194,4 +187,16 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+async function syncServerSession(accessToken: string) {
+  const response = await fetch("/api/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (!response.ok) {
+    throw new Error("SERVER_SESSION_FAILED");
+  }
 }

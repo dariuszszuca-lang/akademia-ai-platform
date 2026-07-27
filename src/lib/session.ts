@@ -5,11 +5,16 @@ const COOKIE_NAME = 'px-session'
 const MAX_AGE = 60 * 60 * 24 * 30 // 30 dni
 
 function getSecret(): string {
-  return (
-    process.env.SESSION_SECRET ??
-    process.env.ADMIN_PASSWORD ??
-    'fallback-not-secure-set-SESSION_SECRET'
-  )
+  const secret =
+    process.env.SESSION_SECRET?.trim() ||
+    process.env.ADMIN_SESSION_SECRET?.trim() ||
+    process.env.ADMIN_PASSWORD?.trim()
+
+  if (!secret) {
+    throw new Error('SESSION_SECRET_NOT_CONFIGURED')
+  }
+
+  return secret
 }
 
 /**
