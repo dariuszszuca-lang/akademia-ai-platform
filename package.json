@@ -17,6 +17,7 @@
     "db:migrate": "drizzle-kit migrate",
     "infra:test": "vitest run infra",
     "infra:synth": "tsx infra/bin/property-studio.ts",
+    "infra:account-public-block": "tsx infra/bin/enable-account-public-access-block.ts",
     "infra:cdk": "cdk --app 'npx tsx infra/bin/property-studio.ts'"
   },
   "dependencies": {
