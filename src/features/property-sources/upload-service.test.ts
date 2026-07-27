@@ -183,6 +183,38 @@ describe('PropertySourceUploadService', () => {
     })
     expect(createCleanDownloadUrl).toHaveBeenCalledWith(
       expect.objectContaining({ id: source.id, status: 'review_ready' }),
+      'attachment',
+    )
+  })
+
+  it('allows inline preview only for PDF and image sources', async () => {
+    const project = await createProject('user-a')
+    const source = await sourceService.registerSource(
+      'user-a',
+      project.id,
+      sourceInput(),
+    )
+    for (const status of [
+      'uploaded',
+      'scanning',
+      'validating',
+      'queued',
+      'processing',
+      'review_ready',
+    ] as const) {
+      await sourceRepository.updateSourceStatusInternal(source.id, { status })
+    }
+
+    await uploadService.createDownloadUrl(
+      'user-a',
+      project.id,
+      source.id,
+      'preview',
+    )
+
+    expect(createCleanDownloadUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ id: source.id }),
+      'inline',
     )
   })
 

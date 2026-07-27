@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  decidePropertyProposal,
+  fetchPropertyProposals,
+  fetchPropertySources,
   formatEvidenceLocator,
   formatSourceStatus,
+  getPropertySourceDownload,
   parseCorrectedProposalValue,
   resolveSourceMediaType,
   uploadPropertySource,
@@ -156,5 +160,102 @@ describe('property source browser client', () => {
       }),
     ).rejects.toThrow('SOURCE_FILE_TOO_LARGE')
     expect(fetchRequest).not.toHaveBeenCalled()
+  })
+
+  it('refreshes tenant-scoped sources and proposals', async () => {
+    const fetchRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ sources: [{ id: sourceId }] }))
+      .mockResolvedValueOnce(
+        Response.json({ proposals: [{ id: 'proposal-1' }] }),
+      )
+
+    await expect(
+      fetchPropertySources(propertyId, fetchRequest),
+    ).resolves.toEqual([{ id: sourceId }])
+    await expect(
+      fetchPropertyProposals(propertyId, fetchRequest),
+    ).resolves.toEqual([{ id: 'proposal-1' }])
+    expect(fetchRequest.mock.calls.map(([url]) => url)).toEqual([
+      `/api/properties/${propertyId}/sources`,
+      `/api/properties/${propertyId}/proposals`,
+    ])
+  })
+
+  it('submits one explicit human decision and returns the server result', async () => {
+    const result = {
+      proposal: { id: 'proposal-1', status: 'corrected' },
+      fact: { id: 'fact-1', value: 52.4 },
+    }
+    const fetchRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json(result))
+
+    await expect(
+      decidePropertyProposal({
+        propertyId,
+        proposalId: 'proposal-1',
+        decision: {
+          action: 'correct_and_accept',
+          value: 52.4,
+          note: 'Sprawdzono z rzutem.',
+        },
+        fetch: fetchRequest,
+      }),
+    ).resolves.toEqual(result)
+
+    expect(fetchRequest).toHaveBeenCalledWith(
+      `/api/properties/${propertyId}/proposals/proposal-1/decision`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'correct_and_accept',
+          value: 52.4,
+          note: 'Sprawdzono z rzutem.',
+        }),
+      },
+    )
+  })
+
+  it('gets a short-lived clean source URL', async () => {
+    const download = {
+      url: 'https://download.example.invalid/file',
+      expiresAt: '2026-07-27T12:05:00.000Z',
+    }
+    const fetchRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json(download))
+
+    await expect(
+      getPropertySourceDownload({
+        propertyId,
+        sourceId,
+        fetch: fetchRequest,
+      }),
+    ).resolves.toEqual(download)
+    expect(fetchRequest).toHaveBeenCalledWith(
+      `/api/properties/${propertyId}/sources/${sourceId}/download`,
+    )
+  })
+
+  it('requests the explicit safe-preview mode for embedded documents', async () => {
+    const fetchRequest = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({
+        url: 'https://download.example.invalid/file',
+        expiresAt: '2026-07-27T12:05:00.000Z',
+      }),
+    )
+
+    await getPropertySourceDownload({
+      propertyId,
+      sourceId,
+      mode: 'preview',
+      fetch: fetchRequest,
+    })
+
+    expect(fetchRequest).toHaveBeenCalledWith(
+      `/api/properties/${propertyId}/sources/${sourceId}/download?mode=preview`,
+    )
   })
 })

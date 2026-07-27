@@ -11,6 +11,7 @@ import { getPropertyService } from '@/features/properties/server-repository'
 import { getServerUserId } from '@/lib/session'
 import AddFactForm from './AddFactForm'
 import FactsBoard from './FactsBoard'
+import PropertyWorkspaceTabs from './PropertyWorkspaceTabs'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,26 +95,7 @@ export default async function PropertyWorkspacePage({
         </div>
       </header>
 
-      <nav
-        aria-label="Sekcje teczki"
-        className="flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#15252a] p-1.5 text-sm"
-      >
-        {['Przegląd', 'Fakty', 'Źródła', 'Braki', 'Materiały', 'Historia'].map(
-          (item) => (
-            <span
-              key={item}
-              aria-current={item === 'Fakty' ? 'page' : undefined}
-              className={`whitespace-nowrap rounded-full px-4 py-2.5 ${
-                item === 'Fakty'
-                  ? 'bg-[#f7f2e7] font-semibold text-[#162026]'
-                  : 'text-[#93a39e]'
-              }`}
-            >
-              {item}
-            </span>
-          ),
-        )}
-      </nav>
+      <PropertyWorkspaceTabs propertyId={project.id} active="facts" />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)]">
         <main className="rounded-[2.25rem] bg-[#f2ede3] p-4 text-[#162026] shadow-[0_30px_90px_-48px_rgba(0,0,0,0.75)] sm:p-6 lg:p-8">
@@ -145,7 +127,7 @@ export default async function PropertyWorkspacePage({
             <h2 className="mt-2 font-display text-2xl">Uzupełnij paszport</h2>
             <p className="mt-2 text-sm leading-6 text-[#aebdb8]">
               Dodawaj tylko informacje, które mają jasno określony status.
-              Źródła dokumentowe dołączymy w kolejnym etapie.
+              Dokumenty i propozycje AI znajdziesz w zakładce Źródła.
             </p>
             <div className="mt-5">
               <AddFactForm propertyId={project.id} />

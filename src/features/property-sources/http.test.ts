@@ -437,6 +437,45 @@ describe('property source HTTP handlers', () => {
     expect(invalidSource.status).toBe(400)
   })
 
+  it('requests an inline preview only through the explicit query mode', async () => {
+    const context = setup()
+    const project = await context.propertyService.createProject('user-a', {
+      title: 'Mieszkanie testowe',
+      propertyType: 'apartment',
+      transactionType: 'sale',
+      city: 'Poznań',
+      addressMode: 'hidden',
+    })
+    const source = await context.sourceService.registerSource(
+      'user-a',
+      project.id,
+      validSourceBody(),
+    )
+    for (const status of [
+      'uploaded',
+      'scanning',
+      'validating',
+      'queued',
+      'processing',
+      'review_ready',
+    ] as const) {
+      await context.sourceRepository.updateSourceStatusInternal(source.id, {
+        status,
+      })
+    }
+
+    const response = await context.handlers.downloadSource(
+      new Request('http://localhost/api/source/download?mode=preview'),
+      sourceContext(project.id, source.id),
+    )
+
+    expect(response.status).toBe(200)
+    expect(context.createCleanDownloadUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ id: source.id }),
+      'inline',
+    )
+  })
+
   it('returns 409 when a final proposal receives a different decision', async () => {
     const context = await createProposalContext()
     await context.sourceService.decideProposal(

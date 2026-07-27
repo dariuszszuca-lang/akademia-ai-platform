@@ -41,6 +41,7 @@ export class PropertySourceUploadService {
     userId: string,
     propertyProjectId: string,
     sourceId: string,
+    mode: 'download' | 'preview' = 'download',
   ) {
     const source = await this.sourceService.getSource(
       userId,
@@ -51,6 +52,12 @@ export class PropertySourceUploadService {
       throw new Error('SOURCE_NOT_READY')
     }
 
-    return this.objectStore.createCleanDownloadUrl(source)
+    const inlineSafe =
+      source.mediaType === 'application/pdf' ||
+      source.mediaType.startsWith('image/')
+    return this.objectStore.createCleanDownloadUrl(
+      source,
+      mode === 'preview' && inlineSafe ? 'inline' : 'attachment',
+    )
   }
 }

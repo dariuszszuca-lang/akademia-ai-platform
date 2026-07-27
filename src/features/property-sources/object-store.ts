@@ -16,7 +16,10 @@ export type SourceUploadGrant = {
 
 export interface PropertySourceObjectStore {
   createUploadGrant(source: PropertySource): Promise<SourceUploadGrant>
-  createCleanDownloadUrl(source: PropertySource): Promise<{
+  createCleanDownloadUrl(
+    source: PropertySource,
+    disposition?: 'attachment' | 'inline',
+  ): Promise<{
     url: string
     expiresAt: string
   }>
@@ -58,6 +61,13 @@ export function assertExpectedPropertySourceStorageKey(
 export function createAttachmentContentDisposition(
   fileName: string,
 ): string {
+  return createContentDisposition(fileName, 'attachment')
+}
+
+export function createContentDisposition(
+  fileName: string,
+  disposition: 'attachment' | 'inline',
+): string {
   const safeAscii =
     fileName
       .normalize('NFKD')
@@ -72,5 +82,5 @@ export function createAttachmentContentDisposition(
       .slice(0, 180) || 'source',
   )
 
-  return `attachment; filename="${safeAscii}"; filename*=UTF-8''${encoded}`
+  return `${disposition}; filename="${safeAscii}"; filename*=UTF-8''${encoded}`
 }

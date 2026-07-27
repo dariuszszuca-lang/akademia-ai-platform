@@ -3,6 +3,7 @@ import type {
   EvidenceLocator,
   FactProposalStatus,
   PropertySourceStatus,
+  ProposalDecision,
 } from './domain'
 
 const maxSourceBytes = 25 * 1024 * 1024
@@ -137,7 +138,10 @@ export function formatEvidenceLocator(locator: EvidenceLocator): string {
 export function parseCorrectedProposalValue(
   valueType: PropertyFactValueType,
   rawValue: string,
-): unknown {
+): Extract<
+  ProposalDecision,
+  { action: 'correct_and_accept' }
+>['value'] {
   const value = rawValue.trim()
   if (!value) throw new Error('INVALID_CORRECTED_VALUE')
 
@@ -156,7 +160,10 @@ export function parseCorrectedProposalValue(
         throw new Error()
       }
       case 'json':
-        return JSON.parse(value)
+        return JSON.parse(value) as Extract<
+          ProposalDecision,
+          { action: 'correct_and_accept' }
+        >['value']
       case 'date':
         if (
           !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
@@ -233,6 +240,98 @@ export async function uploadPropertySource({
   if (!uploadResponse.ok) throw new Error('SOURCE_UPLOAD_FAILED')
 
   return result.source
+}
+
+export async function fetchPropertySources(
+  propertyId: string,
+  fetchRequest: typeof globalThis.fetch = globalThis.fetch,
+): Promise<PropertySourceWire[]> {
+  const response = await fetchRequest(
+    `/api/properties/${propertyId}/sources`,
+  )
+  if (!response.ok) throw new Error('SOURCE_LIST_FAILED')
+  const result = (await response.json()) as {
+    sources?: PropertySourceWire[]
+  }
+  if (!Array.isArray(result.sources)) throw new Error('SOURCE_LIST_INVALID')
+  return result.sources
+}
+
+export async function fetchPropertyProposals(
+  propertyId: string,
+  fetchRequest: typeof globalThis.fetch = globalThis.fetch,
+): Promise<PropertyFactProposalWire[]> {
+  const response = await fetchRequest(
+    `/api/properties/${propertyId}/proposals`,
+  )
+  if (!response.ok) throw new Error('PROPOSAL_LIST_FAILED')
+  const result = (await response.json()) as {
+    proposals?: PropertyFactProposalWire[]
+  }
+  if (!Array.isArray(result.proposals)) {
+    throw new Error('PROPOSAL_LIST_INVALID')
+  }
+  return result.proposals
+}
+
+export async function decidePropertyProposal({
+  propertyId,
+  proposalId,
+  decision,
+  fetch: fetchRequest = globalThis.fetch,
+}: {
+  propertyId: string
+  proposalId: string
+  decision: ProposalDecision
+  fetch?: typeof globalThis.fetch
+}): Promise<{
+  proposal: PropertyFactProposalWire
+  fact: PropertyFact | null
+}> {
+  const response = await fetchRequest(
+    `/api/properties/${propertyId}/proposals/${proposalId}/decision`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(decision),
+    },
+  )
+  if (!response.ok) throw new Error('PROPOSAL_DECISION_FAILED')
+  const result = (await response.json()) as {
+    proposal?: PropertyFactProposalWire
+    fact?: PropertyFact | null
+  }
+  if (!result.proposal) throw new Error('PROPOSAL_DECISION_INVALID')
+  return {
+    proposal: result.proposal,
+    fact: result.fact ?? null,
+  }
+}
+
+export async function getPropertySourceDownload({
+  propertyId,
+  sourceId,
+  mode = 'download',
+  fetch: fetchRequest = globalThis.fetch,
+}: {
+  propertyId: string
+  sourceId: string
+  mode?: 'download' | 'preview'
+  fetch?: typeof globalThis.fetch
+}): Promise<{ url: string; expiresAt: string }> {
+  const modeQuery = mode === 'preview' ? '?mode=preview' : ''
+  const response = await fetchRequest(
+    `/api/properties/${propertyId}/sources/${sourceId}/download${modeQuery}`,
+  )
+  if (!response.ok) throw new Error('SOURCE_DOWNLOAD_FAILED')
+  const result = (await response.json()) as {
+    url?: string
+    expiresAt?: string
+  }
+  if (!result.url || !result.expiresAt) {
+    throw new Error('SOURCE_DOWNLOAD_INVALID')
+  }
+  return { url: result.url, expiresAt: result.expiresAt }
 }
 
 function formatTimestamp(milliseconds: number): string {

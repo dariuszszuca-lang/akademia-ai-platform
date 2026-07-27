@@ -240,6 +240,25 @@ describe('AwsPropertySourceObjectStore', () => {
     expect(options).toEqual({ expiresIn: 60 })
   })
 
+  it('signs a clean inline preview without weakening scan checks', async () => {
+    const harness = createHarness()
+
+    await expect(
+      harness.store.createCleanDownloadUrl(source, 'inline'),
+    ).resolves.toEqual({
+      url: 'https://download.example.test',
+      expiresAt: '2026-07-27T12:01:00.000Z',
+    })
+
+    const [, previewCommand] = harness.getSignedUrl.mock.calls[0]
+    expect(previewCommand.input.ResponseContentDisposition).toMatch(
+      /^inline;/,
+    )
+    expect(previewCommand.input.ResponseContentDisposition).not.toMatch(
+      /[\r\n]/,
+    )
+  })
+
   it('does not leak AWS identifiers when signing fails', async () => {
     const harness = createHarness()
     harness.createPresignedPost.mockRejectedValueOnce(

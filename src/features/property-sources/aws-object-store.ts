@@ -15,7 +15,7 @@ import type { PropertySource } from './domain'
 import type { AwsPropertySourceConfig } from './aws-config'
 import {
   assertExpectedPropertySourceStorageKey,
-  createAttachmentContentDisposition,
+  createContentDisposition,
   type PropertySourceObjectStore,
   type SourceUploadGrant,
 } from './object-store'
@@ -113,7 +113,10 @@ export class AwsPropertySourceObjectStore
     }
   }
 
-  async createCleanDownloadUrl(source: PropertySource) {
+  async createCleanDownloadUrl(
+    source: PropertySource,
+    disposition: 'attachment' | 'inline' = 'attachment',
+  ) {
     try {
       assertExpectedPropertySourceStorageKey(source)
       const client = this.createClient(
@@ -141,7 +144,7 @@ export class AwsPropertySourceObjectStore
           Bucket: this.config.bucket,
           Key: source.storageKey,
           ResponseContentDisposition:
-            createAttachmentContentDisposition(source.fileName),
+            createContentDisposition(source.fileName, disposition),
         }),
         { expiresIn: 60 },
       )

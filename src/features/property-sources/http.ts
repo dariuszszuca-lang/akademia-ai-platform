@@ -74,16 +74,20 @@ export function createPropertySourceHttpHandlers({
         return NextResponse.json(result, { status: 201 })
       }),
 
-    downloadSource: (_request: Request, context: SourceContext) =>
+    downloadSource: (request: Request, context: SourceContext) =>
       withAuthenticatedUser(getUserId, async (userId) => {
         const { propertyId, sourceId } = sourceParamsSchema.parse(
           await context.params,
         )
+        const requestedMode =
+          new URL(request.url).searchParams.get('mode') ?? 'download'
+        const mode = z.enum(['download', 'preview']).parse(requestedMode)
         return NextResponse.json(
           await getUploadService().createDownloadUrl(
             userId,
             propertyId,
             sourceId,
+            mode,
           ),
         )
       }),
