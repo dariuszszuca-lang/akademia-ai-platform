@@ -4,37 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import QuickActionsPanel from "./QuickActionsPanel";
-
-const navItems = [
-  { name: "Start", href: "/start" },
-  { name: "Nieruchomości", href: "/nieruchomosci" },
-  { name: "Mój profil", href: "/profil" },
-  { name: "Agent", href: "/agent" },
-  { name: "Warsztaty", href: "/programy" },
-  { name: "Skarbiec", href: "/skarbiec" },
-  { name: "Na żywo", href: "/na-zywo" },
-  { name: "Społeczność", href: "/spolecznosc" },
-  { name: "Ludzie", href: "/ludzie" },
-  { name: "O Akademii", href: "/o-akademii" },
-];
-
-const pathAliases: Record<string, string[]> = {
-  "/programy": ["/programy", "/classroom"],
-  "/na-zywo": ["/na-zywo", "/calendar"],
-  "/spolecznosc": ["/spolecznosc", "/community"],
-  "/ludzie": ["/ludzie", "/members"],
-  "/o-akademii": ["/o-akademii", "/about"],
-};
-
-function isActivePath(pathname: string, href: string) {
-  if (href === "/start") {
-    return pathname === "/start";
-  }
-
-  const paths = pathAliases[href] ?? [href];
-  return paths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
+import {
+  PRODUCT_NAME,
+  PRODUCT_NAVIGATION,
+  isProductPathActive,
+} from "@/lib/product";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -63,25 +37,24 @@ export default function Navbar() {
   }, [menuOpen]);
 
   return (
-    <>
       <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-border bg-[color:var(--card)] px-4 py-3 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/start" className="flex items-center gap-3">
               <div className="soft-ring flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),var(--muted-gold))] text-sm font-extrabold text-white">
-                AI
+                PI
               </div>
               <div className="hidden min-w-0 sm:block">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/80">
-                  Akademia AI
+                  {PRODUCT_NAME}
                 </p>
               </div>
             </Link>
           </div>
 
           <nav className="hidden items-center gap-1 rounded-full border border-border/80 bg-background/50 p-1 lg:flex">
-            {navItems.map((item) => {
-              const active = isActivePath(pathname, item.href);
+            {PRODUCT_NAVIGATION.map((item) => {
+              const active = isProductPathActive(pathname, item.href);
 
               return (
                 <Link
@@ -180,8 +153,8 @@ export default function Navbar() {
         </div>
 
         <div className="mx-auto mt-3 flex max-w-7xl gap-2 overflow-x-auto pb-1 lg:hidden">
-          {navItems.map((item) => {
-            const active = isActivePath(pathname, item.href);
+          {PRODUCT_NAVIGATION.map((item) => {
+            const active = isProductPathActive(pathname, item.href);
 
             return (
               <Link
@@ -199,8 +172,5 @@ export default function Navbar() {
           })}
         </div>
       </header>
-
-      <QuickActionsPanel />
-    </>
   );
 }

@@ -4,19 +4,24 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Command } from 'cmdk'
 import { agents } from '@/data/agents'
+import { PRODUCT_NAME, PRODUCT_NAVIGATION } from '@/lib/product'
 
 const NAV_ITEMS: { label: string; href: string; group: string; hint?: string }[] = [
-  { label: 'Start', href: '/start', group: 'Nawigacja', hint: 'Strona główna' },
-  { label: 'Mój profil', href: '/profil', group: 'Nawigacja', hint: 'profil.md, persony' },
-  { label: 'Agenci', href: '/agent', group: 'Nawigacja', hint: 'Lista 6 agentów AI' },
+  ...PRODUCT_NAVIGATION.map((item) => ({
+    label: item.name,
+    href: item.href,
+    group: 'Nawigacja',
+    hint:
+      item.href === '/start'
+        ? 'Przegląd pracy'
+        : item.href === '/nieruchomosci'
+          ? 'Teczki nieruchomości'
+          : item.href === '/agent'
+            ? 'Narzędzia specjalistyczne'
+            : 'Profil zawodowy i persony',
+  })),
   { label: 'Plan i subskrypcja', href: '/settings/subscription', group: 'Nawigacja', hint: 'Aktualny plan, faktury' },
   { label: 'Cennik', href: '/pricing', group: 'Nawigacja', hint: 'Wybierz plan' },
-  { label: 'Warsztaty', href: '/programy', group: 'Nawigacja' },
-  { label: 'Skarbiec', href: '/skarbiec', group: 'Nawigacja' },
-  { label: 'Na żywo', href: '/na-zywo', group: 'Nawigacja' },
-  { label: 'Społeczność', href: '/spolecznosc', group: 'Nawigacja' },
-  { label: 'Ludzie', href: '/ludzie', group: 'Nawigacja' },
-  { label: 'O Akademii', href: '/o-akademii', group: 'Nawigacja' },
 ]
 
 const ONBOARDING_ITEMS = [
@@ -74,7 +79,7 @@ export default function CommandPalette() {
               <path d="m21 21-4.35-4.35" />
             </svg>
             <Command.Input
-              placeholder="Wyszukaj agenta, narzędzie, plik..."
+              placeholder="Wyszukaj teczkę, agenta, narzędzie..."
               className="flex-1 bg-transparent text-foreground placeholder:text-foreground/30 text-[15px] focus:outline-none"
             />
             <span className="kbd">esc</span>
@@ -85,7 +90,7 @@ export default function CommandPalette() {
               Nic nie znaleziono.
             </Command.Empty>
 
-            <Command.Group heading="Agenci AI" className="text-[10px] uppercase tracking-[0.25em] text-foreground/35 px-3 py-2">
+            <Command.Group heading="Zespół AI" className="text-[10px] uppercase tracking-[0.25em] text-foreground/35 px-3 py-2">
               {agents.filter(a => a.enabled).map(a => (
                 <Command.Item
                   key={a.id}
@@ -148,7 +153,7 @@ export default function CommandPalette() {
                 otwórz
               </span>
             </div>
-            <span>Akademia AI</span>
+            <span>{PRODUCT_NAME}</span>
           </div>
         </div>
       </Command.Dialog>
