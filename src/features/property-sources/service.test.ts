@@ -42,7 +42,7 @@ describe('PropertySourceService', () => {
     expect(source.id).not.toBe('forged-id')
     expect(source.organizationId).toBe(project.organizationId)
     expect(source.storageKey).toBe(
-      `organizations/${project.organizationId}/properties/${project.id}/sources/${source.id}/original`,
+      `originals/organizations/${project.organizationId}/properties/${project.id}/sources/${source.id}/original`,
     )
     expect(source.status).toBe('upload_pending')
     expect(source.createdByUserId).toBe('user-a')

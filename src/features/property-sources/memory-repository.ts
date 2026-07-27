@@ -8,6 +8,7 @@ import type {
   ProposalIngestionContext,
   ProposalListFilter,
   PropertySourceRepository,
+  SourceStatusUpdate,
   TrustedProposalInput,
 } from './repository'
 import type {
@@ -15,6 +16,7 @@ import type {
   PropertySource,
   SourceProcessingJob,
 } from './domain'
+import { canTransitionSourceStatus } from './source-lifecycle'
 import { propertyFactValuesEqual } from './value-comparison'
 
 export class MemoryPropertySourceRepository
@@ -34,6 +36,8 @@ export class MemoryPropertySourceRepository
       status: 'upload_pending',
       errorCode: null,
       errorMessage: null,
+      uploadedAt: null,
+      processedAt: null,
       createdAt: now,
       updatedAt: now,
     }
@@ -75,6 +79,34 @@ export class MemoryPropertySourceRepository
   async getSourceInternal(sourceId: string) {
     const source = this.sources.find((candidate) => candidate.id === sourceId)
     return source ? clone(source) : null
+  }
+
+  async updateSourceStatusInternal(
+    sourceId: string,
+    update: SourceStatusUpdate,
+  ) {
+    const source = this.sources.find((candidate) => candidate.id === sourceId)
+    if (!source) return null
+    if (!canTransitionSourceStatus(source.status, update.status)) {
+      throw new Error('INVALID_SOURCE_STATUS_TRANSITION')
+    }
+
+    source.status = update.status
+    if (update.errorCode !== undefined) {
+      source.errorCode = update.errorCode
+    }
+    if (update.errorMessage !== undefined) {
+      source.errorMessage = update.errorMessage
+    }
+    if (update.uploadedAt !== undefined) {
+      source.uploadedAt = update.uploadedAt
+    }
+    if (update.processedAt !== undefined) {
+      source.processedAt = update.processedAt
+    }
+    source.updatedAt = new Date()
+
+    return clone(source)
   }
 
   async createJobInternal(record: NewSourceJobRecord) {

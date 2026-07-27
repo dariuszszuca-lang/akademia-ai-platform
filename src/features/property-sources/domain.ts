@@ -9,9 +9,11 @@ export const propertySourceStatuses = [
   'uploaded',
   'scanning',
   'quarantined',
+  'validating',
   'queued',
   'processing',
   'review_ready',
+  'completed',
   'failed',
   'deleted',
 ] as const
@@ -157,6 +159,8 @@ export type PropertySource = CreatePropertySourceInput & {
   status: PropertySourceStatus
   errorCode: string | null
   errorMessage: string | null
+  uploadedAt: Date | null
+  processedAt: Date | null
   createdByUserId: string
   createdAt: Date
   updatedAt: Date

@@ -53,6 +53,45 @@ describe('PostgresPropertySourceRepository', () => {
     ).rejects.toThrow('PROPERTY_NOT_FOUND')
   })
 
+  it('persists only allowed source lifecycle transitions', async () => {
+    const { source } = await createContext()
+
+    for (const status of [
+      'uploaded',
+      'scanning',
+      'validating',
+      'queued',
+      'processing',
+      'review_ready',
+      'completed',
+    ] as const) {
+      await expect(
+        sourceRepository.updateSourceStatusInternal(source.id, {
+          status,
+          ...(status === 'uploaded'
+            ? { uploadedAt: new Date('2026-07-27T12:00:00.000Z') }
+            : {}),
+          ...(status === 'completed'
+            ? { processedAt: new Date('2026-07-27T12:05:00.000Z') }
+            : {}),
+        }),
+      ).resolves.toMatchObject({ status })
+    }
+
+    await expect(
+      sourceRepository.updateSourceStatusInternal(source.id, {
+        status: 'processing',
+      }),
+    ).rejects.toThrow('INVALID_SOURCE_STATUS_TRANSITION')
+
+    const stored = await sourceRepository.getSourceInternal(source.id)
+    expect(stored).toMatchObject({
+      status: 'completed',
+      uploadedAt: new Date('2026-07-27T12:00:00.000Z'),
+      processedAt: new Date('2026-07-27T12:05:00.000Z'),
+    })
+  })
+
   it('creates jobs and proposals idempotently', async () => {
     const { source, job, proposal } = await createContext()
     const repeatedJob = await sourceService.createProcessingJobInternal({

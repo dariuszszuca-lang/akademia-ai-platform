@@ -29,6 +29,8 @@ describe('property source database schema', () => {
     expect(columns.storageKey.notNull).toBe(true)
     expect(columns.checksumSha256.notNull).toBe(true)
     expect(columns.status.notNull).toBe(true)
+    expect(columns.uploadedAt).toBeDefined()
+    expect(columns.processedAt).toBeDefined()
   })
 
   it('stores idempotency, lifecycle and cost on processing jobs', () => {

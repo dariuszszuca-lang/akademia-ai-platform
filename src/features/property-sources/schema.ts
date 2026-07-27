@@ -60,6 +60,8 @@ export const propertySources = pgTable(
       .default('upload_pending'),
     errorCode: text('error_code'),
     errorMessage: text('error_message'),
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
     createdByUserId: text('created_by_user_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

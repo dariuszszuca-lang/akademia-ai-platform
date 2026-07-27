@@ -29,6 +29,8 @@ const source: PropertySource = {
   status: 'upload_pending',
   errorCode: null,
   errorMessage: null,
+  uploadedAt: null,
+  processedAt: null,
   createdByUserId: 'user-1',
   createdAt: new Date('2026-07-27T12:00:00.000Z'),
   updatedAt: new Date('2026-07-27T12:00:00.000Z'),

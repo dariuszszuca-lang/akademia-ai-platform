@@ -3,6 +3,7 @@ import {
   createPropertySourceSchema,
   evidenceLocatorSchema,
   ingestFactProposalSchema,
+  propertySourceStatuses,
   proposalDecisionSchema,
 } from './domain'
 
@@ -74,11 +75,31 @@ describe('property source domain', () => {
       actorType: 'ai',
       status: 'review_ready',
       organizationId: 'forged-org',
+      uploadedAt: new Date(),
+      processedAt: new Date(),
     })
 
     expect(parsed).not.toHaveProperty('actorType')
     expect(parsed).not.toHaveProperty('status')
     expect(parsed).not.toHaveProperty('organizationId')
+    expect(parsed).not.toHaveProperty('uploadedAt')
+    expect(parsed).not.toHaveProperty('processedAt')
+  })
+
+  it('includes validation and terminal completion in source lifecycle', () => {
+    expect(propertySourceStatuses).toEqual([
+      'upload_pending',
+      'uploaded',
+      'scanning',
+      'quarantined',
+      'validating',
+      'queued',
+      'processing',
+      'review_ready',
+      'completed',
+      'failed',
+      'deleted',
+    ])
   })
 
   it('requires a corrected value for correct_and_accept', () => {

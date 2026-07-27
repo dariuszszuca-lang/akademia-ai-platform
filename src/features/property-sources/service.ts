@@ -13,6 +13,7 @@ import type {
   PropertySourceRepository,
   TrustedProposalInput,
 } from './repository'
+import { createPropertySourceStorageKey } from './object-store'
 import { propertyFactValuesEqual } from './value-comparison'
 
 const createProcessingJobSchema = z.object({
@@ -49,15 +50,11 @@ export class PropertySourceService {
     const project = await this.getProject(userId, propertyProjectId)
     const input = createPropertySourceSchema.parse(rawInput)
     const sourceId = crypto.randomUUID()
-    const storageKey = [
-      'organizations',
-      project.organizationId,
-      'properties',
-      project.id,
-      'sources',
+    const storageKey = createPropertySourceStorageKey({
+      organizationId: project.organizationId,
+      propertyProjectId: project.id,
       sourceId,
-      'original',
-    ].join('/')
+    })
 
     const source = await this.sourceRepository.createSource({
       ...input,

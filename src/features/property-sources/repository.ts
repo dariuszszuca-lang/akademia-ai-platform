@@ -4,6 +4,7 @@ import type {
   IngestFactProposalInput,
   PropertyFactProposal,
   PropertySource,
+  PropertySourceStatus,
   ProposalDecision,
   SourceProcessingJob,
 } from './domain'
@@ -69,6 +70,14 @@ export type PropertySourcesExport = {
   factProposals: PropertyFactProposal[]
 }
 
+export type SourceStatusUpdate = {
+  status: PropertySourceStatus
+  errorCode?: string | null
+  errorMessage?: string | null
+  uploadedAt?: Date | null
+  processedAt?: Date | null
+}
+
 export interface PropertySourceRepository {
   createSource(record: NewPropertySourceRecord): Promise<PropertySource>
   listSources(
@@ -81,6 +90,10 @@ export interface PropertySourceRepository {
     sourceId: string,
   ): Promise<PropertySource | null>
   getSourceInternal(sourceId: string): Promise<PropertySource | null>
+  updateSourceStatusInternal(
+    sourceId: string,
+    update: SourceStatusUpdate,
+  ): Promise<PropertySource | null>
   createJobInternal(
     record: NewSourceJobRecord,
   ): Promise<SourceProcessingJob>

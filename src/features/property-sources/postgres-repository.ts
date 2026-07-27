@@ -31,8 +31,10 @@ import type {
   ProposalIngestionContext,
   ProposalListFilter,
   PropertySourceRepository,
+  SourceStatusUpdate,
   TrustedProposalInput,
 } from './repository'
+import { canTransitionSourceStatus } from './source-lifecycle'
 
 type SourceRow = typeof propertySources.$inferSelect
 type JobRow = typeof sourceProcessingJobs.$inferSelect
@@ -107,6 +109,48 @@ export class PostgresPropertySourceRepository<
       .limit(1)
 
     return source ? mapSource(source) : null
+  }
+
+  async updateSourceStatusInternal(
+    sourceId: string,
+    update: SourceStatusUpdate,
+  ) {
+    return this.database.transaction(async (transaction) => {
+      const [source] = await transaction
+        .select()
+        .from(propertySources)
+        .where(eq(propertySources.id, sourceId))
+        .limit(1)
+        .for('update')
+
+      if (!source) return null
+      if (!canTransitionSourceStatus(source.status, update.status)) {
+        throw new Error('INVALID_SOURCE_STATUS_TRANSITION')
+      }
+
+      const [updated] = await transaction
+        .update(propertySources)
+        .set({
+          status: update.status,
+          ...(update.errorCode !== undefined
+            ? { errorCode: update.errorCode }
+            : {}),
+          ...(update.errorMessage !== undefined
+            ? { errorMessage: update.errorMessage }
+            : {}),
+          ...(update.uploadedAt !== undefined
+            ? { uploadedAt: update.uploadedAt }
+            : {}),
+          ...(update.processedAt !== undefined
+            ? { processedAt: update.processedAt }
+            : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(propertySources.id, sourceId))
+        .returning()
+
+      return updated ? mapSource(updated) : null
+    })
   }
 
   async createJobInternal(record: NewSourceJobRecord) {
@@ -571,6 +615,8 @@ function mapSource(row: SourceRow): PropertySource {
     status: row.status,
     errorCode: row.errorCode,
     errorMessage: row.errorMessage,
+    uploadedAt: row.uploadedAt,
+    processedAt: row.processedAt,
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
