@@ -84,7 +84,27 @@ Przed każdym `cdk diff`, `bootstrap` lub `deploy` trzeba ponownie wykonać
 preflight bezpieczeństwa chmury opisany w workspace AI-Team. Wdrożenie
 produkcyjne wymaga osobnej zgody Darka.
 
-Kolejność wdrożenia:
+### Bramka chmurowa
+
+Przed pierwszym poleceniem korzystającym z konta:
+
+1. ponownie przeczytać `.claude/rules/cloud_safety.md`;
+2. ponownie przeczytać `.claude/rules/credential-protection.md`;
+3. przeczytać `PROJEKTY/AUTOFIRMA/COSTSEC/docs/CLOUD_SAFETY.md`;
+4. przeczytać `PROJEKTY/AUTOFIRMA/COSTSEC/docs/ZASADY.md`;
+5. sprawdzić `DATA/api-inventory.md`;
+6. potwierdzić czysty working tree i zapisać hash rollbacku;
+7. wykonać `aws sts get-caller-identity` bez wypisywania credentiali;
+8. potwierdzić oczekiwane konto i region `eu-central-1`;
+9. zinwentaryzować istniejące providery OIDC, buckety, klucze KMS, plany
+   GuardDuty, budżety oraz bootstrap CDK;
+10. wybrać import lub utworzenie providera OIDC bez duplikacji;
+11. wykonać `cdk diff` i ręcznie sprawdzić zasoby, IAM oraz koszty;
+12. poinformować Darka przed wdrożeniem `dev` z danymi syntetycznymi.
+
+Produkcja pozostaje zablokowana do osobnego, jawnego potwierdzenia.
+
+### Kolejność wdrożenia dev
 
 1. potwierdzić konto, region, środowisko i brak szerszych uprawnień;
 2. sprawdzić, czy provider `oidc.vercel.com/<team>` już istnieje;
@@ -97,6 +117,10 @@ Kolejność wdrożenia:
 9. przesłać syntetyczny plik i sprawdzić skan, blokadę przed skanem oraz
    pobranie po czystym wyniku;
 10. dopiero po smoke teście rozważyć osobny stack `prod`.
+
+Procedurę z plikiem testującym detekcję malware wolno wykonać tylko wtedy,
+gdy aktualne zasady bezpieczeństwa chmury wprost na to pozwalają. W innym
+przypadku smoke test używa wyłącznie nieszkodliwego, syntetycznego PDF.
 
 Oficjalne źródła:
 
