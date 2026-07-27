@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getEffectiveAgents } from "@/lib/module-overrides";
+import { getEffectiveAgents } from "@/lib/agent-overrides";
 import { getProfilMd } from "@/lib/onboarding/state";
 import AgentGate from "@/components/onboarding/AgentGate";
 import AgentWorkspace from "./AgentWorkspace";

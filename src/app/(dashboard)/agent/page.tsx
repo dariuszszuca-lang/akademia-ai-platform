@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { type Agent } from "@/data/agents";
-import { getEffectiveAgents } from "@/lib/module-overrides";
+import { getEffectiveAgents } from "@/lib/agent-overrides";
 import { getProfilMd } from "@/lib/onboarding/state";
 import AgentGate from "@/components/onboarding/AgentGate";
 
@@ -19,12 +19,13 @@ export default async function AgentPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 animate-fade-in-up">
       <header>
-        <p className="eyebrow">Agenci</p>
+        <p className="eyebrow">Zespół AI</p>
         <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">
-          Wybierz agenta do zadania.
+          Dobierz specjalistę do zadania.
         </h1>
         <p className="mt-4 max-w-xl text-sm leading-6 text-foreground/60">
-          Każdy agent jest wyspecjalizowany w swojej domenie — ma zestaw narzędzi do konkretnej pracy.
+          Każdy agent odpowiada za konkretny obszar pracy nad ofertą, klientem
+          albo decyzją biznesową.
         </p>
       </header>
 

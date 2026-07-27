@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { isAuthenticated, isAdminConfigured } from "@/lib/admin-auth";
-import { kvStatus } from "@/lib/module-overrides";
+import { kvStatus } from "@/lib/agent-overrides";
 import AdminDashboard from "./AdminDashboard";
 
 export const dynamic = "force-dynamic";
