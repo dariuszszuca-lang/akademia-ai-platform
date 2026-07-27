@@ -5,6 +5,7 @@ import {
   ingestFactProposalSchema,
   propertySourceStatuses,
   proposalDecisionSchema,
+  sourceJobStatuses,
 } from './domain'
 
 describe('property source domain', () => {
@@ -99,6 +100,18 @@ describe('property source domain', () => {
       'completed',
       'failed',
       'deleted',
+    ])
+  })
+
+  it('includes external waiting and manual review in job lifecycle', () => {
+    expect(sourceJobStatuses).toEqual([
+      'queued',
+      'running',
+      'waiting_external',
+      'succeeded',
+      'failed',
+      'needs_manual_review',
+      'cancelled',
     ])
   })
 

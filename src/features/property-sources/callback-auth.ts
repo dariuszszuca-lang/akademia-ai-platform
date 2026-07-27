@@ -4,6 +4,7 @@ const CALLBACK_MAX_AGE_SECONDS = 300
 const CALLBACK_MAX_FUTURE_SKEW_SECONDS = 30
 const callbackNoncePattern = /^[A-Za-z0-9_-]{32,128}$/
 const callbackSignaturePattern = /^[a-f0-9]{64}$/
+const callbackNonceHashPattern = /^[a-f0-9]{64}$/
 const callbackTimestampPattern = /^\d{1,12}$/
 
 type CallbackSignatureInput = {
@@ -93,6 +94,12 @@ export function hashCallbackNonce(nonce: string): string {
     throw new Error('CALLBACK_NONCE_INVALID')
   }
   return crypto.createHash('sha256').update(nonce).digest('hex')
+}
+
+export function assertCallbackNonceHash(nonceHash: string): void {
+  if (!callbackNonceHashPattern.test(nonceHash)) {
+    throw new Error('INVALID_CALLBACK_NONCE_HASH')
+  }
 }
 
 function hashCallbackBody(body: Uint8Array): string {

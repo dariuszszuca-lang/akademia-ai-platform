@@ -3,12 +3,14 @@ import type { PropertyFact } from '../properties/domain'
 import type { PropertyRepository } from '../properties/repository'
 import type {
   DecideProposalCommand,
+  ClaimCallbackNonceCommand,
   NewSourceJobRecord,
   NewPropertySourceRecord,
   ProposalIngestionContext,
   ProposalListFilter,
   PropertySourceRepository,
   SourceStatusUpdate,
+  SourceJobUpdate,
   TrustedProposalInput,
 } from './repository'
 import type {
@@ -17,13 +19,16 @@ import type {
   SourceProcessingJob,
 } from './domain'
 import { canTransitionSourceStatus } from './source-lifecycle'
+import { canTransitionSourceJobStatus } from './job-lifecycle'
 import { propertyFactValuesEqual } from './value-comparison'
+import { assertCallbackNonceHash } from './callback-auth'
 
 export class MemoryPropertySourceRepository
   implements PropertySourceRepository
 {
   private sources: PropertySource[] = []
   private jobs: SourceProcessingJob[] = []
+  private callbackNonces = new Set<string>()
   private proposals: PropertyFactProposal[] = []
   private decisionFactSnapshots = new Map<string, PropertyFact | null>()
 
@@ -119,10 +124,14 @@ export class MemoryPropertySourceRepository
     const job: SourceProcessingJob = {
       ...record,
       status: 'queued',
+      provider: null,
       inputTokens: null,
       outputTokens: null,
       estimatedCostUsd: null,
+      providerCostMicrounits: null,
+      currency: null,
       errorCode: null,
+      errorMessage: null,
       startedAt: null,
       completedAt: null,
       createdAt: now,
@@ -143,6 +152,47 @@ export class MemoryPropertySourceRepository
       (candidate) => candidate.idempotencyKey === idempotencyKey,
     )
     return job ? clone(job) : null
+  }
+
+  async updateJobInternal(jobId: string, update: SourceJobUpdate) {
+    const job = this.jobs.find((candidate) => candidate.id === jobId)
+    if (!job) return null
+    if (!canTransitionSourceJobStatus(job.status, update.status)) {
+      throw new Error('INVALID_JOB_STATUS_TRANSITION')
+    }
+
+    job.status = update.status
+    for (const field of [
+      'pipelineVersion',
+      'provider',
+      'modelId',
+      'inputTokens',
+      'outputTokens',
+      'estimatedCostUsd',
+      'providerCostMicrounits',
+      'currency',
+      'errorCode',
+      'errorMessage',
+      'startedAt',
+      'completedAt',
+    ] as const) {
+      if (update[field] !== undefined) {
+        Object.assign(job, { [field]: update[field] })
+      }
+    }
+    job.updatedAt = new Date()
+
+    return clone(job)
+  }
+
+  async claimCallbackNonceInternal(command: ClaimCallbackNonceCommand) {
+    assertCallbackNonceHash(command.nonceHash)
+    if (this.callbackNonces.has(command.nonceHash)) {
+      throw new Error('CALLBACK_REPLAYED')
+    }
+    const job = this.jobs.find((candidate) => candidate.id === command.jobId)
+    if (!job) throw new Error('JOB_NOT_FOUND')
+    this.callbackNonces.add(command.nonceHash)
   }
 
   async ingestProposalsInternal(

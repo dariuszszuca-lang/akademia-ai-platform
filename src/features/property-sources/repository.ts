@@ -6,6 +6,7 @@ import type {
   PropertySource,
   PropertySourceStatus,
   ProposalDecision,
+  SourceJobStatus,
   SourceProcessingJob,
 } from './domain'
 import type { PropertyFact } from '../properties/domain'
@@ -25,7 +26,31 @@ export type NewSourceJobRecord = {
   sourceId: string
   idempotencyKey: string
   attempt: number
+  pipelineVersion: string
   modelId: string | null
+}
+
+export type SourceJobUpdate = {
+  status: SourceJobStatus
+  pipelineVersion?: string
+  provider?: string | null
+  modelId?: string | null
+  inputTokens?: number | null
+  outputTokens?: number | null
+  estimatedCostUsd?: string | null
+  providerCostMicrounits?: number | null
+  currency?: string | null
+  errorCode?: string | null
+  errorMessage?: string | null
+  startedAt?: Date | null
+  completedAt?: Date | null
+}
+
+export type ClaimCallbackNonceCommand = {
+  jobId: string
+  nonceHash: string
+  expiresAt: Date
+  usedAt: Date
 }
 
 export type TrustedProposalInput = IngestFactProposalInput & {
@@ -101,6 +126,13 @@ export interface PropertySourceRepository {
   getJobByIdempotencyKeyInternal(
     idempotencyKey: string,
   ): Promise<SourceProcessingJob | null>
+  updateJobInternal(
+    jobId: string,
+    update: SourceJobUpdate,
+  ): Promise<SourceProcessingJob | null>
+  claimCallbackNonceInternal(
+    command: ClaimCallbackNonceCommand,
+  ): Promise<void>
   ingestProposalsInternal(
     context: ProposalIngestionContext,
     proposals: TrustedProposalInput[],

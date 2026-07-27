@@ -42,6 +42,11 @@ describe('property source database schema', () => {
     expect(columns.status.notNull).toBe(true)
     expect(columns.attempt.notNull).toBe(true)
     expect(columns.estimatedCostUsd).toBeDefined()
+    expect(columns.pipelineVersion.notNull).toBe(true)
+    expect(columns.provider).toBeDefined()
+    expect(columns.providerCostMicrounits).toBeDefined()
+    expect(columns.currency).toBeDefined()
+    expect(columns.errorMessage).toBeDefined()
   })
 
   it('stores evidence, conflicts and human decisions on proposals', () => {

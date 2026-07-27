@@ -18,12 +18,14 @@ import {
 } from './domain'
 import { propertyFactValuesEqual } from './value-comparison'
 import {
+  extractionCallbackNonces,
   propertyFactProposals,
   propertySources,
   sourceProcessingJobs,
 } from './schema'
 import type {
   DecideProposalCommand,
+  ClaimCallbackNonceCommand,
   IngestedProposal,
   NewPropertySourceRecord,
   NewSourceJobRecord,
@@ -32,9 +34,12 @@ import type {
   ProposalListFilter,
   PropertySourceRepository,
   SourceStatusUpdate,
+  SourceJobUpdate,
   TrustedProposalInput,
 } from './repository'
 import { canTransitionSourceStatus } from './source-lifecycle'
+import { canTransitionSourceJobStatus } from './job-lifecycle'
+import { assertCallbackNonceHash } from './callback-auth'
 
 type SourceRow = typeof propertySources.$inferSelect
 type JobRow = typeof sourceProcessingJobs.$inferSelect
@@ -192,6 +197,86 @@ export class PostgresPropertySourceRepository<
       .limit(1)
 
     return job ? mapJob(job) : null
+  }
+
+  async updateJobInternal(jobId: string, update: SourceJobUpdate) {
+    return this.database.transaction(async (transaction) => {
+      const [job] = await transaction
+        .select()
+        .from(sourceProcessingJobs)
+        .where(eq(sourceProcessingJobs.id, jobId))
+        .limit(1)
+        .for('update')
+
+      if (!job) return null
+      if (!canTransitionSourceJobStatus(job.status, update.status)) {
+        throw new Error('INVALID_JOB_STATUS_TRANSITION')
+      }
+
+      const [updated] = await transaction
+        .update(sourceProcessingJobs)
+        .set({
+          status: update.status,
+          ...(update.pipelineVersion !== undefined
+            ? { pipelineVersion: update.pipelineVersion }
+            : {}),
+          ...(update.provider !== undefined
+            ? { provider: update.provider }
+            : {}),
+          ...(update.modelId !== undefined ? { modelId: update.modelId } : {}),
+          ...(update.inputTokens !== undefined
+            ? { inputTokens: update.inputTokens }
+            : {}),
+          ...(update.outputTokens !== undefined
+            ? { outputTokens: update.outputTokens }
+            : {}),
+          ...(update.estimatedCostUsd !== undefined
+            ? { estimatedCostUsd: update.estimatedCostUsd }
+            : {}),
+          ...(update.providerCostMicrounits !== undefined
+            ? { providerCostMicrounits: update.providerCostMicrounits }
+            : {}),
+          ...(update.currency !== undefined
+            ? { currency: update.currency }
+            : {}),
+          ...(update.errorCode !== undefined
+            ? { errorCode: update.errorCode }
+            : {}),
+          ...(update.errorMessage !== undefined
+            ? { errorMessage: update.errorMessage }
+            : {}),
+          ...(update.startedAt !== undefined
+            ? { startedAt: update.startedAt }
+            : {}),
+          ...(update.completedAt !== undefined
+            ? { completedAt: update.completedAt }
+            : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(sourceProcessingJobs.id, jobId))
+        .returning()
+
+      return updated ? mapJob(updated) : null
+    })
+  }
+
+  async claimCallbackNonceInternal(command: ClaimCallbackNonceCommand) {
+    assertCallbackNonceHash(command.nonceHash)
+
+    const [claimed] = await this.database
+      .insert(extractionCallbackNonces)
+      .values({
+        nonce: command.nonceHash,
+        jobId: command.jobId,
+        expiresAt: command.expiresAt,
+        usedAt: command.usedAt,
+      })
+      .onConflictDoNothing({
+        target: extractionCallbackNonces.nonce,
+      })
+      .returning({ nonce: extractionCallbackNonces.nonce })
+
+    if (!claimed) throw new Error('CALLBACK_REPLAYED')
   }
 
   async ingestProposalsInternal(

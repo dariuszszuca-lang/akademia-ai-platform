@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  bigint,
   check,
   doublePrecision,
   index,
@@ -105,6 +106,10 @@ export const sourceProcessingJobs = pgTable(
     idempotencyKey: text('idempotency_key').notNull(),
     status: sourceJobStatusEnum('status').notNull().default('queued'),
     attempt: integer('attempt').notNull().default(1),
+    pipelineVersion: text('pipeline_version')
+      .notNull()
+      .default('property-source-v1'),
+    provider: text('provider'),
     modelId: text('model_id'),
     inputTokens: integer('input_tokens'),
     outputTokens: integer('output_tokens'),
@@ -112,7 +117,12 @@ export const sourceProcessingJobs = pgTable(
       precision: 12,
       scale: 6,
     }),
+    providerCostMicrounits: bigint('provider_cost_microunits', {
+      mode: 'number',
+    }),
+    currency: text('currency'),
     errorCode: text('error_code'),
+    errorMessage: text('error_message'),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -131,6 +141,10 @@ export const sourceProcessingJobs = pgTable(
       table.createdAt,
     ),
     check('property_source_jobs_attempt_positive', sql`${table.attempt} > 0`),
+    check(
+      'property_source_jobs_provider_cost_nonnegative',
+      sql`${table.providerCostMicrounits} IS NULL OR ${table.providerCostMicrounits} >= 0`,
+    ),
   ],
 )
 

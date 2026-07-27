@@ -21,8 +21,10 @@ export const propertySourceStatuses = [
 export const sourceJobStatuses = [
   'queued',
   'running',
+  'waiting_external',
   'succeeded',
   'failed',
+  'needs_manual_review',
   'cancelled',
 ] as const
 
@@ -174,11 +176,16 @@ export type SourceProcessingJob = {
   idempotencyKey: string
   status: SourceJobStatus
   attempt: number
+  pipelineVersion: string
+  provider: string | null
   modelId: string | null
   inputTokens: number | null
   outputTokens: number | null
   estimatedCostUsd: string | null
+  providerCostMicrounits: number | null
+  currency: string | null
   errorCode: string | null
+  errorMessage: string | null
   startedAt: Date | null
   completedAt: Date | null
   createdAt: Date

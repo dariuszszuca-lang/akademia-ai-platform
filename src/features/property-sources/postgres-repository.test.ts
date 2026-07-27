@@ -117,6 +117,83 @@ describe('PostgresPropertySourceRepository', () => {
     ).toHaveLength(1)
   })
 
+  it('claims a callback nonce exactly once under concurrent delivery', async () => {
+    const { job } = await createContext()
+    const claim = {
+      jobId: job.id,
+      nonceHash: 'b'.repeat(64),
+      expiresAt: new Date('2026-07-27T12:10:00.000Z'),
+      usedAt: new Date('2026-07-27T12:05:00.000Z'),
+    }
+
+    const results = await Promise.allSettled([
+      sourceRepository.claimCallbackNonceInternal(claim),
+      sourceRepository.claimCallbackNonceInternal(claim),
+    ])
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(
+      1,
+    )
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(
+      1,
+    )
+    await expect(
+      sourceRepository.claimCallbackNonceInternal(claim),
+    ).rejects.toThrow('CALLBACK_REPLAYED')
+  })
+
+  it('rejects a raw callback nonce instead of storing it', async () => {
+    const { job } = await createContext()
+
+    await expect(
+      sourceRepository.claimCallbackNonceInternal({
+        jobId: job.id,
+        nonceHash: 'raw-nonce-must-never-be-persisted',
+        expiresAt: new Date('2026-07-27T12:10:00.000Z'),
+        usedAt: new Date('2026-07-27T12:05:00.000Z'),
+      }),
+    ).rejects.toThrow('INVALID_CALLBACK_NONCE_HASH')
+  })
+
+  it('updates job lifecycle transactionally and rolls back invalid transitions', async () => {
+    const { job } = await createContext()
+    const startedAt = new Date('2026-07-27T12:05:00.000Z')
+
+    await expect(
+      sourceRepository.updateJobInternal(job.id, {
+        status: 'running',
+        pipelineVersion: 'property-source-v1',
+        provider: 'amazon-bedrock',
+        modelId: 'eu.test-model',
+        startedAt,
+      }),
+    ).resolves.toMatchObject({
+      status: 'running',
+      pipelineVersion: 'property-source-v1',
+      provider: 'amazon-bedrock',
+      modelId: 'eu.test-model',
+      startedAt,
+    })
+
+    await expect(
+      sourceRepository.updateJobInternal(job.id, {
+        status: 'queued',
+        providerCostMicrounits: 99,
+        currency: 'USD',
+        errorCode: 'SHOULD_ROLL_BACK',
+        errorMessage: 'This must not be stored.',
+      }),
+    ).rejects.toThrow('INVALID_JOB_STATUS_TRANSITION')
+
+    expect(await sourceRepository.getJobInternal(job.id)).toMatchObject({
+      status: 'running',
+      providerCostMicrounits: null,
+      currency: null,
+      errorCode: null,
+      errorMessage: null,
+    })
+  })
+
   it('detects a conflict against the current fact', async () => {
     const { currentFact, proposal } = await createContext({
       existingValue: 80,

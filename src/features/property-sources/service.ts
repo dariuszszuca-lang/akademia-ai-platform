@@ -20,6 +20,11 @@ const createProcessingJobSchema = z.object({
   sourceId: z.string().uuid(),
   idempotencyKey: z.string().trim().min(8).max(240),
   attempt: z.number().int().positive().max(20),
+  pipelineVersion: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9][a-z0-9._-]{0,79}$/)
+    .default('property-source-v1'),
   modelId: z.string().trim().min(1).max(240).optional(),
 })
 
@@ -126,6 +131,7 @@ export class PropertySourceService {
       sourceId: source.id,
       idempotencyKey: input.idempotencyKey,
       attempt: input.attempt,
+      pipelineVersion: input.pipelineVersion,
       modelId: input.modelId ?? null,
     })
   }
