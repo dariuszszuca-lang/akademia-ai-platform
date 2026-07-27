@@ -253,6 +253,16 @@ export class PostgresPropertyRepository<
     await this.database.insert(propertyAuditEvents).values(record)
   }
 
+  async listAudit(userId: string, projectId: string) {
+    if (!(await this.getProject(userId, projectId))) return []
+
+    return this.database
+      .select()
+      .from(propertyAuditEvents)
+      .where(eq(propertyAuditEvents.propertyProjectId, projectId))
+      .orderBy(desc(propertyAuditEvents.createdAt))
+  }
+
   async exportForUser(userId: string) {
     const memberships = await this.database
       .select({ organizationId: organizationMemberships.organizationId })

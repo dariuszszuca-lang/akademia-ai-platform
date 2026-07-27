@@ -164,6 +164,16 @@ export class MemoryPropertyRepository implements PropertyRepository {
     })
   }
 
+  async listAudit(userId: string, projectId: string) {
+    if (!(await this.getProject(userId, projectId))) return []
+
+    return clone(
+      this.audit
+        .filter((event) => event.propertyProjectId === projectId)
+        .reverse(),
+    )
+  }
+
   async exportForUser(userId: string) {
     const projects = await this.listProjects(userId)
     const projectIds = new Set(projects.map((project) => project.id))

@@ -52,6 +52,7 @@ export interface PropertyRepository {
     factId: string,
     input: UpdatePropertyFactInput,
   ): Promise<PropertyFact | null>
+  listAudit(userId: string, projectId: string): Promise<AuditRecord[]>
   appendAudit(record: Omit<AuditRecord, 'id' | 'createdAt'>): Promise<void>
   exportForUser(userId: string): Promise<{
     projects: PropertyProject[]

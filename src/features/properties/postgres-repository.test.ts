@@ -89,6 +89,28 @@ describe('PostgresPropertyRepository', () => {
     expect(await service.listProjects('user-a')).toHaveLength(0)
     expect(await service.listProjects('user-b')).toHaveLength(1)
   })
+
+  it('returns scoped property audit history newest first', async () => {
+    const project = await createApartment(service, 'user-a')
+    await service.createFact('user-a', project.id, {
+      key: 'area.usable',
+      label: 'Powierzchnia użytkowa',
+      category: 'Powierzchnia',
+      valueType: 'number',
+      value: 52,
+      unit: 'm²',
+      status: 'declared',
+      visibility: 'client',
+      sourceIds: [],
+    })
+
+    expect(
+      (await repository.listAudit('user-a', project.id)).map(
+        (event) => event.action,
+      ),
+    ).toEqual(['fact.created', 'property.created'])
+    expect(await repository.listAudit('user-b', project.id)).toEqual([])
+  })
 })
 
 function createApartment(service: PropertyService, userId: string) {

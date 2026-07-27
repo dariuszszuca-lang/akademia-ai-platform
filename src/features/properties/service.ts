@@ -74,6 +74,11 @@ export class PropertyService {
     return this.repository.listFacts(userId, projectId)
   }
 
+  async listAudit(userId: string, projectId: string) {
+    await this.getProject(userId, projectId)
+    return this.repository.listAudit(userId, projectId)
+  }
+
   async createFact(userId: string, projectId: string, rawInput: unknown) {
     const project = await this.getProject(userId, projectId)
     const input = createPropertyFactSchema.parse(

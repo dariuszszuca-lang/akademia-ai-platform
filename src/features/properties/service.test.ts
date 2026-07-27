@@ -126,6 +126,35 @@ describe('PropertyService', () => {
     expect(exported.projects[0].createdByUserId).toBe('user-a')
     expect(exported.audit.every((event) => event.actorId === 'user-a')).toBe(true)
   })
+
+  it('lists property audit history newest first', async () => {
+    const project = await createApartment(service)
+    await service.createFact('user-a', project.id, {
+      key: 'rooms.count',
+      label: 'Liczba pokoi',
+      category: 'Układ',
+      valueType: 'number',
+      value: 3,
+      status: 'declared',
+      visibility: 'client',
+      sourceIds: [],
+    })
+
+    const history = await service.listAudit('user-a', project.id)
+
+    expect(history.map((event) => event.action)).toEqual([
+      'fact.created',
+      'property.created',
+    ])
+  })
+
+  it('does not expose audit history to another user', async () => {
+    const project = await createApartment(service)
+
+    await expect(service.listAudit('user-b', project.id)).rejects.toThrow(
+      'PROPERTY_NOT_FOUND',
+    )
+  })
 })
 
 async function createApartment(
