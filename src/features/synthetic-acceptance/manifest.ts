@@ -38,7 +38,7 @@ function locatorFor(
   if (kind === 'xlsx' || kind === 'csv') {
     return {
       type: 'sheet',
-      sheet: 'Dane',
+      sheet: kind === 'csv' ? 'CSV' : 'Dane',
       row: index + 2,
       column: String.fromCharCode(66 + index),
     }
@@ -46,8 +46,8 @@ function locatorFor(
 
   return {
     type: 'text',
-    start: index * 40,
-    end: index * 40 + 30,
+    start: index * 201,
+    end: index * 201 + 200,
   }
 }
 

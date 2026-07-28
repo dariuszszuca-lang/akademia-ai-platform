@@ -9,6 +9,9 @@
 # testing
 /coverage
 /cdk.out/
+/Temp/synthetic-acceptance/
+/reports/synthetic-acceptance/*.json
+/reports/synthetic-acceptance/*.run.json
 
 # next.js
 /.next/
