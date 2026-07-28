@@ -234,7 +234,11 @@ async function cleanupRun({
   let databaseEmpty = false
   let s3VersionsRemaining = 0
 
-  await dependencies.registry.save(registry)
+  try {
+    await dependencies.registry.save(registry)
+  } catch {
+    errors.push('registry')
+  }
   if (cookie && userId) {
     try {
       await dependencies.http.deleteAccount(cookie, userId)

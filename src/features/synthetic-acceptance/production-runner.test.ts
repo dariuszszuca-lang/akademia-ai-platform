@@ -120,6 +120,26 @@ describe('production synthetic acceptance guards', () => {
       'syn-20260728T210000Z-deadbeef',
     )
   })
+
+  it('continues remote cleanup when the final local checkpoint fails', async () => {
+    const dependencies = createDependencies()
+    vi.mocked(dependencies.http.executeCorpus).mockRejectedValue(
+      new Error('run_failed'),
+    )
+    vi.mocked(dependencies.registry.save)
+      .mockResolvedValueOnce()
+      .mockResolvedValueOnce()
+      .mockRejectedValueOnce(new Error('disk_unavailable'))
+
+    await expect(
+      runProductionSynthetic(options, dependencies),
+    ).rejects.toThrow('SYNTHETIC_CLEANUP_FAILED:registry')
+
+    expect(dependencies.http.deleteAccount).toHaveBeenCalled()
+    expect(dependencies.aws.deleteCognitoUser).toHaveBeenCalled()
+    expect(dependencies.aws.checkDlq).toHaveBeenCalledTimes(2)
+    expect(dependencies.aws.checkAlarms).toHaveBeenCalledTimes(2)
+  })
 })
 
 function createDependencies(): ProductionSyntheticDependencies {
