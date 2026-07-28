@@ -122,6 +122,7 @@ export function createBedrockEvidenceHandler({
                 converse,
                 modelId,
                 part,
+                await loadDocument(part.s3Uri),
               )
       } catch (error) {
         if (!(error instanceof StructuredEvidenceError)) throw error
@@ -238,12 +239,13 @@ async function invokeImageEvidence(
   converse: Converse,
   modelId: string,
   part: z.infer<typeof preparedImagePartSchema>,
+  imageBytes: Uint8Array,
 ) {
   let lastResponse: ConverseCommandOutput | undefined
   const responses: ConverseCommandOutput[] = []
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const response = await converse(
-      createImageEvidenceRequest(modelId, part),
+      createImageEvidenceRequest(modelId, part, imageBytes),
     )
     lastResponse = response
     responses.push(response)
@@ -265,6 +267,7 @@ class StructuredEvidenceError extends Error {
 function createImageEvidenceRequest(
   modelId: string,
   part: z.infer<typeof preparedImagePartSchema>,
+  imageBytes: Uint8Array,
 ): ConverseCommandInput {
   return {
     modelId,
@@ -288,7 +291,7 @@ function createImageEvidenceRequest(
           {
             image: {
               format: part.format,
-              source: { s3Location: { uri: part.s3Uri } },
+              source: { bytes: imageBytes },
             },
           },
         ],

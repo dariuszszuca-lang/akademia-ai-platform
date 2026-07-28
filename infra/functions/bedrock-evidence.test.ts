@@ -219,6 +219,8 @@ describe('Bedrock evidence mapper worker', () => {
   })
 
   it('extracts bounded visual evidence from an image with a page-one locator', async () => {
+    const imageBytes = new Uint8Array([255, 216, 255, 224])
+    const loadDocument = vi.fn().mockResolvedValue(imageBytes)
     const converse = vi.fn().mockResolvedValue({
       output: {
         message: {
@@ -243,7 +245,10 @@ describe('Bedrock evidence mapper worker', () => {
     const handler = createBedrockEvidenceHandler({
       modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
+      loadDocument,
     })
+    const s3Uri =
+      's3://property-studio-dev-sources/originals/source/original'
 
     const result = await handler({
       sourceId: '00000000-0000-4000-8000-000000000003',
@@ -251,23 +256,22 @@ describe('Bedrock evidence mapper worker', () => {
         {
           kind: 'image',
           format: 'jpeg',
-          s3Uri:
-            's3://property-studio-dev-sources/originals/source/original',
+          s3Uri,
         },
       ],
     })
 
+    expect(loadDocument).toHaveBeenCalledWith(s3Uri)
     const request = converse.mock.calls[0][0]
     expect(request.messages[0].content[1]).toMatchObject({
       image: {
         format: 'jpeg',
-        source: {
-          s3Location: {
-            uri: expect.stringMatching(/^s3:\/\//),
-          },
-        },
+        source: { bytes: imageBytes },
       },
     })
+    expect(
+      request.messages[0].content[1].image.source,
+    ).not.toHaveProperty('s3Location')
     expect(request.outputConfig.textFormat.type).toBe('json_schema')
     const visualEvidenceSchema =
       request.outputConfig.textFormat.structure.jsonSchema.schema
@@ -307,6 +311,9 @@ describe('Bedrock evidence mapper worker', () => {
     const handler = createBedrockEvidenceHandler({
       modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
+      loadDocument: vi
+        .fn()
+        .mockResolvedValue(new Uint8Array([255, 216, 255, 224])),
     })
 
     const result = await handler({
