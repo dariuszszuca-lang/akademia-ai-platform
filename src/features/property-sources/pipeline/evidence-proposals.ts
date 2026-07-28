@@ -169,13 +169,21 @@ export async function runStructuredProposalPass({
       const output = proposalPassOutputSchema.parse(
         await invoke(request, attempt),
       )
+      const proposals = buildEvidenceBackedProposals(
+        propertyType,
+        evidenceMap,
+        output,
+      )
+      if (proposals.length === 0) {
+        return {
+          outcome: 'needs_manual_review' as const,
+          errorCode: 'NO_EVIDENCE' as const,
+          proposals: [],
+        }
+      }
       return {
         outcome: 'succeeded' as const,
-        proposals: buildEvidenceBackedProposals(
-          propertyType,
-          evidenceMap,
-          output,
-        ),
+        proposals,
       }
     } catch (error) {
       if (!isStructuredOutputError(error)) throw error

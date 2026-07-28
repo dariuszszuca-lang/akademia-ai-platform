@@ -222,6 +222,23 @@ describe('evidence-backed property proposal contracts', () => {
     expect(invoke).not.toHaveBeenCalled()
   })
 
+  it('routes evidence without any catalog proposals to manual review', async () => {
+    const invoke = vi.fn().mockResolvedValue({ proposals: [] })
+
+    const result = await runStructuredProposalPass({
+      propertyType: 'apartment',
+      evidenceMap: pageEvidence(),
+      invoke,
+    })
+
+    expect(result).toEqual({
+      outcome: 'needs_manual_review',
+      errorCode: 'NO_EVIDENCE',
+      proposals: [],
+    })
+    expect(invoke).toHaveBeenCalledOnce()
+  })
+
   it('moves an incompatible catalog value to manual review after one retry', async () => {
     const invoke = vi.fn().mockResolvedValue({
       proposals: [
