@@ -77,7 +77,6 @@ export class AwsPropertySourceObjectPurger
       policy: createPurgeSessionPolicy(
         this.config.bucket,
         organizationPrefix,
-        [...allowedKeys],
       ),
     })
     const client = this.dependencies.createS3Client({
@@ -164,29 +163,24 @@ export class AwsPropertySourceObjectPurger
 function createPurgeSessionPolicy(
   bucket: string,
   organizationPrefix: string,
-  storageKeys: string[],
 ) {
+  const organizationObjects = `${organizationPrefix}*`
+
   return JSON.stringify({
     Version: '2012-10-17',
     Statement: [
       {
         Effect: 'Allow',
         Action: ['s3:DeleteObject', 's3:DeleteObjectVersion'],
-        Resource:
-          storageKeys.length === 1
-            ? `arn:aws:s3:::${bucket}/${storageKeys[0]}`
-            : storageKeys.map(
-                (storageKey) =>
-                  `arn:aws:s3:::${bucket}/${storageKey}`,
-              ),
+        Resource: `arn:aws:s3:::${bucket}/${organizationObjects}`,
       },
       {
         Effect: 'Allow',
         Action: 's3:ListBucketVersions',
         Resource: `arn:aws:s3:::${bucket}`,
         Condition: {
-          StringEquals: {
-            's3:prefix': [organizationPrefix, ...storageKeys],
+          StringLike: {
+            's3:prefix': organizationObjects,
           },
         },
       },

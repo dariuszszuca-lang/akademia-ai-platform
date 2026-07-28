@@ -86,23 +86,53 @@ describe('AwsPropertySourceObjectPurger', () => {
         {
           Effect: 'Allow',
           Action: ['s3:DeleteObject', 's3:DeleteObjectVersion'],
-          Resource: `arn:aws:s3:::${config.bucket}/${source.storageKey}`,
+          Resource:
+            `arn:aws:s3:::${config.bucket}/` +
+            `originals/organizations/${organizationId}/*`,
         },
         {
           Effect: 'Allow',
           Action: 's3:ListBucketVersions',
           Resource: `arn:aws:s3:::${config.bucket}`,
           Condition: {
-            StringEquals: {
-              's3:prefix': [
-                `originals/organizations/${organizationId}/`,
-                source.storageKey,
-              ],
+            StringLike: {
+              's3:prefix':
+                `originals/organizations/${organizationId}/*`,
             },
           },
         },
       ],
     })
+  })
+
+  it('keeps the STS session policy below the AWS limit for many sources', async () => {
+    const send = vi.fn(async (command: { constructor: { name: string } }) => {
+      if (command.constructor.name === 'ListObjectVersionsCommand') {
+        return { Versions: [], DeleteMarkers: [], IsTruncated: false }
+      }
+      throw new Error('unexpected_command')
+    })
+    const credentials = vi.fn() as unknown as ReturnType<
+      AwsObjectPurgeDependencies['createCredentialsProvider']
+    >
+    const createCredentialsProvider = vi.fn<
+      AwsObjectPurgeDependencies['createCredentialsProvider']
+    >(() => credentials)
+    const purger = new AwsPropertySourceObjectPurger(config, {
+      createCredentialsProvider,
+      createS3Client: () => ({ send }) as unknown as S3Client,
+    })
+    const sources = Array.from({ length: 20 }, (_, index) =>
+      createSourceForIndex(index),
+    )
+
+    await expect(purger.purgeSources(sources)).resolves.toEqual({
+      deletedVersions: 0,
+    })
+
+    const policy =
+      createCredentialsProvider.mock.calls[0][0].policy ?? ''
+    expect(Buffer.byteLength(policy, 'utf8')).toBeLessThanOrEqual(2048)
   })
 
   it('rejects an empty or mixed-organization purge before AWS calls', async () => {
@@ -157,5 +187,17 @@ function createSource(
     createdByUserId: 'user-a',
     createdAt: new Date(),
     updatedAt: new Date(),
+  }
+}
+
+function createSourceForIndex(index: number): PropertySource {
+  const id =
+    `33333333-3333-4333-8333-${String(index).padStart(12, '0')}`
+  return {
+    ...source,
+    id,
+    storageKey:
+      `originals/organizations/${organizationId}/properties/` +
+      `${source.propertyProjectId}/sources/${id}/original`,
   }
 }
