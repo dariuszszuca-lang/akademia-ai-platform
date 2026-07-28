@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 type PropertyWorkspaceTabsProps = {
   propertyId: string
-  active: 'facts' | 'sources'
+  active: 'facts' | 'sources' | 'issues' | 'history'
 }
 
 export default function PropertyWorkspaceTabs({
@@ -19,6 +19,11 @@ export default function PropertyWorkspaceTabs({
       id: 'sources' as const,
       label: 'Źródła',
       href: `/nieruchomosci/${propertyId}/zrodla`,
+    },
+    {
+      id: 'issues' as const,
+      label: 'Braki',
+      href: `/nieruchomosci/${propertyId}/braki`,
     },
   ]
 
@@ -45,7 +50,7 @@ export default function PropertyWorkspaceTabs({
         )
       })}
 
-      {['Braki', 'Materiały', 'Historia'].map((item) => (
+      {['Materiały', 'Historia'].map((item) => (
         <span
           key={item}
           aria-disabled="true"
