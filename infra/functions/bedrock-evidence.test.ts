@@ -46,6 +46,44 @@ describe('Bedrock evidence mapper worker', () => {
     ).not.toHaveProperty('s3Location')
   })
 
+  it('sends extracted UTF-8 text through the Bedrock text source', async () => {
+    const text = 'EVID-SYN-1 | Stan prawny: pełna własność'
+    const loadDocument = vi
+      .fn()
+      .mockResolvedValue(new TextEncoder().encode(text))
+    const converse = vi.fn().mockResolvedValue({
+      output: {
+        message: {
+          role: 'assistant',
+          content: [],
+        },
+      },
+    })
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
+      converse,
+      loadDocument,
+    })
+
+    await handler({
+      sourceId: '00000000-0000-4000-8000-000000000003',
+      preparedParts: [
+        {
+          kind: 'document',
+          format: 'txt',
+          s3Uri:
+            's3://property-studio-dev-sources/work/source/part-001.txt',
+          pageOffset: 0,
+        },
+      ],
+    })
+
+    const source =
+      converse.mock.calls[0][0].messages[0].content[1].document.source
+    expect(source).toEqual({ text })
+    expect(source).not.toHaveProperty('bytes')
+  })
+
   it('maps only Bedrock citations to strict evidence locators', async () => {
     const converse = vi.fn().mockResolvedValue({
       output: {

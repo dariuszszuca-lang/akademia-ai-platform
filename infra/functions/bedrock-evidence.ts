@@ -201,7 +201,14 @@ function createEvidenceRequest(
             document: {
               format: part.format,
               name: 'property-source',
-              source: { bytes: documentBytes },
+              source:
+                part.format === 'txt'
+                  ? {
+                      text: new TextDecoder('utf-8', {
+                        fatal: true,
+                      }).decode(documentBytes),
+                    }
+                  : { bytes: documentBytes },
               citations: { enabled: true },
             },
           },
