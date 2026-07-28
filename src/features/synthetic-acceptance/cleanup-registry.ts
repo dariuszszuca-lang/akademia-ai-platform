@@ -9,12 +9,18 @@ import { z } from 'zod'
 import { runIdSchema } from './domain'
 
 const uuidSchema = z.string().uuid()
+const cognitoSubjectSchema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    'SYNTHETIC_COGNITO_SUB_INVALID',
+  )
 
 const cleanupRegistrySchema = z
   .object({
     runId: runIdSchema,
     username: z.string().max(160),
-    cognitoSub: uuidSchema.nullable(),
+    cognitoSub: cognitoSubjectSchema.nullable(),
     organizationId: uuidSchema.nullable(),
     organizationPrefix: z.string().max(240).nullable(),
     projectIds: z.array(uuidSchema),

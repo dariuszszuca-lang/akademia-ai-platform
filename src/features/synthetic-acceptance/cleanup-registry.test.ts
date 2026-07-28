@@ -71,4 +71,23 @@ describe('synthetic cleanup registry', () => {
       }),
     ).toThrow('SYNTHETIC_CLEANUP_PREFIX_INVALID')
   })
+
+  it('accepts the current UUID-shaped Cognito subject format', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'studio-cleanup-registry-cognito-'),
+    )
+    const registry = createSyntheticCleanupRegistry({
+      runId: 'syn-20260728T210000Z-feedface',
+      startedAt: '2026-07-28T21:00:00.000Z',
+    })
+    registry.cognitoSub = '55555555-5555-7555-2555-555555555555'
+
+    try {
+      await expect(
+        saveSyntheticCleanupRegistry(workspaceRoot, registry),
+      ).resolves.toContain(`${registry.runId}.run.json`)
+    } finally {
+      await rm(workspaceRoot, { recursive: true, force: true })
+    }
+  })
 })
