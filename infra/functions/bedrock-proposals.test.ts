@@ -133,7 +133,7 @@ describe('Bedrock proposal builder worker', () => {
     })
   })
 
-  it('skips Bedrock entirely when there is no cited evidence', async () => {
+  it('routes missing evidence to manual review without calling Bedrock', async () => {
     const converse = vi.fn()
     const handler = createBedrockProposalHandler({
       modelId: 'eu.anthropic.claude-sonnet-4-6',
@@ -147,8 +147,8 @@ describe('Bedrock proposal builder worker', () => {
 
     expect(converse).not.toHaveBeenCalled()
     expect(result.result).toMatchObject({
-      outcome: 'succeeded',
-      proposals: [],
+      outcome: 'needs_manual_review',
+      errorCode: 'NO_EVIDENCE',
       inputTokens: 0,
       outputTokens: 0,
       durationMs: 0,

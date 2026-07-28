@@ -157,7 +157,8 @@ export async function runStructuredProposalPass({
   const evidenceMap = evidenceMapSchema.parse(rawEvidenceMap)
   if (evidenceMap.evidence.length === 0) {
     return {
-      outcome: 'succeeded' as const,
+      outcome: 'needs_manual_review' as const,
+      errorCode: 'NO_EVIDENCE' as const,
       proposals: [],
     }
   }

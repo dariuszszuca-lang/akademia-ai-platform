@@ -14,7 +14,10 @@ import {
   saveSyntheticCleanupRegistry,
   type SyntheticCleanupRegistry,
 } from './cleanup-registry'
-import { runIdSchema } from './domain'
+import {
+  runIdSchema,
+  type SyntheticMaterial,
+} from './domain'
 import { generateSyntheticCorpus } from './generator'
 import { syntheticCorpus } from './manifest'
 import {
@@ -457,18 +460,10 @@ async function executeCorpusHttp(
         project.id,
         registered.source.id,
       )
-      if (
-        material.expectedOutcome === 'controlled_failure' &&
-        terminalSource.status !== 'failed'
-      ) {
-        throw new Error('SYNTHETIC_CONTROLLED_FAILURE_MISSING')
-      }
-      if (
-        material.expectedOutcome === 'review_ready' &&
-        !['review_ready', 'completed'].includes(terminalSource.status)
-      ) {
-        throw new Error('SYNTHETIC_SOURCE_NOT_REVIEW_READY')
-      }
+      assertExpectedSyntheticSourceOutcome(
+        material.expectedOutcome,
+        terminalSource,
+      )
     }
   }
 
@@ -511,6 +506,31 @@ async function executeCorpusHttp(
     ),
   ]
   return { observations, jobs, modelIds }
+}
+
+export function assertExpectedSyntheticSourceOutcome(
+  expectedOutcome: SyntheticMaterial['expectedOutcome'],
+  source: Pick<PropertySource, 'status' | 'errorCode'>,
+) {
+  if (
+    expectedOutcome === 'review_ready' &&
+    !['review_ready', 'completed'].includes(source.status)
+  ) {
+    throw new Error('SYNTHETIC_SOURCE_NOT_REVIEW_READY')
+  }
+  if (
+    expectedOutcome === 'needs_manual_review' &&
+    (source.status !== 'review_ready' ||
+      source.errorCode !== 'NO_EVIDENCE')
+  ) {
+    throw new Error('SYNTHETIC_MANUAL_REVIEW_MISSING')
+  }
+  if (
+    expectedOutcome === 'controlled_failure' &&
+    source.status !== 'failed'
+  ) {
+    throw new Error('SYNTHETIC_CONTROLLED_FAILURE_MISSING')
+  }
 }
 
 async function waitForTerminalSource(

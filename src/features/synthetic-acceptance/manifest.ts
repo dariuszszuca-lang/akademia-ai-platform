@@ -237,7 +237,7 @@ const apartmentWithConflicts: SyntheticCase = {
       caseCode: 'SYN-M-02',
       kind: 'png',
       fileName: 'syn-m-02-nieczytelny.png',
-      expectedOutcome: 'controlled_failure',
+      expectedOutcome: 'needs_manual_review',
       facts: [],
     }),
     material({
@@ -625,7 +625,7 @@ const plotWithConflicts: SyntheticCase = {
       caseCode: 'SYN-P-02',
       kind: 'txt',
       fileName: 'syn-p-02-nieczytelny.txt',
-      expectedOutcome: 'controlled_failure',
+      expectedOutcome: 'needs_manual_review',
       facts: [],
     }),
   ],

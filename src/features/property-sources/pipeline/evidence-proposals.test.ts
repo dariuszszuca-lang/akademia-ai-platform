@@ -205,7 +205,7 @@ describe('evidence-backed property proposal contracts', () => {
     })
   })
 
-  it('returns zero proposals without invoking the model when evidence is empty', async () => {
+  it('routes empty evidence to manual review without invoking the model', async () => {
     const invoke = vi.fn()
 
     const result = await runStructuredProposalPass({
@@ -214,7 +214,11 @@ describe('evidence-backed property proposal contracts', () => {
       invoke,
     })
 
-    expect(result).toEqual({ outcome: 'succeeded', proposals: [] })
+    expect(result).toEqual({
+      outcome: 'needs_manual_review',
+      errorCode: 'NO_EVIDENCE',
+      proposals: [],
+    })
     expect(invoke).not.toHaveBeenCalled()
   })
 

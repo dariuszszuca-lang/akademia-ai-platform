@@ -92,10 +92,10 @@ describe('synthetic acceptance manifest', () => {
     }
   })
 
-  it('includes two controlled non-success materials', () => {
+  it('routes exactly two evidence-free materials to manual review', () => {
     expect(
       materials.filter(
-        (item) => item.expectedOutcome !== 'review_ready',
+        (item) => item.expectedOutcome === 'needs_manual_review',
       ),
     ).toHaveLength(2)
   })
