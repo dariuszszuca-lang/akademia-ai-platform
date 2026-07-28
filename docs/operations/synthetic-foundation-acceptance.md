@@ -16,12 +16,13 @@ Korpus odbiorczy zawiera:
 Model produkcyjny pozostaje bez zmian:
 `eu.anthropic.claude-sonnet-4-6`.
 
-## Stan produkcyjny po wdrożeniu A1
+## Stan produkcyjny po odbiorze
 
 Wdrożenie z 28 lipca 2026 r.:
 
-- commit produkcyjny: `cedf0e1`;
-- rollback aplikacji: `2648392`;
+- commit produkcyjny: `eb1c6e078be09b6e1085ac5adf3137623a043b98`;
+- pełny rollback sprzed modułu M2: `f704d605359e0d3db607701d2aa539d0a08de998`;
+- punkt przed finalnymi poprawkami benchmarku: `b80990bf2b2db7d887b201d3f78c6ad771863607`;
 - stack: `PropertySourceStorage-prod`, status `UPDATE_COMPLETE`;
 - ochrona stacka przed usunięciem: włączona;
 - migracja: `0006_studio_product_events`, zastosowana i idempotentna;
@@ -33,9 +34,10 @@ Wdrożenie z 28 lipca 2026 r.:
 - rola nie ma dołączonych polityk zarządzanych;
 - domena produkcyjna: `https://akademia-ai-platform.vercel.app`;
 - `/start` i `/login`: HTTP 200;
+- bramy lokalne: 472/472 testy aplikacji, 78/78 testów infrastruktury,
+  TypeScript, lint, build i audyt zależności bez podatności;
 - alarmy w stanie `ALARM`: 0;
 - wiadomości widoczne i przetwarzane w DLQ: 0/0;
-- błędy runtime i odpowiedzi 5xx nowego wdrożenia Vercel: 0/0;
 - kontrolny `cdk diff`: 0 różnic.
 
 Backup Neon wykonano przed migracją i zweryfikowano przez odczyt katalogu
@@ -43,10 +45,25 @@ Backup Neon wykonano przed migracją i zweryfikowano przez odczyt katalogu
 uprawnieniami właściciela. Runbook nie zapisuje connection stringa ani żadnej
 wartości sekretnej.
 
-Pełny smoke uwierzytelnionych zakładek `Przegląd`, `Źródła`, `Braki` i
-`Historia` oraz izolacja cudzej teczki 404 są częścią osobnego benchmarku
-produkcyjnego. Do czasu jego przejścia fundament nie otrzymuje statusu
-„gotowy do M3”.
+Pełny benchmark produkcyjny zakończył się wynikiem zaakceptowanym:
+
+- run: `syn-20260728T203005Z-f50144d6`;
+- 5 przypadków i 20 materiałów;
+- 54/54 fakty referencyjne;
+- precyzja: 94,92%;
+- pokrycie locatorów: 100%;
+- konflikty: 5/5, bez fałszywych konfliktów;
+- dwa zaplanowane materiały bez wystarczających dowodów zostały skierowane
+  do ręcznej weryfikacji z kodem `NO_EVIDENCE`;
+- brak automatycznie potwierdzonych propozycji i brak duplikatów;
+- koszt Bedrock: 0,224907 USD;
+- model: `eu.anthropic.claude-sonnet-4-6`;
+- cleanup: baza pusta, użytkownik Cognito usunięty, S3 0 wersji i 0 delete
+  markerów, DLQ 0/0, alarmy 0.
+
+Po cleanupie wszystkie powyższe warunki zostały sprawdzone niezależnym
+odczytem live. Fundament ma status gotowy do dalszych modułów, ale benchmark
+syntetyczny nie zastępuje pilota z prawdziwymi agentami.
 
 ## Bramka przed uruchomieniem benchmarku
 
@@ -111,7 +128,9 @@ bucketa.
 
 ## Rollback
 
-- aplikacja: powrót do commita `2648392`;
+- aplikacja, pełny powrót sprzed modułu M2: `f704d605359e0d3db607701d2aa539d0a08de998`;
+- punkt przed finalnymi poprawkami benchmarku:
+  `b80990bf2b2db7d887b201d3f78c6ad771863607`;
 - baza: addytywna tabela `studio_product_events` pozostaje nieużywana;
 - IAM: kontrolowany revert zmian CDK i ponowny deploy po osobnej zgodzie;
 - Account Public Access Block, baseline bezpieczeństwa, dane audytowe i
