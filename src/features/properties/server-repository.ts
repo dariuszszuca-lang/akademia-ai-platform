@@ -1,5 +1,6 @@
 import 'server-only'
 import { getDb } from '@/lib/db/client'
+import { getStudioEventService } from '../studio-events/server-repository'
 import { PostgresPropertyRepository } from './postgres-repository'
 import type { PropertyRepository } from './repository'
 import { PropertyService } from './service'
@@ -13,6 +14,9 @@ export function getPropertyRepository() {
 }
 
 export function getPropertyService() {
-  propertyService ??= new PropertyService(getPropertyRepository())
+  propertyService ??= new PropertyService(
+    getPropertyRepository(),
+    getStudioEventService(),
+  )
   return propertyService
 }

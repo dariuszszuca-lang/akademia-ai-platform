@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { MemoryPropertyRepository } from '../properties/memory-repository'
 import { PropertyService } from '../properties/service'
+import { MemoryStudioEventRepository } from '../studio-events/memory-repository'
+import { StudioEventService } from '../studio-events/service'
 import { MemoryPropertySourceRepository } from './memory-repository'
 import { PropertySourceCallbackService } from './callback-service'
 import { PropertySourceService } from './service'
@@ -10,6 +12,8 @@ const callbackTime = new Date('2026-07-27T12:05:00.000Z')
 describe('PropertySourceCallbackService', () => {
   let propertyRepository: MemoryPropertyRepository
   let sourceRepository: MemoryPropertySourceRepository
+  let eventRepository: MemoryStudioEventRepository
+  let eventService: StudioEventService
   let propertyService: PropertyService
   let sourceService: PropertySourceService
   let callbackService: PropertySourceCallbackService
@@ -17,15 +21,19 @@ describe('PropertySourceCallbackService', () => {
   beforeEach(() => {
     propertyRepository = new MemoryPropertyRepository()
     sourceRepository = new MemoryPropertySourceRepository(propertyRepository)
-    propertyService = new PropertyService(propertyRepository)
+    eventRepository = new MemoryStudioEventRepository(propertyRepository)
+    eventService = new StudioEventService(eventRepository)
+    propertyService = new PropertyService(propertyRepository, eventService)
     sourceService = new PropertySourceService(
       propertyRepository,
       sourceRepository,
+      eventService,
     )
     callbackService = new PropertySourceCallbackService(
       propertyRepository,
       sourceRepository,
       sourceService,
+      eventService,
     )
   })
 
@@ -166,6 +174,21 @@ describe('PropertySourceCallbackService', () => {
       evidenceText: 'Powierzchnia użytkowa: 83,40 m²',
     })
     expect(await propertyService.listFacts('user-a', project.id)).toEqual([])
+    const events = (await eventRepository.exportForUser('user-a')).filter(
+      (event) => event.name === 'source.review_ready',
+    )
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      propertyProjectId: project.id,
+      userId: 'user-a',
+      metadata: {
+        sourceStatus: 'review_ready',
+        durationMs: 730,
+        providerCostMicrounits: 99,
+        pipelineVersion: 'property-source-v1',
+        modelFamily: 'amazon-bedrock',
+      },
+    })
   })
 
   it('rejects a result for a different checksum before writing proposals', async () => {

@@ -1,22 +1,29 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { MemoryPropertyRepository } from '../properties/memory-repository'
 import { PropertyService } from '../properties/service'
+import { MemoryStudioEventRepository } from '../studio-events/memory-repository'
+import { StudioEventService } from '../studio-events/service'
 import { MemoryPropertySourceRepository } from './memory-repository'
 import { PropertySourceService } from './service'
 
 describe('PropertySourceService', () => {
   let propertyRepository: MemoryPropertyRepository
   let sourceRepository: MemoryPropertySourceRepository
+  let eventRepository: MemoryStudioEventRepository
+  let eventService: StudioEventService
   let propertyService: PropertyService
   let sourceService: PropertySourceService
 
   beforeEach(() => {
     propertyRepository = new MemoryPropertyRepository()
     sourceRepository = new MemoryPropertySourceRepository(propertyRepository)
-    propertyService = new PropertyService(propertyRepository)
+    eventRepository = new MemoryStudioEventRepository(propertyRepository)
+    eventService = new StudioEventService(eventRepository)
+    propertyService = new PropertyService(propertyRepository, eventService)
     sourceService = new PropertySourceService(
       propertyRepository,
       sourceRepository,
+      eventService,
     )
   })
 
@@ -72,6 +79,32 @@ describe('PropertySourceService', () => {
     expect(await sourceService.listSources('user-a', project.id)).toHaveLength(
       2,
     )
+  })
+
+  it('emits one source registration event after the source and audit exist', async () => {
+    const project = await createApartment(propertyService, 'user-a')
+    const source = await sourceService.registerSource(
+      'user-a',
+      project.id,
+      {
+        fileName: 'rzut.pdf',
+        mediaType: 'application/pdf',
+        sizeBytes: 2_000,
+        checksumSha256: '1'.repeat(64),
+      },
+    )
+
+    const events = (await eventRepository.exportForUser('user-a')).filter(
+      (event) => event.name === 'source.registered',
+    )
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      organizationId: project.organizationId,
+      propertyProjectId: project.id,
+      userId: 'user-a',
+      metadata: { sourceStatus: source.status },
+    })
   })
 
   it('lists sources newest first and returns a selected source', async () => {
@@ -505,10 +538,21 @@ describe('PropertySourceService', () => {
       decision,
     )
 
-    expect(second).toEqual(first)
+    expect(first.decisionCreated).toBe(true)
+    expect(second.decisionCreated).toBe(false)
+    expect(second.proposal).toEqual(first.proposal)
+    expect(second.fact).toEqual(first.fact)
     expect(await propertyService.listFacts('user-a', project.id)).toHaveLength(
       1,
     )
+    const decisionEvents = (
+      await eventRepository.exportForUser('user-a')
+    ).filter((event) => event.name === 'proposal.decided')
+    expect(decisionEvents).toHaveLength(1)
+    expect(decisionEvents[0].metadata).toEqual({
+      proposalStatus: 'accepted',
+      decisionAction: 'accept',
+    })
   })
 
   it('keeps the original idempotent response after the fact changes later', async () => {
@@ -534,7 +578,10 @@ describe('PropertySourceService', () => {
       decision,
     )
 
-    expect(repeated).toEqual(first)
+    expect(first.decisionCreated).toBe(true)
+    expect(repeated.decisionCreated).toBe(false)
+    expect(repeated.proposal).toEqual(first.proposal)
+    expect(repeated.fact).toEqual(first.fact)
     expect(
       (await propertyService.listFacts('user-a', project.id))[0].value,
     ).toBe(90)

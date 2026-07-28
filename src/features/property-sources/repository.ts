@@ -88,6 +88,7 @@ export type DecideProposalCommand = {
 export type ProposalDecisionResult = {
   proposal: PropertyFactProposal
   fact: PropertyFact | null
+  decisionCreated: boolean
 }
 
 export type PropertySourcesExport = {

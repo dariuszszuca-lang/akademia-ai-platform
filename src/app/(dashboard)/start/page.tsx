@@ -13,6 +13,7 @@ export default async function StartPage() {
   if (!userId) redirect('/login')
 
   const service = getPropertyService()
+  await service.recordSessionStarted(userId)
   const projects = await service.listProjects(userId)
   const factEntries = await Promise.all(
     projects.map(async (project) => [

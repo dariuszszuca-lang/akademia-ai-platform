@@ -393,7 +393,10 @@ describe('PostgresPropertySourceRepository', () => {
       decision,
     )
 
-    expect(repeated).toEqual(first)
+    expect(first.decisionCreated).toBe(true)
+    expect(repeated.decisionCreated).toBe(false)
+    expect(repeated.proposal).toEqual(first.proposal)
+    expect(repeated.fact).toEqual(first.fact)
     expect(
       (await propertyService.listFacts('user-a', context.project.id))[0].value,
     ).toBe(90)

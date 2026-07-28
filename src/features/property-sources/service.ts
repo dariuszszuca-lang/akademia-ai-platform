@@ -1,6 +1,11 @@
 import crypto from 'node:crypto'
 import { z } from 'zod'
 import type { PropertyRepository } from '../properties/repository'
+import {
+  noopStudioEventSink,
+  type StudioEventInput,
+  type StudioEventSink,
+} from '../studio-events/domain'
 import { resolveFactDefinition } from './catalog'
 import {
   createPropertySourceSchema,
@@ -45,6 +50,7 @@ export class PropertySourceService {
   constructor(
     private readonly propertyRepository: PropertyRepository,
     private readonly sourceRepository: PropertySourceRepository,
+    private readonly events: StudioEventSink = noopStudioEventSink,
   ) {}
 
   async registerSource(
@@ -80,6 +86,14 @@ export class PropertySourceService {
       entityId: source.id,
       before: null,
       after: source,
+    })
+    await this.recordStudioEvent({
+      organizationId: project.organizationId,
+      userId,
+      propertyProjectId: project.id,
+      name: 'source.registered',
+      contractVersion: 'studio-events-v1',
+      metadata: { sourceStatus: source.status },
     })
 
     return source
@@ -261,7 +275,7 @@ export class PropertySourceService {
       validateDecisionForStatus(proposal.status, decision.action)
     }
 
-    return this.sourceRepository.decideProposal({
+    const result = await this.sourceRepository.decideProposal({
       userId,
       organizationId: project.organizationId,
       propertyProjectId: project.id,
@@ -269,6 +283,20 @@ export class PropertySourceService {
       decision,
       decisionFingerprint: fingerprint,
     })
+    if (result.decisionCreated) {
+      await this.recordStudioEvent({
+        organizationId: project.organizationId,
+        userId,
+        propertyProjectId: project.id,
+        name: 'proposal.decided',
+        contractVersion: 'studio-events-v1',
+        metadata: {
+          proposalStatus: result.proposal.status,
+          decisionAction: decision.action,
+        },
+      })
+    }
+    return result
   }
 
   private async getProject(userId: string, propertyProjectId: string) {
@@ -278,6 +306,14 @@ export class PropertySourceService {
     )
     if (!project) throw new Error('PROPERTY_NOT_FOUND')
     return project
+  }
+
+  private async recordStudioEvent(input: StudioEventInput) {
+    try {
+      await this.events.record(input)
+    } catch {
+      console.error('studio_event_write_failed')
+    }
   }
 }
 

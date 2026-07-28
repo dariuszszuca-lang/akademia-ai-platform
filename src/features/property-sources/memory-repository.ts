@@ -279,6 +279,7 @@ export class MemoryPropertySourceRepository
           proposal.id,
           command.decisionFingerprint,
         ),
+        decisionCreated: false,
       }
     }
 
@@ -420,7 +421,11 @@ export class MemoryPropertySourceRepository
       after: { proposal: clone(proposal), fact },
     })
 
-    return { proposal: clone(proposal), fact: fact ? clone(fact) : null }
+    return {
+      proposal: clone(proposal),
+      fact: fact ? clone(fact) : null,
+      decisionCreated: true,
+    }
   }
 
   private getDecisionFactSnapshot(

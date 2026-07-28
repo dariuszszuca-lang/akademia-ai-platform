@@ -33,6 +33,7 @@ export default async function PropertyWorkspacePage({
     userId,
     propertyId,
   )
+  await service.recordPropertyOpened(userId, project.id)
   const unresolved = getUnresolvedFacts(facts)
   const confirmedCount = facts.filter(
     (fact) => fact.status === 'confirmed',

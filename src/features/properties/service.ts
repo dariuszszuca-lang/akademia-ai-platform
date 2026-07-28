@@ -5,12 +5,44 @@ import {
   updatePropertySchema,
 } from './domain'
 import type { PropertyRepository } from './repository'
+import {
+  noopStudioEventSink,
+  type StudioEventInput,
+  type StudioEventSink,
+} from '../studio-events/domain'
 
 export class PropertyService {
-  constructor(private readonly repository: PropertyRepository) {}
+  constructor(
+    private readonly repository: PropertyRepository,
+    private readonly events: StudioEventSink = noopStudioEventSink,
+  ) {}
 
   listProjects(userId: string) {
     return this.repository.listProjects(userId)
+  }
+
+  async recordSessionStarted(userId: string) {
+    const organizationId =
+      await this.repository.getOrCreatePersonalOrganization(userId)
+    await this.recordStudioEvent({
+      organizationId,
+      userId,
+      name: 'studio.session_started',
+      contractVersion: 'studio-events-v1',
+      metadata: {},
+    })
+  }
+
+  async recordPropertyOpened(userId: string, projectId: string) {
+    const project = await this.getProject(userId, projectId)
+    await this.recordStudioEvent({
+      organizationId: project.organizationId,
+      userId,
+      propertyProjectId: project.id,
+      name: 'property.opened',
+      contractVersion: 'studio-events-v1',
+      metadata: propertyMetadata(project),
+    })
   }
 
   async getProject(userId: string, projectId: string) {
@@ -40,6 +72,14 @@ export class PropertyService {
       before: null,
       after: project,
     })
+    await this.recordStudioEvent({
+      organizationId,
+      userId,
+      propertyProjectId: project.id,
+      name: 'property.created',
+      contractVersion: 'studio-events-v1',
+      metadata: propertyMetadata(project),
+    })
 
     return project
   }
@@ -65,6 +105,16 @@ export class PropertyService {
       before,
       after: updated,
     })
+    if (before.stage !== 'ready' && updated.stage === 'ready') {
+      await this.recordStudioEvent({
+        organizationId: updated.organizationId,
+        userId,
+        propertyProjectId: updated.id,
+        name: 'property.ready_reached',
+        contractVersion: 'studio-events-v1',
+        metadata: propertyMetadata(updated),
+      })
+    }
 
     return updated
   }
@@ -97,6 +147,14 @@ export class PropertyService {
       entityId: fact.id,
       before: null,
       after: fact,
+    })
+    await this.recordStudioEvent({
+      organizationId: project.organizationId,
+      userId,
+      propertyProjectId: projectId,
+      name: 'fact.created',
+      contractVersion: 'studio-events-v1',
+      metadata: { factStatus: fact.status },
     })
 
     return fact
@@ -134,8 +192,36 @@ export class PropertyService {
       before,
       after: updated,
     })
+    await this.recordStudioEvent({
+      organizationId: project.organizationId,
+      userId,
+      propertyProjectId: projectId,
+      name: 'fact.updated',
+      contractVersion: 'studio-events-v1',
+      metadata: { factStatus: updated.status },
+    })
 
     return updated
+  }
+
+  private async recordStudioEvent(input: StudioEventInput) {
+    try {
+      await this.events.record(input)
+    } catch {
+      console.error('studio_event_write_failed')
+    }
+  }
+}
+
+function propertyMetadata(project: {
+  propertyType: string
+  transactionType: string
+  stage: string
+}) {
+  return {
+    propertyType: project.propertyType,
+    transactionType: project.transactionType,
+    stage: project.stage,
   }
 }
 

@@ -430,6 +430,7 @@ export class PostgresPropertySourceRepository<
               fact: proposal.decisionFactSnapshot
                 ? deserializeFactSnapshot(proposal.decisionFactSnapshot)
                 : null,
+              decisionCreated: false,
             },
           }
         }
@@ -638,6 +639,7 @@ export class PostgresPropertySourceRepository<
           result: {
             proposal: mapProposal(updatedProposal),
             fact: fact ? mapFact(fact) : null,
+            decisionCreated: true,
           },
         }
       },

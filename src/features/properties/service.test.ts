@@ -1,14 +1,82 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryStudioEventRepository } from '../studio-events/memory-repository'
+import { StudioEventService } from '../studio-events/service'
 import { MemoryPropertyRepository } from './memory-repository'
 import { PropertyService } from './service'
 
 describe('PropertyService', () => {
   let repository: MemoryPropertyRepository
+  let eventRepository: MemoryStudioEventRepository
   let service: PropertyService
 
   beforeEach(() => {
     repository = new MemoryPropertyRepository()
-    service = new PropertyService(repository)
+    eventRepository = new MemoryStudioEventRepository(repository)
+    service = new PropertyService(
+      repository,
+      new StudioEventService(eventRepository),
+    )
+  })
+
+  it('emits privacy-safe product events after successful domain writes', async () => {
+    const project = await createApartment(service)
+    await service.recordSessionStarted('user-a')
+    await service.recordPropertyOpened('user-a', project.id)
+    const fact = await service.createFact('user-a', project.id, {
+      key: 'rooms.count',
+      label: 'Liczba pokoi',
+      category: 'Układ',
+      valueType: 'number',
+      value: 3,
+      status: 'declared',
+      visibility: 'client',
+      sourceIds: [],
+    })
+    await service.updateFact('user-a', project.id, fact.id, {
+      status: 'confirmed',
+    })
+    await service.updateProject('user-a', project.id, {
+      stage: 'ready',
+    })
+
+    const events = await eventRepository.exportForUser('user-a')
+
+    expect(events.map((event) => event.name)).toEqual([
+      'property.created',
+      'studio.session_started',
+      'property.opened',
+      'fact.created',
+      'fact.updated',
+      'property.ready_reached',
+    ])
+    expect(events[0].metadata).toEqual({
+      propertyType: 'apartment',
+      transactionType: 'sale',
+      stage: 'draft',
+    })
+    expect(events[2].propertyProjectId).toBe(project.id)
+    expect(events[3].metadata).toEqual({ factStatus: 'declared' })
+    expect(events[4].metadata).toEqual({ factStatus: 'confirmed' })
+  })
+
+  it('keeps a successful domain write when telemetry fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failOpenService = new PropertyService(repository, {
+      async record() {
+        throw new Error('sensitive provider details')
+      },
+    })
+
+    const project = await createApartment(failOpenService)
+
+    expect(await failOpenService.getProject('user-a', project.id)).toEqual(
+      project,
+    )
+    expect(log).toHaveBeenCalledWith('studio_event_write_failed')
+    expect(log).not.toHaveBeenCalledWith(
+      expect.stringContaining('sensitive'),
+    )
+    log.mockRestore()
   })
 
   it('isolates projects between users', async () => {

@@ -1,6 +1,12 @@
 import { z } from 'zod'
 import type { PropertyRepository } from '../properties/repository'
 import {
+  noopStudioEventSink,
+  type StudioEventInput,
+  type StudioEventSink,
+  type StudioEventMetadata,
+} from '../studio-events/domain'
+import {
   CALLBACK_MAX_AGE_SECONDS,
   hashCallbackNonce,
 } from './callback-auth'
@@ -127,6 +133,7 @@ export class PropertySourceCallbackService {
     private readonly propertyRepository: PropertyRepository,
     private readonly sourceRepository: PropertySourceRepository,
     private readonly sourceService: PropertySourceService,
+    private readonly events: StudioEventSink = noopStudioEventSink,
   ) {}
 
   async getExtractionContext(
@@ -229,6 +236,7 @@ export class PropertySourceCallbackService {
         this.resultJobUpdate(result, auth.receivedAt, 'succeeded'),
       )
       if (!updatedJob) throw new Error('JOB_NOT_FOUND')
+      await this.recordReviewReadyEvent(source, result)
 
       return {
         accepted: true as const,
@@ -260,6 +268,9 @@ export class PropertySourceCallbackService {
       errorMessage,
     })
     if (!updatedJob) throw new Error('JOB_NOT_FOUND')
+    if (sourceStatus === 'review_ready') {
+      await this.recordReviewReadyEvent(source, result)
+    }
 
     return {
       accepted: true as const,
@@ -376,6 +387,46 @@ export class PropertySourceCallbackService {
           ? microunitsToUsd(providerCostMicrounits)
           : null,
       completedAt,
+    }
+  }
+
+  private async recordReviewReadyEvent(
+    source: {
+      organizationId: string
+      propertyProjectId: string
+      createdByUserId: string
+    },
+    result: z.infer<typeof extractionResultSchema>,
+  ) {
+    const metadata: StudioEventMetadata = {
+      sourceStatus: 'review_ready',
+      pipelineVersion: result.pipelineVersion,
+      ...('durationMs' in result && result.durationMs !== undefined
+        ? { durationMs: result.durationMs }
+        : {}),
+      ...('providerCostMicrounits' in result &&
+      result.providerCostMicrounits !== undefined
+        ? { providerCostMicrounits: result.providerCostMicrounits }
+        : {}),
+      ...('provider' in result && result.provider !== undefined
+        ? { modelFamily: result.provider }
+        : {}),
+    }
+    await this.recordStudioEvent({
+      organizationId: source.organizationId,
+      userId: source.createdByUserId,
+      propertyProjectId: source.propertyProjectId,
+      name: 'source.review_ready',
+      contractVersion: 'studio-events-v1',
+      metadata,
+    })
+  }
+
+  private async recordStudioEvent(input: StudioEventInput) {
+    try {
+      await this.events.record(input)
+    } catch {
+      console.error('studio_event_write_failed')
     }
   }
 }
