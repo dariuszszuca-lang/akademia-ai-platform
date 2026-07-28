@@ -4,6 +4,7 @@ import {
   type ConverseCommandInput,
   type ConverseCommandOutput,
 } from '@aws-sdk/client-bedrock-runtime'
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { z } from 'zod'
 import { evidenceMapSchema } from '../../src/features/property-sources/pipeline/evidence-proposals'
 import { calculateSonnet46CostMicrounits } from '../../src/features/property-sources/pipeline/provider-cost'
@@ -85,13 +86,16 @@ const resultIdentitySchema = z
 type Converse = (
   input: ConverseCommandInput,
 ) => Promise<ConverseCommandOutput>
+type LoadDocument = (s3Uri: string) => Promise<Uint8Array>
 
 export function createBedrockEvidenceHandler({
   modelId: rawModelId,
   converse,
+  loadDocument = loadS3Document,
 }: {
   modelId: string
   converse: Converse
+  loadDocument?: LoadDocument
 }) {
   const modelId = boundedModelIdSchema.parse(rawModelId)
 
@@ -107,7 +111,13 @@ export function createBedrockEvidenceHandler({
       try {
         response =
           part.kind === 'document'
-            ? await converse(createEvidenceRequest(modelId, part))
+            ? await converse(
+                createEvidenceRequest(
+                  modelId,
+                  part,
+                  await loadDocument(part.s3Uri),
+                ),
+              )
             : await invokeImageEvidence(
                 converse,
                 modelId,
@@ -165,6 +175,7 @@ export function createBedrockEvidenceHandler({
 function createEvidenceRequest(
   modelId: string,
   part: z.infer<typeof preparedDocumentPartSchema>,
+  documentBytes: Uint8Array,
 ): ConverseCommandInput {
   return {
     modelId,
@@ -189,7 +200,7 @@ function createEvidenceRequest(
             document: {
               format: part.format,
               name: 'property-source',
-              source: { s3Location: { uri: part.s3Uri } },
+              source: { bytes: documentBytes },
               citations: { enabled: true },
             },
           },
@@ -204,6 +215,23 @@ function createEvidenceRequest(
       component: 'property-source-evidence',
     },
   }
+}
+
+const s3Client = new S3Client({})
+
+async function loadS3Document(s3Uri: string) {
+  const match = /^s3:\/\/([^/]+)\/(.+)$/.exec(s3Uri)
+  if (!match) throw new Error('BEDROCK_DOCUMENT_LOCATION_INVALID')
+  const response = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: match[1],
+      Key: match[2],
+    }),
+  )
+  if (!response.Body) {
+    throw new Error('BEDROCK_DOCUMENT_UNAVAILABLE')
+  }
+  return response.Body.transformToByteArray()
 }
 
 async function invokeImageEvidence(

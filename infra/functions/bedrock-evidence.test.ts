@@ -2,6 +2,50 @@ import { describe, expect, it, vi } from 'vitest'
 import { createBedrockEvidenceHandler } from './bedrock-evidence'
 
 describe('Bedrock evidence mapper worker', () => {
+  it('loads an S3 document and sends bytes when citations are enabled', async () => {
+    const documentBytes = new Uint8Array([37, 80, 68, 70])
+    const loadDocument = vi.fn().mockResolvedValue(documentBytes)
+    const converse = vi.fn().mockResolvedValue({
+      output: {
+        message: {
+          role: 'assistant',
+          content: [],
+        },
+      },
+    })
+    const handler = createBedrockEvidenceHandler({
+      modelId: 'eu.anthropic.claude-sonnet-4-6',
+      converse,
+      loadDocument,
+    })
+    const s3Uri =
+      's3://property-studio-dev-sources/work/source/part-001.pdf'
+
+    await handler({
+      sourceId: '00000000-0000-4000-8000-000000000003',
+      preparedParts: [
+        {
+          kind: 'document',
+          format: 'pdf',
+          s3Uri,
+          pageOffset: 0,
+        },
+      ],
+    })
+
+    expect(loadDocument).toHaveBeenCalledWith(s3Uri)
+    expect(
+      converse.mock.calls[0][0].messages[0].content[1].document,
+    ).toMatchObject({
+      source: { bytes: documentBytes },
+      citations: { enabled: true },
+    })
+    expect(
+      converse.mock.calls[0][0].messages[0].content[1].document
+        .source,
+    ).not.toHaveProperty('s3Location')
+  })
+
   it('maps only Bedrock citations to strict evidence locators', async () => {
     const converse = vi.fn().mockResolvedValue({
       output: {
@@ -32,6 +76,9 @@ describe('Bedrock evidence mapper worker', () => {
     const handler = createBedrockEvidenceHandler({
       modelId: 'eu.anthropic.claude-sonnet-4-6',
       converse,
+      loadDocument: vi
+        .fn()
+        .mockResolvedValue(new Uint8Array([37, 80, 68, 70])),
     })
 
     const result = await handler({
@@ -59,6 +106,7 @@ describe('Bedrock evidence mapper worker', () => {
     const request = converse.mock.calls[0][0]
     expect(request.messages[0].content[1].document).toMatchObject({
       name: 'property-source',
+      source: { bytes: expect.any(Uint8Array) },
       citations: { enabled: true },
     })
     expect(result).toMatchObject({
@@ -89,6 +137,9 @@ describe('Bedrock evidence mapper worker', () => {
           message: { role: 'assistant', content: [{ text: 'uncited' }] },
         },
       }),
+      loadDocument: vi
+        .fn()
+        .mockResolvedValue(new Uint8Array([117, 110, 99, 105, 116, 101, 100])),
     })
 
     await expect(
@@ -130,6 +181,9 @@ describe('Bedrock evidence mapper worker', () => {
           },
         },
       }),
+      loadDocument: vi
+        .fn()
+        .mockResolvedValue(new Uint8Array([66, 50, 9, 55, 53, 48])),
     })
 
     const result = await handler({
