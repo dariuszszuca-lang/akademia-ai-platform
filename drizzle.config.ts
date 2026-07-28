@@ -12,6 +12,7 @@ export default defineConfig({
   schema: [
     './src/features/properties/schema.ts',
     './src/features/property-sources/schema.ts',
+    './src/features/studio-events/schema.ts',
   ],
   out: './drizzle',
   dbCredentials: {
