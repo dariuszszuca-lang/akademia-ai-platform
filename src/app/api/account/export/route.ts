@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exportAccountData } from '@/features/properties/account-data'
 import { getPropertyRepository } from '@/features/properties/server-repository'
 import { getPropertySourceRepository } from '@/features/property-sources/server-repository'
+import { getStudioEventService } from '@/features/studio-events/server-repository'
 import { getServerUserId } from '@/lib/session'
 import { storeGet } from '@/lib/store'
 
@@ -22,6 +23,21 @@ export async function GET() {
       getPropertyRepository().exportForUser(accountUserId),
     exportSourcesForUser: (accountUserId) =>
       getPropertySourceRepository().exportForUser(accountUserId),
+    recordAccountExported: async (accountUserId) => {
+      const organizationId =
+        await getPropertyRepository().getOrCreatePersonalOrganization(
+          accountUserId,
+        )
+      await getStudioEventService().record({
+        organizationId,
+        userId: accountUserId,
+        name: 'account.exported',
+        contractVersion: 'studio-events-v1',
+        metadata: {},
+      })
+    },
+    exportProductEventsForUser: (accountUserId) =>
+      getStudioEventService().exportForUser(accountUserId),
   })
 
   const data = {

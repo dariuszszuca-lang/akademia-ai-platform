@@ -51,6 +51,23 @@ export class MemoryPropertySourceRepository
     return clone(source)
   }
 
+  async listSourcesForUser(userId: string) {
+    const sources: PropertySource[] = []
+    for (const source of this.sources) {
+      const project = await this.propertyRepository.getProject(
+        userId,
+        source.propertyProjectId,
+      )
+      if (
+        project &&
+        project.organizationId === source.organizationId
+      ) {
+        sources.push(clone(source))
+      }
+    }
+    return sources
+  }
+
   async listSources(
     organizationId: string,
     propertyProjectId: string,

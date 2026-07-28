@@ -277,6 +277,47 @@ export class PropertySourceStorageStack extends Stack {
         resources: [originalsArn],
       }),
     )
+
+    const deletionRole = new iam.Role(
+      this,
+      'PropertySourceDeletionRole',
+      {
+        assumedBy: new iam.WebIdentityPrincipal(
+          oidcProviderArn,
+          {
+            StringEquals: {
+              [`${issuerConditionPrefix}:aud`]: 'sts.amazonaws.com',
+              [`${issuerConditionPrefix}:sub`]:
+                config.vercelSubjects,
+            },
+          },
+        ),
+        description:
+          'Deletes exact Property Intelligence Studio source versions during account erasure',
+        maxSessionDuration: Duration.hours(1),
+      },
+    )
+    deletionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:DeleteObject', 's3:DeleteObjectVersion'],
+        resources: [
+          this.bucket.arnForObjects(
+            'originals/organizations/*',
+          ),
+        ],
+      }),
+    )
+    deletionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:ListBucketVersions'],
+        resources: [this.bucket.bucketArn],
+        conditions: {
+          StringLike: {
+            's3:prefix': 'originals/organizations/*',
+          },
+        },
+      }),
+    )
     signerRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['s3:GetObject', 's3:GetObjectTagging'],
@@ -361,6 +402,10 @@ export class PropertySourceStorageStack extends Stack {
     new CfnOutput(this, 'PropertySourceSignerRoleArn', {
       description: 'Vercel OIDC property source signer role ARN',
       value: signerRole.roleArn,
+    })
+    new CfnOutput(this, 'PropertySourceDeletionRoleArn', {
+      description: 'Vercel OIDC property source deletion role ARN',
+      value: deletionRole.roleArn,
     })
     new CfnOutput(this, 'PropertySourceRegion', {
       description: 'Property source AWS region',

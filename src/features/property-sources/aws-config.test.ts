@@ -8,6 +8,8 @@ const validEnvironment = {
     'arn:aws:kms:eu-central-1:111122223333:key/12345678-1234-4234-8234-123456789012',
   PROPERTY_SOURCE_SIGNER_ROLE_ARN:
     'arn:aws:iam::111122223333:role/property-source-signer',
+  PROPERTY_SOURCE_DELETION_ROLE_ARN:
+    'arn:aws:iam::111122223333:role/property-source-deletion',
 }
 
 describe('AWS property source runtime configuration', () => {
@@ -16,6 +18,7 @@ describe('AWS property source runtime configuration', () => {
     'PROPERTY_SOURCE_BUCKET',
     'PROPERTY_SOURCE_KMS_KEY_ARN',
     'PROPERTY_SOURCE_SIGNER_ROLE_ARN',
+    'PROPERTY_SOURCE_DELETION_ROLE_ARN',
   ])('fails safely when %s is missing', (variableName) => {
     const environment = { ...validEnvironment }
     delete environment[variableName as keyof typeof environment]
@@ -50,6 +53,8 @@ describe('AWS property source runtime configuration', () => {
       kmsKeyArn: validEnvironment.PROPERTY_SOURCE_KMS_KEY_ARN,
       signerRoleArn:
         validEnvironment.PROPERTY_SOURCE_SIGNER_ROLE_ARN,
+      deletionRoleArn:
+        validEnvironment.PROPERTY_SOURCE_DELETION_ROLE_ARN,
     })
   })
 
@@ -64,6 +69,10 @@ describe('AWS property source runtime configuration', () => {
     {
       PROPERTY_SOURCE_SIGNER_ROLE_ARN:
         'arn:aws:iam::999900001111:role/property-source-signer',
+    },
+    {
+      PROPERTY_SOURCE_DELETION_ROLE_ARN:
+        'arn:aws:iam::999900001111:role/property-source-deletion',
     },
   ])('rejects unsafe identifiers: %j', (overrides) => {
     expect(() =>

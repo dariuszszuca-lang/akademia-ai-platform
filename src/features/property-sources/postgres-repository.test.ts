@@ -475,6 +475,17 @@ describe('PostgresPropertySourceRepository', () => {
     )
   })
 
+  it('lists every source in organizations available to the user', async () => {
+    const userA = await createContext({ userId: 'user-a' })
+    await createContext({ userId: 'user-b' })
+
+    const sources = await sourceRepository.listSourcesForUser('user-a')
+
+    expect(sources.map((source) => source.id)).toEqual([
+      userA.source.id,
+    ])
+  })
+
   async function createContext(
     options: { existingValue?: number; userId?: string } = {},
   ) {

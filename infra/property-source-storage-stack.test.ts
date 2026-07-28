@@ -450,6 +450,49 @@ describe('PropertySourceStorageStack Vercel OIDC signer', () => {
     expect(policyJson).not.toContain('"Resource":"*"')
   })
 
+  it('creates a separate exact-subject role limited to source deletion', () => {
+    const template = createTemplate()
+    const roles = template.findResources('AWS::IAM::Role')
+    const policies = template.findResources('AWS::IAM::Policy')
+    const deletionPolicyEntry = Object.entries(policies).find(([, policy]) =>
+      JSON.stringify(policy).includes('s3:DeleteObjectVersion'),
+    )
+
+    expect(deletionPolicyEntry).toBeDefined()
+    const deletionPolicy = deletionPolicyEntry![1]
+    const deletionRoleId = deletionPolicy.Properties.Roles[0].Ref
+    const deletionRole = roles[deletionRoleId]
+    const policyJson = JSON.stringify(deletionPolicy)
+
+    expect(deletionRole.Properties.AssumeRolePolicyDocument).toEqual({
+      Statement: [
+        expect.objectContaining({
+          Action: 'sts:AssumeRoleWithWebIdentity',
+          Condition: {
+            StringEquals: {
+              'oidc.vercel.com/ai-team:aud': 'sts.amazonaws.com',
+              'oidc.vercel.com/ai-team:sub': [
+                'owner:ai-team:project:akademia-ai-platform:environment:development',
+                'owner:ai-team:project:akademia-ai-platform:environment:preview',
+              ],
+            },
+          },
+          Effect: 'Allow',
+          Principal: { Federated: expect.anything() },
+        }),
+      ],
+      Version: '2012-10-17',
+    })
+    expect(policyJson).toContain('s3:DeleteObject')
+    expect(policyJson).toContain('s3:DeleteObjectVersion')
+    expect(policyJson).toContain('s3:ListBucketVersions')
+    expect(policyJson).toContain('/originals/organizations/*')
+    expect(policyJson).not.toMatch(
+      /s3:PutObject|s3:GetObject|kms:|guardduty:|bedrock:|states:/,
+    )
+    expect(policyJson).not.toContain('"Resource":"*"')
+  })
+
   it('exports only non-secret deployment identifiers', () => {
     const template = createTemplate()
     const outputs = template.toJSON().Outputs
@@ -459,6 +502,7 @@ describe('PropertySourceStorageStack Vercel OIDC signer', () => {
         'PropertySourceBucketName',
         'PropertySourceKmsKeyArn',
         'PropertySourceSignerRoleArn',
+        'PropertySourceDeletionRoleArn',
         'PropertySourceRegion',
         'PropertySourceMalwareProtectionPlanId',
       ]),
@@ -578,6 +622,9 @@ describe('PropertySourceStorageStack cost guardrails', () => {
       },
       PropertySourceSignerRoleArn: {
         Description: 'Vercel OIDC property source signer role ARN',
+      },
+      PropertySourceDeletionRoleArn: {
+        Description: 'Vercel OIDC property source deletion role ARN',
       },
       PropertySourceRegion: {
         Description: 'Property source AWS region',

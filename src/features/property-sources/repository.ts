@@ -107,6 +107,7 @@ export type SourceStatusUpdate = {
 
 export interface PropertySourceRepository {
   createSource(record: NewPropertySourceRecord): Promise<PropertySource>
+  listSourcesForUser(userId: string): Promise<PropertySource[]>
   listSources(
     organizationId: string,
     propertyProjectId: string,

@@ -14,6 +14,8 @@ const config: AwsPropertySourceConfig = {
     'arn:aws:kms:eu-central-1:111122223333:key/12345678-1234-4234-8234-123456789012',
   signerRoleArn:
     'arn:aws:iam::111122223333:role/property-source-signer',
+  deletionRoleArn:
+    'arn:aws:iam::111122223333:role/property-source-deletion',
 }
 
 const source: PropertySource = {

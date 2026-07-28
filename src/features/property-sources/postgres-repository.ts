@@ -68,6 +68,23 @@ export class PostgresPropertySourceRepository<
     return mapSource(source)
   }
 
+  async listSourcesForUser(userId: string) {
+    const rows = await this.database
+      .select({ source: propertySources })
+      .from(propertySources)
+      .innerJoin(
+        organizationMemberships,
+        eq(
+          propertySources.organizationId,
+          organizationMemberships.organizationId,
+        ),
+      )
+      .where(eq(organizationMemberships.userId, userId))
+      .orderBy(propertySources.createdAt)
+
+    return rows.map(({ source }) => mapSource(source))
+  }
+
   async listSources(
     organizationId: string,
     propertyProjectId: string,

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { deleteAccountData } from '@/features/properties/account-data'
 import { getPropertyRepository } from '@/features/properties/server-repository'
+import {
+  getPropertySourceObjectPurger,
+  getPropertySourceRepository,
+} from '@/features/property-sources/server-repository'
+import { getStudioEventService } from '@/features/studio-events/server-repository'
 import { getServerUserId, SESSION_COOKIE } from '@/lib/session'
 import { storeDelete } from '@/lib/store'
 
@@ -27,9 +32,30 @@ export async function POST(req: Request) {
     )
   }
 
-  let keys: string[]
+  let deleted: {
+    sourceObjects: number
+    propertyStudio: number
+    accountKeys: number
+  }
   try {
-    keys = await deleteAccountData(userId, {
+    deleted = await deleteAccountData(userId, {
+      listSourcesForUser: (accountUserId) =>
+        getPropertySourceRepository().listSourcesForUser(accountUserId),
+      recordAccountDeleted: async (accountUserId) => {
+        const organizationId =
+          await getPropertyRepository().getOrCreatePersonalOrganization(
+            accountUserId,
+          )
+        await getStudioEventService().record({
+          organizationId,
+          userId: accountUserId,
+          name: 'account.deleted',
+          contractVersion: 'studio-events-v1',
+          metadata: {},
+        })
+      },
+      purgeSourceObjects: (sources) =>
+        getPropertySourceObjectPurger().purgeSources(sources),
       deletePropertiesForUser: (accountUserId) =>
         getPropertyRepository().deleteForUser(accountUserId),
       deleteValue: storeDelete,
@@ -44,10 +70,7 @@ export async function POST(req: Request) {
   // Czyść cookie session
   const res = NextResponse.json({
     ok: true,
-    deleted: {
-      propertyStudio: true,
-      accountKeys: keys.length,
-    },
+    deleted,
   })
   res.cookies.set({
     name: SESSION_COOKIE,

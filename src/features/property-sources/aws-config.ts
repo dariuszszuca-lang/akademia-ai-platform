@@ -5,6 +5,7 @@ const requiredRuntimeVariables = [
   'PROPERTY_SOURCE_BUCKET',
   'PROPERTY_SOURCE_KMS_KEY_ARN',
   'PROPERTY_SOURCE_SIGNER_ROLE_ARN',
+  'PROPERTY_SOURCE_DELETION_ROLE_ARN',
 ] as const
 
 const runtimeConfigSchema = z
@@ -26,16 +27,28 @@ const runtimeConfigSchema = z
     PROPERTY_SOURCE_SIGNER_ROLE_ARN: z
       .string()
       .regex(/^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_/-]{1,512}$/),
+    PROPERTY_SOURCE_DELETION_ROLE_ARN: z
+      .string()
+      .regex(/^arn:aws:iam::\d{12}:role\/[A-Za-z0-9+=,.@_/-]{1,512}$/),
   })
   .superRefine((config, context) => {
     const kmsAccount = config.PROPERTY_SOURCE_KMS_KEY_ARN.split(':')[4]
     const roleAccount =
       config.PROPERTY_SOURCE_SIGNER_ROLE_ARN.split(':')[4]
+    const deletionRoleAccount =
+      config.PROPERTY_SOURCE_DELETION_ROLE_ARN.split(':')[4]
 
     if (kmsAccount !== roleAccount) {
       context.addIssue({
         code: 'custom',
         path: ['PROPERTY_SOURCE_SIGNER_ROLE_ARN'],
+        message: 'account mismatch',
+      })
+    }
+    if (kmsAccount !== deletionRoleAccount) {
+      context.addIssue({
+        code: 'custom',
+        path: ['PROPERTY_SOURCE_DELETION_ROLE_ARN'],
         message: 'account mismatch',
       })
     }
@@ -46,6 +59,7 @@ export type AwsPropertySourceConfig = {
   bucket: string
   kmsKeyArn: string
   signerRoleArn: string
+  deletionRoleArn: string
 }
 
 export function readAwsPropertySourceConfig(
@@ -72,6 +86,8 @@ export function readAwsPropertySourceConfig(
       normalizedEnvironment.PROPERTY_SOURCE_KMS_KEY_ARN,
     PROPERTY_SOURCE_SIGNER_ROLE_ARN:
       normalizedEnvironment.PROPERTY_SOURCE_SIGNER_ROLE_ARN,
+    PROPERTY_SOURCE_DELETION_ROLE_ARN:
+      normalizedEnvironment.PROPERTY_SOURCE_DELETION_ROLE_ARN,
   })
 
   if (!result.success) {
@@ -85,5 +101,6 @@ export function readAwsPropertySourceConfig(
     bucket: result.data.PROPERTY_SOURCE_BUCKET,
     kmsKeyArn: result.data.PROPERTY_SOURCE_KMS_KEY_ARN,
     signerRoleArn: result.data.PROPERTY_SOURCE_SIGNER_ROLE_ARN,
+    deletionRoleArn: result.data.PROPERTY_SOURCE_DELETION_ROLE_ARN,
   }
 }
