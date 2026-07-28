@@ -25,6 +25,11 @@ export default function PropertyWorkspaceTabs({
       label: 'Braki',
       href: `/nieruchomosci/${propertyId}/braki`,
     },
+    {
+      id: 'history' as const,
+      label: 'Historia',
+      href: `/nieruchomosci/${propertyId}/historia`,
+    },
   ]
 
   return (
@@ -50,7 +55,7 @@ export default function PropertyWorkspaceTabs({
         )
       })}
 
-      {['Materiały', 'Historia'].map((item) => (
+      {['Materiały'].map((item) => (
         <span
           key={item}
           aria-disabled="true"
