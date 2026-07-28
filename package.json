@@ -20,7 +20,9 @@
     "infra:account-public-block": "tsx infra/bin/enable-account-public-access-block.ts",
     "infra:baseline:synth": "tsx infra/bin/account-baseline.ts",
     "infra:baseline:cdk": "cdk --app 'npx tsx infra/bin/account-baseline.ts'",
-    "infra:cdk": "cdk --app 'npx tsx infra/bin/property-studio.ts'"
+    "infra:cdk": "cdk --app 'npx tsx infra/bin/property-studio.ts'",
+    "studio:acceptance:local": "tsx scripts/studio-synthetic-acceptance.ts local",
+    "studio:acceptance:prod": "tsx scripts/studio-synthetic-acceptance.ts production-synthetic"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
