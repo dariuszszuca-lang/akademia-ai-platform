@@ -465,21 +465,13 @@ const imageEvidenceJsonSchema = {
   properties: {
     evidence: {
       type: 'array',
-      maxItems: 200,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['id', 'text', 'locator'],
         properties: {
-          id: {
-            type: 'string',
-            pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$',
-          },
-          text: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 4000,
-          },
+          id: { type: 'string' },
+          text: { type: 'string' },
           locator: {
             type: 'object',
             additionalProperties: false,

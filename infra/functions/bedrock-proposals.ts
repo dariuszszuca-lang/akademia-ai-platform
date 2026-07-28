@@ -196,25 +196,33 @@ const proposalJsonSchema = {
   properties: {
     proposals: {
       type: 'array',
-      maxItems: 200,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['factKey', 'value', 'confidence', 'evidenceId'],
         properties: {
-          factKey: {
-            type: 'string',
-            pattern: '^[a-z][a-zA-Z0-9._-]*$',
-            maxLength: 100,
-          },
+          factKey: { type: 'string' },
           value: {
-            type: ['string', 'number', 'boolean', 'object', 'array', 'null'],
+            anyOf: [
+              { type: 'string' },
+              { type: 'number' },
+              { type: 'boolean' },
+              {
+                type: 'array',
+                items: {
+                  anyOf: [
+                    { type: 'string' },
+                    { type: 'number' },
+                    { type: 'boolean' },
+                    { type: 'null' },
+                  ],
+                },
+              },
+              { type: 'null' },
+            ],
           },
-          confidence: { type: 'number', minimum: 0, maximum: 1 },
-          evidenceId: {
-            type: 'string',
-            pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$',
-          },
+          confidence: { type: 'number' },
+          evidenceId: { type: 'string' },
         },
       },
     },

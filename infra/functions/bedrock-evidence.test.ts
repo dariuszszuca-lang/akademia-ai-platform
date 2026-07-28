@@ -269,6 +269,20 @@ describe('Bedrock evidence mapper worker', () => {
       },
     })
     expect(request.outputConfig.textFormat.type).toBe('json_schema')
+    const visualEvidenceSchema =
+      request.outputConfig.textFormat.structure.jsonSchema.schema
+    for (const unsupportedKeyword of [
+      'maxItems',
+      'minLength',
+      'maxLength',
+      'pattern',
+      'minimum',
+      'maximum',
+    ]) {
+      expect(visualEvidenceSchema).not.toContain(
+        `"${unsupportedKeyword}"`,
+      )
+    }
     expect('evidenceMap' in result).toBe(true)
     if (!('evidenceMap' in result)) throw new Error('expected evidence')
     expect(result.evidenceMap.evidence).toEqual([

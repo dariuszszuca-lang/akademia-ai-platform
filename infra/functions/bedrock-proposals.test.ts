@@ -77,6 +77,21 @@ describe('Bedrock proposal builder worker', () => {
         },
       },
     })
+    const proposalSchema =
+      converse.mock.calls[0][0].outputConfig.textFormat.structure
+        .jsonSchema.schema
+    for (const unsupportedKeyword of [
+      'maxItems',
+      'minLength',
+      'maxLength',
+      'pattern',
+      'minimum',
+      'maximum',
+    ]) {
+      expect(proposalSchema).not.toContain(
+        `"${unsupportedKeyword}"`,
+      )
+    }
     expect(result.result).toMatchObject({
       sourceId: baseEvent.sourceId,
       jobId: baseEvent.context.jobId,
