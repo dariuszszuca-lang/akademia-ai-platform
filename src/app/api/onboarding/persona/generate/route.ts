@@ -2,11 +2,15 @@ import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { buildGeneratePersonaPrompt } from '@/lib/onboarding/persona-prompts'
 import { getOnboardingState, getProfilMd, savePersonaMd } from '@/lib/onboarding/state'
 import { getPersonaQuestions } from '@/data/onboarding/persona-questions'
+import { resolveApiUser } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(req: Request) {
+  const auth = await resolveApiUser()
+  if (!auth.ok) return auth.response
+
   const { type } = await req.json()
   if (type !== 'buyer' && type !== 'seller') {
     return new Response(JSON.stringify({ error: 'invalid type' }), {

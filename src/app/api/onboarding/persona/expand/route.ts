@@ -1,11 +1,15 @@
 import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { buildExpandTypePrompt } from '@/lib/onboarding/persona-prompts'
 import { getProfilMd, savePersonaMd, setPersonaChosenType } from '@/lib/onboarding/state'
+import { resolveApiUser } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(req: Request) {
+  const auth = await resolveApiUser()
+  if (!auth.ok) return auth.response
+
   const { type, chosenType, chosenIndex } = await req.json()
   if (type !== 'buyer' && type !== 'seller') {
     return new Response(JSON.stringify({ error: 'invalid type' }), {

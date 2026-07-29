@@ -2,11 +2,15 @@ import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { buildGenerateProfilPrompt } from '@/lib/onboarding/prompts'
 import { getOnboardingState, saveProfilMd } from '@/lib/onboarding/state'
 import { expressQuestions } from '@/data/onboarding/express'
+import { resolveApiUser } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST() {
+  const auth = await resolveApiUser()
+  if (!auth.ok) return auth.response
+
   const state = await getOnboardingState()
 
   // Walidacja: wszystkie 15 pytan musi miec odpowiedzi

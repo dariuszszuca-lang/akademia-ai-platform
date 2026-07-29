@@ -4,11 +4,15 @@ import { buildProposeTypesPrompt } from '@/lib/onboarding/persona-prompts'
 import { getProfilMd } from '@/lib/onboarding/state'
 import { getEffectivePlan } from '@/lib/billing/state'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
+import { resolveApiUser } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 export async function POST(req: Request) {
+  const auth = await resolveApiUser()
+  if (!auth.ok) return auth.response
+
   const { type } = await req.json()
   if (type !== 'buyer' && type !== 'seller') {
     return NextResponse.json({ error: 'invalid type' }, { status: 400 })

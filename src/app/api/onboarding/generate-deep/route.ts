@@ -2,11 +2,15 @@ import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { buildExtendProfilWithDeepPrompt } from '@/lib/onboarding/prompts'
 import { getOnboardingState, getProfilMd, saveExtendedProfilMd } from '@/lib/onboarding/state'
 import { deepQuestions } from '@/data/onboarding/deep'
+import { resolveApiUser } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 90
 
 export async function POST() {
+  const auth = await resolveApiUser()
+  if (!auth.ok) return auth.response
+
   const profilMd = await getProfilMd()
   if (!profilMd) {
     return new Response(JSON.stringify({ error: 'no base profil' }), {
