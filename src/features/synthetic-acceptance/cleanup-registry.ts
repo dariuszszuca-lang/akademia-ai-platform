@@ -9,12 +9,40 @@ import { z } from 'zod'
 import { runIdSchema } from './domain'
 
 const uuidSchema = z.string().uuid()
-const cognitoSubjectSchema = z
+export const cognitoSubjectSchema = z
   .string()
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     'SYNTHETIC_COGNITO_SUB_INVALID',
   )
+
+const releaseUserSchema = z
+  .object({
+    role: z.enum(['a', 'b']),
+    username: z.string().max(180),
+    cognitoSub: cognitoSubjectSchema.nullable(),
+  })
+  .strict()
+
+const adminAgentStateSchema = z
+  .object({
+    agentId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(80)
+      .regex(/^[a-z][a-z0-9-]*$/),
+    enabled: z.boolean(),
+  })
+  .strict()
+
+const releaseKvSuffixes = [
+  'profil',
+  'persona-buyer',
+  'persona-seller',
+  'onboarding',
+  'subscription',
+] as const
 
 const cleanupRegistrySchema = z
   .object({
@@ -26,6 +54,12 @@ const cleanupRegistrySchema = z
     projectIds: z.array(uuidSchema),
     sourceIds: z.array(uuidSchema),
     storageKeys: z.array(z.string().min(1).max(1024)),
+    releaseUsers: z.array(releaseUserSchema).max(2).default([]),
+    kvKeys: z
+      .array(z.string().min(1).max(512))
+      .max(20)
+      .default([]),
+    adminAgentState: adminAgentStateSchema.nullable().default(null),
     startedAt: z.string().datetime(),
   })
   .strict()
@@ -62,6 +96,64 @@ const cleanupRegistrySchema = z
         message: 'SYNTHETIC_CLEANUP_STORAGE_KEY_INVALID',
       })
     }
+
+    const releaseRoles = registry.releaseUsers.map((user) => user.role)
+    if (new Set(releaseRoles).size !== releaseRoles.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['releaseUsers'],
+        message: 'SYNTHETIC_RELEASE_ROLE_DUPLICATE',
+      })
+    }
+
+    const cognitoSubjects = registry.releaseUsers.flatMap((user) =>
+      user.cognitoSub ? [user.cognitoSub] : [],
+    )
+    if (
+      new Set(cognitoSubjects).size !== cognitoSubjects.length
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['releaseUsers'],
+        message: 'SYNTHETIC_RELEASE_SUBJECT_DUPLICATE',
+      })
+    }
+
+    for (const [index, user] of registry.releaseUsers.entries()) {
+      const expectedReleaseUsername =
+        `synthetic-release-${registry.runId}-${user.role}@example.invalid`
+      if (user.username !== expectedReleaseUsername) {
+        context.addIssue({
+          code: 'custom',
+          path: ['releaseUsers', index, 'username'],
+          message: 'SYNTHETIC_RELEASE_USERNAME_INVALID',
+        })
+      }
+    }
+
+    const allowedKvKeys = new Set(
+      cognitoSubjects.flatMap((subject) =>
+        releaseKvSuffixes.map(
+          (suffix) => `user:${subject}:${suffix}`,
+        ),
+      ),
+    )
+    if (
+      registry.kvKeys.some((kvKey) => !allowedKvKeys.has(kvKey))
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['kvKeys'],
+        message: 'SYNTHETIC_RELEASE_KV_KEY_INVALID',
+      })
+    }
+    if (new Set(registry.kvKeys).size !== registry.kvKeys.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['kvKeys'],
+        message: 'SYNTHETIC_RELEASE_KV_KEY_DUPLICATE',
+      })
+    }
   })
 
 export type SyntheticCleanupRegistry = z.infer<
@@ -84,6 +176,9 @@ export function createSyntheticCleanupRegistry({
     projectIds: [],
     sourceIds: [],
     storageKeys: [],
+    releaseUsers: [],
+    kvKeys: [],
+    adminAgentState: null,
     startedAt,
   })
 }
