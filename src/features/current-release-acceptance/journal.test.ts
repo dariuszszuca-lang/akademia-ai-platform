@@ -118,4 +118,32 @@ describe('atomic current release journal', () => {
       ),
     ).rejects.toThrow('CURRENT_RELEASE_PATH_INVALID')
   })
+
+  it('rejects a registry whose run id differs from the contained journal path', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'release-journal-'))
+    const paths = getCurrentReleasePaths(workspace, runId)
+    const mismatched = registry()
+    mismatched.runId = 'syn-20260729T220000Z-feedface'
+    mismatched.releaseUsers = [
+      {
+        role: 'a',
+        username:
+          'synthetic-release-syn-20260729T220000Z-feedface-a@example.invalid',
+        cognitoSub: null,
+      },
+      {
+        role: 'b',
+        username:
+          'synthetic-release-syn-20260729T220000Z-feedface-b@example.invalid',
+        cognitoSub: null,
+      },
+    ]
+
+    await expect(
+      writeCurrentReleaseJournal(paths, mismatched),
+    ).rejects.toThrow('CURRENT_RELEASE_JOURNAL_INVALID')
+    await expect(lstat(paths.registryPath)).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
 })

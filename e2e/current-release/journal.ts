@@ -80,7 +80,10 @@ export async function writeCurrentReleaseJournal(
   paths: CurrentReleasePaths,
   value: SyntheticCleanupRegistry,
 ): Promise<void> {
-  assertExactPaths(paths)
+  const expectedRunId = assertExactPaths(paths)
+  if (value.runId !== expectedRunId) {
+    throw new Error('CURRENT_RELEASE_JOURNAL_INVALID')
+  }
   const registry = parseSyntheticCleanupRegistry(value)
   await ensureSafeDirectory(paths.workspaceRoot, paths.reportDirectory)
   await rejectUnsafeExistingFile(paths.registryPath)
@@ -186,6 +189,33 @@ export async function readCurrentReleaseResult(
     throw new Error('CURRENT_RELEASE_PATH_INVALID')
   }
   return readFile(paths.resultPath, 'utf8')
+}
+
+export async function removeCurrentReleaseEphemeralArtifacts(
+  paths: CurrentReleasePaths,
+  runId: string,
+): Promise<void> {
+  const expected = getCurrentReleasePaths(paths.workspaceRoot, runId)
+  assertPathsEqual(paths, expected)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.browserDirectory)
+  for (const path of [paths.resultPath, paths.guardMarkerPath]) {
+    try {
+      const stat = await lstat(path)
+      if (stat.isDirectory()) {
+        throw new Error('CURRENT_RELEASE_PATH_INVALID')
+      }
+      await rm(path)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 export async function writeCurrentReleaseReportArtifacts(
@@ -299,7 +329,7 @@ function pushUnique(
   if (value && !values.includes(value)) values.push(value)
 }
 
-function assertExactPaths(paths: CurrentReleasePaths): void {
+function assertExactPaths(paths: CurrentReleasePaths): string {
   let runId: string
   try {
     runId = extractRunId(paths.registryPath)
@@ -311,6 +341,7 @@ function assertExactPaths(paths: CurrentReleasePaths): void {
     runId,
   )
   assertPathsEqual(paths, expected)
+  return runId
 }
 
 function assertPathsEqual(

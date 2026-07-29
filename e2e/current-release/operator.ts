@@ -104,6 +104,7 @@ export function createAwsCommandExecutor(
   runtime: {
     environment?: Record<string, string | undefined>
     executeFile?: ExecuteFile
+    waitBeforeRetry?: (milliseconds: number) => Promise<void>
   } = {},
 ): AwsCommandExecutor {
   const executeFile =
@@ -129,14 +130,16 @@ export function createAwsCommandExecutor(
         return {
           ok: false,
           stdout: '',
-          errorKind: classifyAwsFailure(stderr),
+          errorKind: classifyAwsFailure(stderr, error),
         }
       }
     },
-    waitBeforeRetry: (milliseconds) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, milliseconds)
-      }),
+    waitBeforeRetry:
+      runtime.waitBeforeRetry ??
+      ((milliseconds) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, milliseconds)
+        })),
   }
 }
 
@@ -290,6 +293,7 @@ export async function createUser(
       ],
     }),
   )
+  await assertCallerIdentity(context, executor)
   await mutateAws(
     context,
     [
@@ -318,7 +322,6 @@ export async function deleteUser(
   executor: AwsCommandExecutor = createAwsCommandExecutor(),
 ): Promise<void> {
   validateMutation(context, username)
-  await assertCallerIdentity(context, executor)
   const result = await executeWithAttempts(
     [
       'cognito-idp',
@@ -334,6 +337,8 @@ export async function deleteUser(
     ],
     executor,
     2,
+    undefined,
+    () => assertCallerIdentity(context, executor).then(() => undefined),
   )
   if (!result.ok && result.errorKind !== 'not-found') {
     throw operatorError('MUTATION_FAILED', context.runId)
@@ -823,6 +828,7 @@ async function executeWithAttempts(
   executor: AwsCommandExecutor,
   maxAttempts: 1 | 2,
   input?: string,
+  beforeAttempt?: () => Promise<void>,
 ): Promise<AwsCommandResult> {
   let result: AwsCommandResult = {
     ok: false,
@@ -830,6 +836,7 @@ async function executeWithAttempts(
     errorKind: 'failed',
   }
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    await beforeAttempt?.()
     result = await executor.execute([...args], {
       timeoutMs: AWS_TIMEOUT_MS,
       input,
@@ -957,6 +964,7 @@ function readCapturedStderr(error: unknown): string {
 
 function classifyAwsFailure(
   stderr: string,
+  error?: unknown,
 ): AwsCommandResult['errorKind'] {
   if (
     stderr.includes('UserNotFoundException') ||
@@ -966,6 +974,7 @@ function classifyAwsFailure(
     return 'not-found'
   }
   if (
+    isProcessTimeout(error) ||
     stderr.includes('Throttling') ||
     stderr.includes('Timeout') ||
     stderr.includes('temporarily unavailable')
@@ -973,4 +982,19 @@ function classifyAwsFailure(
     return 'transient'
   }
   return 'failed'
+}
+
+function isProcessTimeout(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const value = error as {
+    code?: unknown
+    signal?: unknown
+    killed?: unknown
+  }
+  return (
+    value.code === 'ETIMEDOUT' ||
+    value.killed === true ||
+    value.signal === 'SIGTERM' ||
+    value.signal === 'SIGKILL'
+  )
 }

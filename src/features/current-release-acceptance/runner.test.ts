@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -280,6 +280,51 @@ describe('current release execution boundary', () => {
     expect(report.providerCostUsd).toBe(0.34)
   })
 
+  it('replaces the pipeline reservation with a higher observed cost under the real maximum', async () => {
+    const dependencies = validDependencies({
+      executeBrowser: vi.fn(async () => ({
+        scenarios: passingScenarios(),
+        modelIds: ['claude-sonnet-4-6'],
+        usage: {
+          onboardingGenerationCalls: 7,
+          agentCalls: 8,
+          sourcePipelineCalls: 1,
+          observedPipelineCostUsd: 0.3,
+        },
+      })),
+    })
+
+    const report = await runCurrentReleaseAcceptance(
+      validOptions(),
+      dependencies,
+    )
+
+    expect(report.estimatedAnthropicCostUsd).toBe(1.06)
+    expect(report.observedPipelineCostUsd).toBe(0.3)
+    expect(report.providerCostUsd).toBe(1.36)
+  })
+
+  it('fails closed when the observed replacement makes the real total exceed max', async () => {
+    const dependencies = validDependencies({
+      executeBrowser: vi.fn(async () => ({
+        scenarios: passingScenarios(),
+        modelIds: ['claude-sonnet-4-6'],
+        usage: {
+          onboardingGenerationCalls: 7,
+          agentCalls: 8,
+          sourcePipelineCalls: 1,
+          observedPipelineCostUsd: 1,
+        },
+      })),
+    })
+
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow('CURRENT_RELEASE_COST_MAX')
+    expect(dependencies.cleanup).toHaveBeenCalledTimes(1)
+    expect(dependencies.writeReport).not.toHaveBeenCalled()
+  })
+
   it('does not pass unrelated parent secrets or endpoint overrides to Playwright', () => {
     const environment = buildPlaywrightChildEnvironment(
       {
@@ -376,6 +421,61 @@ describe('current release execution boundary', () => {
       CURRENT_RELEASE_RUN_ID: runId,
       CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
     })
+  })
+
+  it('removes a secret-bearing invalid result and guard marker on every exit', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'release-browser-cleanup-'),
+    )
+    const paths = getCurrentReleasePaths(workspaceRoot, runId)
+    const registry = createSyntheticCleanupRegistry({
+      runId,
+      startedAt: '2026-07-29T22:00:00.000Z',
+    })
+    const secret = 'Synthetic-admin-password-marker-789!'
+    const executeBrowser = createDefaultBrowserExecutor(
+      workspaceRoot,
+      {
+        executeFile: () => {
+          writeFileSync(paths.guardMarkerPath, '{}')
+          writeFileSync(
+            paths.resultPath,
+            `{"invalid":"${secret}"}`,
+          )
+          return ''
+        },
+      },
+    )
+
+    let caught = ''
+    try {
+      await executeBrowser({
+        runId,
+        baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+        childEnv: {
+          CURRENT_RELEASE_RUN_ID: runId,
+          ADMIN_PASSWORD: secret,
+        },
+        costReservations: {
+          onboardingGenerationUsd: 0.06,
+          onboardingGenerationCalls: 7,
+          agentCallUsd: 0.08,
+          agentCalls: 8,
+          sourcePipelineUsd: 0.25,
+        },
+        resultPath: paths.resultPath,
+        registryPath: paths.registryPath,
+        paths,
+        registry,
+      })
+    } catch (error) {
+      caught = error instanceof Error ? error.message : String(error)
+    }
+
+    expect(caught).toBe('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
+    expect(caught).not.toContain(secret)
+    expect(existsSync(paths.resultPath)).toBe(false)
+    expect(existsSync(paths.guardMarkerPath)).toBe(false)
   })
 
   it('always cleans up after a browser failure and preserves the registry for recovery', async () => {

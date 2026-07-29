@@ -217,6 +217,20 @@ describe('current release cost guard', () => {
     expect(cost.observedPipelineCostUsd()).toBe(0.1)
   })
 
+  it('allows observed pipeline cost above its reservation when the real total remains below max', () => {
+    const cost = createAcceptanceCostGuard({
+      stopBeforeUsd: 1.5,
+      maxUsd: 2,
+    })
+    cost.reserve('agents', 0.6)
+    cost.reserve('pipeline', 0.25)
+
+    cost.recordObservedPipelineCost(0.3)
+
+    expect(cost.totalEstimatedUsd()).toBe(0.9)
+    expect(cost.observedPipelineCostUsd()).toBe(0.3)
+  })
+
   it('rejects invalid or repeated observed pipeline costs', () => {
     const invalid = createAcceptanceCostGuard({
       stopBeforeUsd: 1.5,

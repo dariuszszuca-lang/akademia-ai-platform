@@ -72,7 +72,9 @@ export function createDefaultCurrentReleaseDependencies(
     (resolvedPreflight ??= resolveOperatorContext(
       preflightContext,
       executor,
-    ))
+    ).catch((error) => {
+      throw mapCurrentReleasePreflightError(error)
+    }))
 
   return {
     now: () => new Date(),
@@ -214,6 +216,23 @@ export async function runCurrentReleaseCli(
     )
     return 1
   }
+}
+
+export function mapCurrentReleasePreflightError(
+  error: unknown,
+): Error {
+  if (
+    error instanceof Error &&
+    error.message ===
+      'CURRENT_RELEASE_COGNITO_RESOURCE_UNVERIFIED'
+  ) {
+    return new Error(
+      'CURRENT_RELEASE_COGNITO_PREREQUISITE_MISSING:SEE_RUNBOOK',
+    )
+  }
+  return error instanceof Error
+    ? error
+    : new Error('CURRENT_RELEASE_OPERATOR_READ_FAILED')
 }
 
 function runProgramText(

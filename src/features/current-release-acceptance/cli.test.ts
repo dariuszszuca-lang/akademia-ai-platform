@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  mapCurrentReleasePreflightError,
   parseCurrentReleaseCliArgs,
   runCurrentReleaseCli,
 } from '../../../scripts/current-release-acceptance'
@@ -72,5 +73,18 @@ describe('current release acceptance CLI', () => {
     )
     expect(errorOutput.join('')).toContain('"accepted":false')
     expect(errorOutput.join('')).not.toContain('password')
+  })
+
+  it('maps an unverified Cognito prerequisite to a stable runbook action without raw AWS output', () => {
+    const raw =
+      'CURRENT_RELEASE_COGNITO_RESOURCE_UNVERIFIED raw-secret-output'
+    const mapped = mapCurrentReleasePreflightError(
+      new Error('CURRENT_RELEASE_COGNITO_RESOURCE_UNVERIFIED'),
+    )
+
+    expect(mapped.message).toBe(
+      'CURRENT_RELEASE_COGNITO_PREREQUISITE_MISSING:SEE_RUNBOOK',
+    )
+    expect(mapped.message).not.toContain(raw)
   })
 })

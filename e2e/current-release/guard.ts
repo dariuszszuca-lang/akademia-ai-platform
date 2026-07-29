@@ -70,7 +70,23 @@ export async function writePlaywrightGuardMarker(
 export function assertPlaywrightLaunchAllowed(
   environment: Record<string, string | undefined> = process.env,
 ): void {
-  if (environment.CURRENT_RELEASE_BASE_URL !== PRODUCTION_URL) return
+  const baseUrl = environment.CURRENT_RELEASE_BASE_URL
+  let productionHost = false
+  try {
+    productionHost =
+      new URL(baseUrl ?? '').hostname.toLowerCase() ===
+      'akademia-ai-platform.vercel.app'
+  } catch {
+    productionHost = (baseUrl ?? '')
+      .toLowerCase()
+      .includes('akademia-ai-platform.vercel.app')
+  }
+  if (!productionHost) return
+  if (baseUrl !== PRODUCTION_URL) {
+    throw new Error(
+      'CURRENT_RELEASE_PLAYWRIGHT_PRODUCTION_GUARD_INVALID',
+    )
+  }
 
   try {
     const fixtures = parseCurrentReleaseFixtures(environment)

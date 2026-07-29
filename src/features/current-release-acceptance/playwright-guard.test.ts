@@ -38,6 +38,23 @@ describe('direct Playwright production guard', () => {
     )
   })
 
+  it.each([
+    `${productionUrl}/`,
+    `${productionUrl}/start`,
+    `${productionUrl}?preview=1`,
+    `https://user:pass@akademia-ai-platform.vercel.app`,
+    `https://AKADEMIA-AI-PLATFORM.VERCEL.APP`,
+    `http://akademia-ai-platform.vercel.app`,
+  ])('rejects every non-canonical production URL: %s', (baseUrl) => {
+    expect(() =>
+      assertPlaywrightLaunchAllowed({
+        CURRENT_RELEASE_BASE_URL: baseUrl,
+      }),
+    ).toThrow(
+      'CURRENT_RELEASE_PLAYWRIGHT_PRODUCTION_GUARD_INVALID',
+    )
+  })
+
   it('accepts the complete runner contract with a matching marker', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'release-guard-'))
     const paths = getCurrentReleasePaths(workspace, runId)

@@ -296,6 +296,7 @@ describe('operator execution policies', () => {
     const operationExecutor = fakeExecutor([
       { ok: true, stdout: validIdentity },
       { ok: true, stdout: '{}' },
+      { ok: true, stdout: validIdentity },
       { ok: true, stdout: '{}' },
     ])
 
@@ -306,13 +307,46 @@ describe('operator execution policies', () => {
       operationExecutor,
     )
 
-    const mutations = operationExecutor.calls.slice(1)
+    const mutations = operationExecutor.calls.filter((call) =>
+      call.args.some((argument) =>
+        ['admin-create-user', 'admin-set-user-password'].includes(
+          argument,
+        ),
+      ),
+    )
     expect(mutations).toHaveLength(2)
     for (const call of mutations) {
       expect(call.args.join(' ')).not.toContain(password)
       expect(call.args).toContain('file:///dev/stdin')
       expect(call.options.input).toContain(password)
     }
+  })
+
+  it('reasserts identity before the second create-user mutation and stops on identity change', async () => {
+    const context = await resolveOperatorContext(
+      baseContext(),
+      fakeExecutor(resolverResponses()),
+    )
+    const changedIdentity = JSON.stringify({
+      Account: '021655150975',
+      Arn: 'arn:aws:iam::021655150975:user/wrong',
+    })
+    const executor = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      { ok: true, stdout: '{}' },
+      { ok: true, stdout: changedIdentity },
+    ])
+
+    await expect(
+      createUser(context, username, password, executor),
+    ).rejects.toThrow(
+      `CURRENT_RELEASE_OPERATOR_IDENTITY_INVALID:${runId}`,
+    )
+    expect(
+      executor.calls.some((call) =>
+        call.args.includes('admin-set-user-password'),
+      ),
+    ).toBe(false)
   })
 
   it('rejects an out-of-run username before any mutation call', async () => {
@@ -343,6 +377,7 @@ describe('operator execution policies', () => {
     const operationExecutor = fakeExecutor([
       { ok: true, stdout: validIdentity },
       { ok: false, stdout: '', errorKind: 'transient' },
+      { ok: true, stdout: validIdentity },
       { ok: true, stdout: '{}' },
     ])
 
@@ -354,6 +389,31 @@ describe('operator execution policies', () => {
       ),
     ).toHaveLength(2)
     expect(operationExecutor.waits).toEqual([100])
+  })
+
+  it('classifies process timeouts as transient without exposing raw errors', async () => {
+    const rawSecret = 'synthetic-timeout-secret'
+    const executor = createAwsCommandExecutor({
+      environment: { PATH: '/usr/bin', HOME: '/synthetic/home' },
+      executeFile: () => {
+        throw Object.assign(new Error(rawSecret), {
+          code: 'ETIMEDOUT',
+          killed: true,
+          signal: 'SIGTERM',
+          stderr: rawSecret,
+        })
+      },
+      waitBeforeRetry: vi.fn(async () => undefined),
+    })
+
+    await expect(
+      assertCallerIdentity(baseContext(), executor),
+    ).rejects.toThrow(
+      `CURRENT_RELEASE_OPERATOR_READ_FAILED:${runId}`,
+    )
+    expect(
+      vi.mocked(executor.waitBeforeRetry!).mock.calls,
+    ).toEqual([[100]])
   })
 
   it('retries reads only for transient errors with bounded injected backoff', async () => {

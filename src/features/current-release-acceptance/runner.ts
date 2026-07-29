@@ -4,6 +4,7 @@ import { z } from 'zod'
 import {
   getCurrentReleasePaths,
   prepareCurrentReleaseResultPath,
+  removeCurrentReleaseEphemeralArtifacts,
   readCurrentReleaseResult,
   readCurrentReleaseJournal,
   removeCurrentReleaseJournal,
@@ -19,6 +20,7 @@ import {
   type SyntheticCleanupRegistry,
 } from '../synthetic-acceptance/cleanup-registry'
 import {
+  createAcceptanceCostGuard,
   CURRENT_RELEASE_MAX_COST_USD,
   currentReleaseRunIdSchema,
   currentReleaseScenarioResultsSchema,
@@ -352,24 +354,46 @@ export async function runCurrentReleaseAcceptance(
     throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
   }
   validateBrowserUsage(parsedBrowser.data)
+  const costGuard = createAcceptanceCostGuard({
+    stopBeforeUsd: childBudget.stopBeforeUsd,
+    maxUsd: childBudget.maxUsd,
+  })
+  for (
+    let index = 0;
+    index < parsedBrowser.data.usage.onboardingGenerationCalls;
+    index += 1
+  ) {
+    costGuard.reserve(
+      `onboarding.${index + 1}`,
+      CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd,
+    )
+  }
+  for (
+    let index = 0;
+    index < parsedBrowser.data.usage.agentCalls;
+    index += 1
+  ) {
+    costGuard.reserve(
+      `agent.${index + 1}`,
+      CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd,
+    )
+  }
+  if (parsedBrowser.data.usage.sourcePipelineCalls === 1) {
+    costGuard.reserve(
+      'pipeline',
+      CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd,
+    )
+    costGuard.recordObservedPipelineCost(
+      parsedBrowser.data.usage.observedPipelineCostUsd,
+    )
+  }
   const estimatedAnthropicCostUsd =
     CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd *
       parsedBrowser.data.usage.onboardingGenerationCalls +
     CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd *
       parsedBrowser.data.usage.agentCalls
   const observedPipelineCostUsd =
-    parsedBrowser.data.usage.observedPipelineCostUsd
-  const reservedProviderCostUsd = roundUsd(
-    estimatedAnthropicCostUsd +
-      CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd *
-        parsedBrowser.data.usage.sourcePipelineCalls,
-  )
-  if (
-    reservedProviderCostUsd > childBudget.stopBeforeUsd ||
-    reservedProviderCostUsd > childBudget.maxUsd
-  ) {
-    throw new Error('CURRENT_RELEASE_COST_STOP')
-  }
+    costGuard.observedPipelineCostUsd()
   const providerCostUsd = roundUsd(
     estimatedAnthropicCostUsd + observedPipelineCostUsd,
   )
@@ -444,49 +468,56 @@ export function createDefaultBrowserExecutor(
     ) {
       throw new Error('CURRENT_RELEASE_PATH_INVALID')
     }
-    await prepareCurrentReleaseResultPath(
-      expectedPaths,
-      input.runId,
-    )
     try {
-      executeFile(
-        'npx',
-        [
-          'playwright',
-          'test',
-          '--config',
-          'playwright.config.ts',
-          '--workers=1',
-        ],
-        {
-          cwd: workspaceRoot,
-          env: buildPlaywrightChildEnvironment(
-            runtime.processEnvironment ?? process.env,
-            input.childEnv,
-          ) as unknown as NodeJS.ProcessEnv,
-          encoding: 'utf8',
-          stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: 45 * 60_000,
-          maxBuffer: 10 * 1024 * 1024,
-        },
-      )
-    } catch {
-      throw new Error('CURRENT_RELEASE_BROWSER_FAILED')
-    }
-
-    let raw: string
-    try {
-      raw = await readCurrentReleaseResult(
+      await prepareCurrentReleaseResultPath(
         expectedPaths,
         input.runId,
       )
-    } catch {
-      throw new Error('CURRENT_RELEASE_BROWSER_RESULT_MISSING')
-    }
-    try {
-      return browserExecutionResultSchema.parse(JSON.parse(raw))
-    } catch {
-      throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
+      try {
+        executeFile(
+          'npx',
+          [
+            'playwright',
+            'test',
+            '--config',
+            'playwright.config.ts',
+            '--workers=1',
+          ],
+          {
+            cwd: workspaceRoot,
+            env: buildPlaywrightChildEnvironment(
+              runtime.processEnvironment ?? process.env,
+              input.childEnv,
+            ) as unknown as NodeJS.ProcessEnv,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+            timeout: 45 * 60_000,
+            maxBuffer: 10 * 1024 * 1024,
+          },
+        )
+      } catch {
+        throw new Error('CURRENT_RELEASE_BROWSER_FAILED')
+      }
+
+      let raw: string
+      try {
+        raw = await readCurrentReleaseResult(
+          expectedPaths,
+          input.runId,
+        )
+      } catch {
+        throw new Error('CURRENT_RELEASE_BROWSER_RESULT_MISSING')
+      }
+      try {
+        return browserExecutionResultSchema.parse(JSON.parse(raw))
+      } catch {
+        throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
+      }
+    } finally {
+      await removeCurrentReleaseEphemeralArtifacts(
+        expectedPaths,
+        input.runId,
+      )
     }
   }
 }
@@ -679,9 +710,7 @@ function validateBrowserUsage(result: BrowserExecutionResult): void {
       CURRENT_RELEASE_COST_RESERVATIONS.agentCalls ||
     (result.usage.sourcePipelineCalls === 0 &&
       result.usage.observedPipelineCostUsd !== 0) ||
-    (result.usage.sourcePipelineCalls === 1 &&
-      result.usage.observedPipelineCostUsd >
-        CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd)
+    result.usage.observedPipelineCostUsd < 0
   ) {
     throw new Error('CURRENT_RELEASE_BROWSER_USAGE_INVALID')
   }
