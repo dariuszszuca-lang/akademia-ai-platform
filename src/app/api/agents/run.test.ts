@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   searchLegal: vi.fn(),
   getEffectivePlan: vi.fn(),
   rateLimit: vi.fn(),
+  storeIncrementWithExpiry: vi.fn(),
   anthropicStream: vi.fn(),
 }))
 
@@ -52,7 +53,15 @@ vi.mock('@/lib/rate-limit', () => ({
   rateLimit: mocks.rateLimit,
   LIMITS: {
     AGENT_RUN: { limit: 30, windowMinutes: 1 },
+    CURRENT_RELEASE_LEGAL_PROBE: {
+      limit: 6,
+      windowMinutes: 1,
+    },
   },
+}))
+
+vi.mock('@/lib/store', () => ({
+  storeIncrementWithExpiry: mocks.storeIncrementWithExpiry,
 }))
 
 vi.mock('@/lib/anthropic', () => ({
@@ -71,6 +80,8 @@ describe('POST /api/agents/run authentication', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.rateLimit.mockReset()
+    mocks.storeIncrementWithExpiry.mockReset()
     mocks.resolveApiUser.mockResolvedValue({
       ok: false,
       response: Response.json(
@@ -78,6 +89,7 @@ describe('POST /api/agents/run authentication', () => {
         { status: 401 },
       ),
     })
+    mocks.storeIncrementWithExpiry.mockResolvedValue(1)
   })
 
   it('returns 401 before parsing or invoking downstream dependencies', async () => {
@@ -171,22 +183,24 @@ describe('POST /api/agents/run authentication', () => {
   })
 
   it('accepts a signed legal no-hit probe, skips retrieval and prefixes the real fallback', async () => {
-    const adminPassword = 'Synthetic-admin-password-123!'
+    const acceptanceSecret = 's'.repeat(43)
     const runId = 'syn-20260729T220000Z-deadbeef'
     const userId = '11111111-1111-4111-8111-111111111111'
-    vi.stubEnv('ADMIN_PASSWORD', adminPassword)
+    const nowEpochSeconds = Math.floor(Date.now() / 1000)
+    vi.stubEnv(
+      'CURRENT_RELEASE_ACCEPTANCE_SECRET',
+      acceptanceSecret,
+    )
+    vi.stubEnv('ADMIN_PASSWORD', '')
     setupSuccessfulAgentDependencies('prawny', userId)
-    const signature = signLegalNoHitProbe({
-      adminPassword,
-      runId,
-      userId,
-    })
     const request = legalRequest({
       agentId: 'prawny',
-      headers: {
-        'x-current-release-run-id': runId,
-        'x-current-release-legal-no-hit': signature,
-      },
+      headers: capabilityHeaders({
+        acceptanceSecret,
+        runId,
+        userId,
+        nowEpochSeconds,
+      }),
     })
     const { POST } = await import('./run/route')
 
@@ -204,6 +218,11 @@ describe('POST /api/agents/run authentication', () => {
     expect(body).not.toContain('[Błąd generowania:')
     expect(mocks.searchLegal).not.toHaveBeenCalled()
     expect(mocks.anthropicStream).toHaveBeenCalledOnce()
+    expect(mocks.storeIncrementWithExpiry).toHaveBeenCalledOnce()
+    expect(mocks.rateLimit.mock.calls.map((call) => call[0])).toEqual([
+      'current-release-legal-probe',
+      'agent-run',
+    ])
     expect(mocks.anthropicStream.mock.calls[0]![0].system).toContain(
       LEGAL_NO_SOURCE_MESSAGE,
     )
@@ -211,53 +230,109 @@ describe('POST /api/agents/run authentication', () => {
 
   it.each([
     {
+      label: 'wrong secret',
+      agentId: 'prawny',
+      buildHeaders: (_secret: string, now: number) =>
+        capabilityHeaders({
+          acceptanceSecret: 'w'.repeat(43),
+          runId: 'syn-20260729T220000Z-deadbeef',
+          userId: '11111111-1111-4111-8111-111111111111',
+          nowEpochSeconds: now,
+        }),
+    },
+    {
       label: 'foreign subject',
       agentId: 'prawny',
-      buildHeaders: (
-        adminPassword: string,
-        runId: string,
-      ) => ({
-        'x-current-release-run-id': runId,
-        'x-current-release-legal-no-hit': signLegalNoHitProbe({
-          adminPassword,
-          runId,
+      buildHeaders: (secret: string, now: number) =>
+        capabilityHeaders({
+          acceptanceSecret: secret,
+          runId: 'syn-20260729T220000Z-deadbeef',
           userId: '22222222-2222-4222-8222-222222222222',
+          nowEpochSeconds: now,
         }),
+    },
+    {
+      label: 'foreign run',
+      agentId: 'prawny',
+      buildHeaders: (secret: string, now: number) =>
+        capabilityHeaders({
+          acceptanceSecret: secret,
+          runId: 'syn-20260729T220000Z-deadbeef',
+          headerRunId: 'syn-20260729T220000Z-feedface',
+          userId: '11111111-1111-4111-8111-111111111111',
+          nowEpochSeconds: now,
+        }),
+    },
+    {
+      label: 'expired capability',
+      agentId: 'prawny',
+      buildHeaders: (secret: string, now: number) =>
+        capabilityHeaders({
+          acceptanceSecret: secret,
+          runId: 'syn-20260729T220000Z-deadbeef',
+          userId: '11111111-1111-4111-8111-111111111111',
+          nowEpochSeconds: now - 31,
+          expiresAt: now - 1,
+        }),
+    },
+    {
+      label: 'too-far future capability',
+      agentId: 'prawny',
+      buildHeaders: (secret: string, now: number) =>
+        capabilityHeaders({
+          acceptanceSecret: secret,
+          runId: 'syn-20260729T220000Z-deadbeef',
+          userId: '11111111-1111-4111-8111-111111111111',
+          nowEpochSeconds: now + 31,
+          expiresAt: now + 61,
+        }),
+    },
+    {
+      label: 'malformed nonce',
+      agentId: 'prawny',
+      buildHeaders: (_secret: string, now: number) => ({
+        'x-current-release-run-id':
+          'syn-20260729T220000Z-deadbeef',
+        'x-current-release-legal-no-hit': 'a'.repeat(64),
+        'x-current-release-legal-nonce': 'short',
+        'x-current-release-legal-expires-at': String(now + 30),
       }),
     },
     {
       label: 'non-legal agent',
       agentId: 'ceo',
-      buildHeaders: (
-        adminPassword: string,
-        runId: string,
-      ) => ({
-        'x-current-release-run-id': runId,
-        'x-current-release-legal-no-hit': signLegalNoHitProbe({
-          adminPassword,
-          runId,
+      buildHeaders: (secret: string, now: number) =>
+        capabilityHeaders({
+          acceptanceSecret: secret,
+          runId: 'syn-20260729T220000Z-deadbeef',
           userId: '11111111-1111-4111-8111-111111111111',
+          nowEpochSeconds: now,
         }),
-      }),
     },
     {
       label: 'incomplete headers',
       agentId: 'prawny',
-      buildHeaders: (_adminPassword: string, runId: string) => ({
-        'x-current-release-run-id': runId,
+      buildHeaders: () => ({
+        'x-current-release-run-id':
+          'syn-20260729T220000Z-deadbeef',
       }),
     },
   ])(
     'rejects $label probe with stable 403 before retrieval or model',
     async ({ agentId, buildHeaders }) => {
-      const adminPassword = 'Synthetic-admin-password-123!'
-      const runId = 'syn-20260729T220000Z-deadbeef'
+      const acceptanceSecret = 's'.repeat(43)
       const userId = '11111111-1111-4111-8111-111111111111'
-      vi.stubEnv('ADMIN_PASSWORD', adminPassword)
+      vi.stubEnv(
+        'CURRENT_RELEASE_ACCEPTANCE_SECRET',
+        acceptanceSecret,
+      )
       setupSuccessfulAgentDependencies(agentId, userId)
       const request = legalRequest({
         agentId,
-        headers: buildHeaders(adminPassword, runId),
+        headers: buildHeaders(
+          acceptanceSecret,
+          Math.floor(Date.now() / 1000),
+        ),
       })
       const { POST } = await import('./run/route')
 
@@ -267,13 +342,87 @@ describe('POST /api/agents/run authentication', () => {
       await expect(response.json()).resolves.toEqual({
         error: 'CURRENT_RELEASE_LEGAL_PROBE_FORBIDDEN',
       })
-      expect(mocks.rateLimit).not.toHaveBeenCalled()
+      expect(mocks.rateLimit).toHaveBeenCalledOnce()
+      expect(mocks.rateLimit.mock.calls[0]![0]).toBe(
+        'current-release-legal-probe',
+      )
+      expect(mocks.storeIncrementWithExpiry).not.toHaveBeenCalled()
       expect(mocks.getUserContext).not.toHaveBeenCalled()
       expect(mocks.getEffectivePlan).not.toHaveBeenCalled()
       expect(mocks.searchLegal).not.toHaveBeenCalled()
       expect(mocks.anthropicStream).not.toHaveBeenCalled()
     },
   )
+
+  it('runs the capability limiter before signature verification', async () => {
+    const userId = '11111111-1111-4111-8111-111111111111'
+    setupSuccessfulAgentDependencies('prawny', userId)
+    mocks.rateLimit.mockResolvedValueOnce({
+      ok: false,
+      remaining: 0,
+      resetIn: 17,
+    })
+    const { POST } = await import('./run/route')
+
+    const response = await POST(
+      legalRequest({
+        agentId: 'prawny',
+        headers: {
+          'x-current-release-run-id':
+            'syn-20260729T220000Z-deadbeef',
+          'x-current-release-legal-no-hit': 'malformed',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(429)
+    await expect(response.json()).resolves.toEqual({
+      error: 'CURRENT_RELEASE_LEGAL_PROBE_RATE_LIMITED',
+    })
+    expect(response.headers.get('retry-after')).toBe('17')
+    expect(mocks.findAgent).not.toHaveBeenCalled()
+    expect(mocks.storeIncrementWithExpiry).not.toHaveBeenCalled()
+    expect(mocks.anthropicStream).not.toHaveBeenCalled()
+  })
+
+  it('rejects replayed valid capability before a second model call', async () => {
+    const acceptanceSecret = 's'.repeat(43)
+    const runId = 'syn-20260729T220000Z-deadbeef'
+    const userId = '11111111-1111-4111-8111-111111111111'
+    const nowEpochSeconds = Math.floor(Date.now() / 1000)
+    vi.stubEnv(
+      'CURRENT_RELEASE_ACCEPTANCE_SECRET',
+      acceptanceSecret,
+    )
+    setupSuccessfulAgentDependencies('prawny', userId)
+    mocks.storeIncrementWithExpiry
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
+    const headers = capabilityHeaders({
+      acceptanceSecret,
+      runId,
+      userId,
+      nowEpochSeconds,
+    })
+    const { POST } = await import('./run/route')
+
+    const first = await POST(
+      legalRequest({ agentId: 'prawny', headers }),
+    )
+    await first.text()
+    const replay = await POST(
+      legalRequest({ agentId: 'prawny', headers }),
+    )
+
+    expect(first.status).toBe(200)
+    expect(replay.status).toBe(403)
+    await expect(replay.json()).resolves.toEqual({
+      error: 'CURRENT_RELEASE_LEGAL_PROBE_FORBIDDEN',
+    })
+    expect(mocks.storeIncrementWithExpiry).toHaveBeenCalledTimes(2)
+    expect(mocks.anthropicStream).toHaveBeenCalledOnce()
+    expect(mocks.searchLegal).not.toHaveBeenCalled()
+  })
 
   it('keeps normal legal requests on the retrieval path', async () => {
     const userId = '11111111-1111-4111-8111-111111111111'
@@ -298,6 +447,9 @@ describe('POST /api/agents/run authentication', () => {
     expect(mocks.searchLegal).toHaveBeenCalledOnce()
     expect(body).toContain('[[META]]')
     expect(mocks.anthropicStream).toHaveBeenCalledOnce()
+    expect(mocks.rateLimit).toHaveBeenCalledOnce()
+    expect(mocks.rateLimit.mock.calls[0]![0]).toBe('agent-run')
+    expect(mocks.storeIncrementWithExpiry).not.toHaveBeenCalled()
   })
 })
 
@@ -336,6 +488,35 @@ function setupSuccessfulAgentDependencies(
       }
     })(),
   )
+}
+
+function capabilityHeaders(input: {
+  acceptanceSecret: string
+  runId: string
+  userId: string
+  nowEpochSeconds: number
+  headerRunId?: string
+  nonce?: string
+  expiresAt?: number
+}): Record<string, string> {
+  const nonce = input.nonce ?? 'n'.repeat(43)
+  const expiresAt = input.expiresAt ?? input.nowEpochSeconds + 30
+  return {
+    'x-current-release-run-id':
+      input.headerRunId ?? input.runId,
+    'x-current-release-legal-no-hit': signLegalNoHitProbe(
+      {
+        acceptanceSecret: input.acceptanceSecret,
+        runId: input.runId,
+        userId: input.userId,
+        nonce,
+        expiresAt,
+      },
+      input.nowEpochSeconds,
+    ),
+    'x-current-release-legal-nonce': nonce,
+    'x-current-release-legal-expires-at': String(expiresAt),
+  }
 }
 
 function legalRequest(input: {

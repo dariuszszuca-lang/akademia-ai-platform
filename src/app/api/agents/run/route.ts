@@ -10,6 +10,7 @@ import { rateLimit, LIMITS } from '@/lib/rate-limit'
 import { resolveApiUser } from '@/lib/request-auth'
 import { observableModelHeaders } from '@/lib/model-id'
 import { verifyLegalNoHitProbe } from '@/features/current-release-acceptance/legal-probe'
+import { consumeLegalNoHitProbeNonce } from '@/features/current-release-acceptance/legal-probe-replay'
 import { LEGAL_NO_SOURCE_MESSAGE } from '@/lib/legal/fallback'
 
 export const runtime = 'nodejs'
@@ -27,26 +28,95 @@ export async function POST(req: Request) {
   const hasNoHitHeader = req.headers.has(
     'x-current-release-legal-no-hit',
   )
+  const hasNonceHeader = req.headers.has(
+    'x-current-release-legal-nonce',
+  )
+  const hasExpiresAtHeader = req.headers.has(
+    'x-current-release-legal-expires-at',
+  )
   const legalNoHitProbeRequested =
-    hasRunIdHeader || hasNoHitHeader
-  const legalNoHitProbeValid =
+    hasRunIdHeader ||
+    hasNoHitHeader ||
+    hasNonceHeader ||
+    hasExpiresAtHeader
+  if (legalNoHitProbeRequested) {
+    const probeRateLimit = await rateLimit(
+      'current-release-legal-probe',
+      userId,
+      LIMITS.CURRENT_RELEASE_LEGAL_PROBE.limit,
+      LIMITS.CURRENT_RELEASE_LEGAL_PROBE.windowMinutes,
+    )
+    if (!probeRateLimit.ok) {
+      return Response.json(
+        { error: 'CURRENT_RELEASE_LEGAL_PROBE_RATE_LIMITED' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(probeRateLimit.resetIn),
+          },
+        },
+      )
+    }
+  }
+
+  const expiresAtHeader =
+    req.headers.get('x-current-release-legal-expires-at') ?? ''
+  const expiresAt =
+    /^[1-9][0-9]{9,12}$/.test(expiresAtHeader)
+      ? Number(expiresAtHeader)
+      : Number.NaN
+  const runIdHeader =
+    req.headers.get('x-current-release-run-id') ?? ''
+  const nonceHeader =
+    req.headers.get('x-current-release-legal-nonce') ?? ''
+  const legalNoHitProbeSignatureValid =
     legalNoHitProbeRequested &&
     agentId === 'prawny' &&
     hasRunIdHeader &&
     hasNoHitHeader &&
+    hasNonceHeader &&
+    hasExpiresAtHeader &&
     verifyLegalNoHitProbe({
-      adminPassword: process.env.ADMIN_PASSWORD,
-      runId:
-        req.headers.get('x-current-release-run-id') ?? '',
+      acceptanceSecret:
+        process.env.CURRENT_RELEASE_ACCEPTANCE_SECRET,
+      runId: runIdHeader,
       userId,
+      nonce: nonceHeader,
+      expiresAt,
       signature:
         req.headers.get('x-current-release-legal-no-hit') ?? '',
     })
-  if (legalNoHitProbeRequested && !legalNoHitProbeValid) {
+  if (
+    legalNoHitProbeRequested &&
+    !legalNoHitProbeSignatureValid
+  ) {
     return Response.json(
       { error: 'CURRENT_RELEASE_LEGAL_PROBE_FORBIDDEN' },
       { status: 403 },
     )
+  }
+  let legalNoHitProbeAccepted = false
+  if (legalNoHitProbeSignatureValid) {
+    try {
+      legalNoHitProbeAccepted =
+        await consumeLegalNoHitProbeNonce({
+          runId: runIdHeader,
+          userId,
+          nonce: nonceHeader,
+          expiresAt,
+        })
+    } catch {
+      return Response.json(
+        { error: 'CURRENT_RELEASE_LEGAL_PROBE_UNAVAILABLE' },
+        { status: 503 },
+      )
+    }
+    if (!legalNoHitProbeAccepted) {
+      return Response.json(
+        { error: 'CURRENT_RELEASE_LEGAL_PROBE_FORBIDDEN' },
+        { status: 403 },
+      )
+    }
   }
 
   const agent = findAgent(agentId)
@@ -95,7 +165,7 @@ export async function POST(req: Request) {
   if (
     agent.id === 'prawny' &&
     features.ragLegal &&
-    !legalNoHitProbeValid
+    !legalNoHitProbeAccepted
   ) {
     const ragQuery = `${tool.title}\n${context ?? ''}\n${goal ?? ''}`.trim()
     legalChunks = await searchLegal(ragQuery, 5)

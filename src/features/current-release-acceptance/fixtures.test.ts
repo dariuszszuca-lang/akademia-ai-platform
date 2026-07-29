@@ -20,6 +20,7 @@ function validEnvironment() {
     CURRENT_RELEASE_USER_B_PASSWORD:
       'Synthetic-user-B-password-456!',
     ADMIN_PASSWORD: 'Synthetic-admin-password-789!',
+    CURRENT_RELEASE_ACCEPTANCE_SECRET: 's'.repeat(43),
     AWS_PROFILE: 'akademia-ai',
     AWS_REGION: 'eu-central-1',
     CURRENT_RELEASE_WORKSPACE_ROOT: workspaceRoot,
@@ -49,6 +50,7 @@ describe('current release Playwright fixtures', () => {
       userB: `synthetic-release-${runId}-b@example.invalid`,
       passwordB: 'Synthetic-user-B-password-456!',
       adminPassword: 'Synthetic-admin-password-789!',
+      acceptanceSecret: 's'.repeat(43),
       awsProfile: 'akademia-ai',
       awsRegion: 'eu-central-1',
       paths: getCurrentReleasePaths(workspaceRoot, runId),
@@ -73,6 +75,7 @@ describe('current release Playwright fixtures', () => {
     ['CURRENT_RELEASE_USER_A_PASSWORD', 'weak'],
     ['CURRENT_RELEASE_USER_B_PASSWORD', 'alllowercasebutlongenough'],
     ['ADMIN_PASSWORD', '   '],
+    ['CURRENT_RELEASE_ACCEPTANCE_SECRET', 'weak'],
     ['AWS_PROFILE', 'ai-team'],
     ['AWS_REGION', 'us-east-1'],
   ])('rejects invalid %s', (key, value) => {
@@ -80,6 +83,28 @@ describe('current release Playwright fixtures', () => {
       parseCurrentReleaseFixtures({
         ...validEnvironment(),
         [key]: value,
+      }),
+    ).toThrow('CURRENT_RELEASE_FIXTURES_INVALID')
+  })
+
+  it('requires the dedicated acceptance secret', () => {
+    const environment: Record<string, string> =
+      validEnvironment()
+    delete environment.CURRENT_RELEASE_ACCEPTANCE_SECRET
+
+    expect(() =>
+      parseCurrentReleaseFixtures(environment),
+    ).toThrow('CURRENT_RELEASE_FIXTURES_INVALID')
+  })
+
+  it('keeps the acceptance secret distinct from the admin password', () => {
+    const sharedSecret = `Ab1_${'s'.repeat(39)}`
+
+    expect(() =>
+      parseCurrentReleaseFixtures({
+        ...validEnvironment(),
+        ADMIN_PASSWORD: sharedSecret,
+        CURRENT_RELEASE_ACCEPTANCE_SECRET: sharedSecret,
       }),
     ).toThrow('CURRENT_RELEASE_FIXTURES_INVALID')
   })

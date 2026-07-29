@@ -25,6 +25,7 @@ import {
 
 const runId = 'syn-20260729T220000Z-deadbeef'
 const adminPassword = 'Synthetic-admin-password-123!'
+const acceptanceSecret = 's'.repeat(43)
 
 function validOptions(
   overrides: Partial<CurrentReleaseRunnerOptions> = {},
@@ -36,6 +37,7 @@ function validOptions(
     profile: 'akademia-ai',
     region: 'eu-central-1',
     adminPassword,
+    acceptanceSecret,
     workspaceRoot: '/synthetic/workspace',
     ...overrides,
   }
@@ -126,6 +128,21 @@ describe('current release production preflight', () => {
     [{ adminPassword: undefined }, 'CURRENT_RELEASE_ADMIN_PASSWORD_MISSING'],
     [{ adminPassword: '' }, 'CURRENT_RELEASE_ADMIN_PASSWORD_MISSING'],
     [{ adminPassword: '   ' }, 'CURRENT_RELEASE_ADMIN_PASSWORD_MISSING'],
+    [
+      { acceptanceSecret: undefined },
+      'CURRENT_RELEASE_ACCEPTANCE_SECRET_MISSING',
+    ],
+    [
+      { acceptanceSecret: 'weak' },
+      'CURRENT_RELEASE_ACCEPTANCE_SECRET_INVALID',
+    ],
+    [
+      {
+        adminPassword: `Ab1_${'s'.repeat(39)}`,
+        acceptanceSecret: `Ab1_${'s'.repeat(39)}`,
+      },
+      'CURRENT_RELEASE_ACCEPTANCE_SECRET_INVALID',
+    ],
   ] as const)(
     'rejects invalid local option %j before side effects',
     async (override, errorCode) => {
@@ -227,6 +244,7 @@ describe('current release execution boundary', () => {
       .calls[0]![0]
     expect(browserInput.childEnv).toMatchObject({
       ADMIN_PASSWORD: adminPassword,
+      CURRENT_RELEASE_ACCEPTANCE_SECRET: acceptanceSecret,
       CURRENT_RELEASE_USER_A_PASSWORD:
         'Synthetic-user-A-password-123!',
       CURRENT_RELEASE_USER_B_PASSWORD:
@@ -236,12 +254,14 @@ describe('current release execution boundary', () => {
       .calls[0]![0]
     const serializedRegistry = JSON.stringify(savedRegistry)
     expect(serializedRegistry).not.toContain(adminPassword)
+    expect(serializedRegistry).not.toContain(acceptanceSecret)
     expect(serializedRegistry).not.toContain('password')
     expect(serializedRegistry).not.toContain('token')
 
     const report = vi.mocked(dependencies.writeReport).mock.calls[0]![0]
     const serializedReport = JSON.stringify(report)
     expect(serializedReport).not.toContain(adminPassword)
+    expect(serializedReport).not.toContain(acceptanceSecret)
     expect(serializedReport).not.toContain(
       'Synthetic-user-A-password-123!',
     )
@@ -368,6 +388,8 @@ describe('current release execution boundary', () => {
       {
         CURRENT_RELEASE_RUN_ID: runId,
         CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+        CURRENT_RELEASE_ACCEPTANCE_SECRET: acceptanceSecret,
+        CURRENT_RELEASE_UNRELATED_SECRET: 'must-not-pass',
       },
     )
 
@@ -378,6 +400,7 @@ describe('current release execution boundary', () => {
       LANG: 'pl_PL.UTF-8',
       CURRENT_RELEASE_RUN_ID: runId,
       CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+      CURRENT_RELEASE_ACCEPTANCE_SECRET: acceptanceSecret,
     })
   })
 
@@ -391,6 +414,7 @@ describe('current release execution boundary', () => {
       startedAt: '2026-07-29T22:00:00.000Z',
     })
     let capturedEnvironment: NodeJS.ProcessEnv | undefined
+    let capturedArguments: string[] = []
     const executeBrowser = createDefaultBrowserExecutor(
       workspaceRoot,
       {
@@ -400,7 +424,8 @@ describe('current release execution boundary', () => {
           AWS_ACCESS_KEY_ID: 'synthetic-access-key',
           STRIPE_SECRET_KEY: 'synthetic-stripe',
         },
-        executeFile: (_file, _args, options) => {
+        executeFile: (_file, args, options) => {
+          capturedArguments = args
           capturedEnvironment = options.env
           writeFileSync(
             paths.resultPath,
@@ -426,6 +451,7 @@ describe('current release execution boundary', () => {
       childEnv: {
         CURRENT_RELEASE_RUN_ID: runId,
         CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+        CURRENT_RELEASE_ACCEPTANCE_SECRET: acceptanceSecret,
       },
       costReservations: {
         onboardingGenerationUsd: 0.06,
@@ -445,7 +471,11 @@ describe('current release execution boundary', () => {
       HOME: '/synthetic/home',
       CURRENT_RELEASE_RUN_ID: runId,
       CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+      CURRENT_RELEASE_ACCEPTANCE_SECRET: acceptanceSecret,
     })
+    expect(capturedArguments.join(' ')).not.toContain(
+      acceptanceSecret,
+    )
   })
 
   it('reads a safe failed-scenario result even when Playwright exits nonzero', async () => {

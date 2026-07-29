@@ -97,6 +97,10 @@ describe('browser execution result contract', () => {
       'cookie',
       'signedUrl',
       'fileName',
+      'acceptanceSecret',
+      'signature',
+      'nonce',
+      'expiresAt',
     ]) {
       expect(() =>
         parseBrowserExecutionResult({
@@ -108,6 +112,15 @@ describe('browser execution result contract', () => {
         }),
       ).toThrow('CURRENT_RELEASE_BROWSER_RESULT_FORBIDDEN_FIELD')
     }
+  })
+
+  it('rejects a standalone high-entropy acceptance secret value before schema parsing', () => {
+    expect(() =>
+      parseBrowserExecutionResult({
+        ...validBrowserResult(),
+        modelIds: ['s'.repeat(43)],
+      }),
+    ).toThrow('CURRENT_RELEASE_BROWSER_RESULT_SECRET_VALUE')
   })
 })
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { currentReleaseRunIdSchema } from '../../src/features/current-release-acceptance/domain'
+import { currentReleaseAcceptanceSecretSchema } from '../../src/features/current-release-acceptance/legal-probe'
 import {
   getCurrentReleasePaths,
   type CurrentReleasePaths,
@@ -31,6 +32,8 @@ const environmentSchema = z
     CURRENT_RELEASE_USER_B: z.string().max(180),
     CURRENT_RELEASE_USER_B_PASSWORD: strongPasswordSchema,
     ADMIN_PASSWORD: strongPasswordSchema,
+    CURRENT_RELEASE_ACCEPTANCE_SECRET:
+      currentReleaseAcceptanceSecretSchema,
     AWS_PROFILE: z.literal('akademia-ai'),
     AWS_REGION: z.literal('eu-central-1'),
     CURRENT_RELEASE_WORKSPACE_ROOT: z.string().min(1),
@@ -71,6 +74,16 @@ const environmentSchema = z
         message: 'CURRENT_RELEASE_USERS_NOT_UNIQUE',
       })
     }
+    if (
+      environment.CURRENT_RELEASE_ACCEPTANCE_SECRET ===
+      environment.ADMIN_PASSWORD
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CURRENT_RELEASE_ACCEPTANCE_SECRET'],
+        message: 'CURRENT_RELEASE_ACCEPTANCE_SECRET_INVALID',
+      })
+    }
     try {
       const paths = getCurrentReleasePaths(
         environment.CURRENT_RELEASE_WORKSPACE_ROOT,
@@ -105,6 +118,7 @@ export type CurrentReleaseFixtures = {
   userB: string
   passwordB: string
   adminPassword: string
+  acceptanceSecret: string
   awsProfile: 'akademia-ai'
   awsRegion: 'eu-central-1'
   paths: CurrentReleasePaths
@@ -132,6 +146,8 @@ export function parseCurrentReleaseFixtures(
     userB: result.data.CURRENT_RELEASE_USER_B,
     passwordB: result.data.CURRENT_RELEASE_USER_B_PASSWORD,
     adminPassword: result.data.ADMIN_PASSWORD,
+    acceptanceSecret:
+      result.data.CURRENT_RELEASE_ACCEPTANCE_SECRET,
     awsProfile: result.data.AWS_PROFILE,
     awsRegion: result.data.AWS_REGION,
     paths,

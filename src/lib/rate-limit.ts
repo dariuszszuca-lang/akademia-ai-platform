@@ -116,4 +116,8 @@ export const LIMITS = {
   PERSONA_TYPES: { limit: 10, windowMinutes: 1 },
   AUTH_SESSION: { limit: 20, windowMinutes: 1 },
   STRIPE_CHECKOUT: { limit: 5, windowMinutes: 1 },
+  CURRENT_RELEASE_LEGAL_PROBE: {
+    limit: 6,
+    windowMinutes: 1,
+  },
 }

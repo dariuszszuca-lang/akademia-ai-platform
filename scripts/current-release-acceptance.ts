@@ -177,6 +177,8 @@ export async function main(
           profile: CURRENT_RELEASE_AWS_PROFILE,
           region: CURRENT_RELEASE_AWS_REGION,
           adminPassword: process.env.ADMIN_PASSWORD,
+          acceptanceSecret:
+            process.env.CURRENT_RELEASE_ACCEPTANCE_SECRET,
           workspaceRoot,
         },
         createDefaultCurrentReleaseDependencies(workspaceRoot),

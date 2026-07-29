@@ -30,6 +30,7 @@ import {
   type BrowserExecutionResult,
   type BrowserRegistryUpdate,
 } from './browser-result'
+import { currentReleaseAcceptanceSecretSchema } from './legal-probe'
 import {
   createCurrentReleaseReport,
   renderCurrentReleaseReportMarkdown,
@@ -60,6 +61,7 @@ export type CurrentReleaseRunnerOptions = {
   profile: string
   region: string
   adminPassword: string | undefined
+  acceptanceSecret: string | undefined
   workspaceRoot: string
 }
 
@@ -179,6 +181,8 @@ export async function runCurrentReleaseAcceptance(
     CURRENT_RELEASE_USER_B: registry.releaseUsers[1]!.username,
     CURRENT_RELEASE_USER_B_PASSWORD: passwordB,
     ADMIN_PASSWORD: options.adminPassword!.trim(),
+    CURRENT_RELEASE_ACCEPTANCE_SECRET:
+      options.acceptanceSecret!,
     AWS_PROFILE: options.profile,
     AWS_REGION: options.region,
     CURRENT_RELEASE_RESULT_PATH: resultPath,
@@ -552,18 +556,31 @@ export function buildPlaywrightChildEnvironment(
     'LC_ALL',
     'PLAYWRIGHT_BROWSERS_PATH',
   ] as const
+  const allowedContractKeys = new Set([
+    'CURRENT_RELEASE_RUN_ID',
+    'CURRENT_RELEASE_BASE_URL',
+    'CURRENT_RELEASE_USER_A',
+    'CURRENT_RELEASE_USER_A_PASSWORD',
+    'CURRENT_RELEASE_USER_B',
+    'CURRENT_RELEASE_USER_B_PASSWORD',
+    'CURRENT_RELEASE_ACCEPTANCE_SECRET',
+    'ADMIN_PASSWORD',
+    'AWS_PROFILE',
+    'AWS_REGION',
+    'CURRENT_RELEASE_RESULT_PATH',
+    'CURRENT_RELEASE_REGISTRY_PATH',
+    'CURRENT_RELEASE_GUARD_MARKER_PATH',
+    'CURRENT_RELEASE_WORKSPACE_ROOT',
+    'CURRENT_RELEASE_RUNNER_GUARD',
+    'CURRENT_RELEASE_BUDGET',
+  ])
   const environment: Record<string, string> = {}
   for (const key of allowedSystemKeys) {
     const value = parent[key]?.trim()
     if (value) environment[key] = value
   }
   for (const [key, value] of Object.entries(contract)) {
-    if (
-      key.startsWith('CURRENT_RELEASE_') ||
-      key === 'ADMIN_PASSWORD' ||
-      key === 'AWS_PROFILE' ||
-      key === 'AWS_REGION'
-    ) {
+    if (allowedContractKeys.has(key)) {
       environment[key] = value
     }
   }
@@ -623,6 +640,17 @@ function validateLocalOptions(
   }
   if (!options.adminPassword?.trim()) {
     throw new Error('CURRENT_RELEASE_ADMIN_PASSWORD_MISSING')
+  }
+  if (!options.acceptanceSecret) {
+    throw new Error('CURRENT_RELEASE_ACCEPTANCE_SECRET_MISSING')
+  }
+  if (
+    !currentReleaseAcceptanceSecretSchema.safeParse(
+      options.acceptanceSecret,
+    ).success ||
+    options.acceptanceSecret === options.adminPassword
+  ) {
+    throw new Error('CURRENT_RELEASE_ACCEPTANCE_SECRET_INVALID')
   }
 }
 

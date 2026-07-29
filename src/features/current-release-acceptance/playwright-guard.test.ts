@@ -108,6 +108,7 @@ describe('direct Playwright production guard', () => {
         CURRENT_RELEASE_USER_B_PASSWORD:
           'Synthetic-user-B-password-456!',
         ADMIN_PASSWORD: 'Synthetic-admin-password-789!',
+        CURRENT_RELEASE_ACCEPTANCE_SECRET: 's'.repeat(43),
         AWS_PROFILE: 'akademia-ai',
         AWS_REGION: 'eu-central-1',
       }),

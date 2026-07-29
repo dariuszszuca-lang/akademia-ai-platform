@@ -3,6 +3,28 @@
 Pełny test akceptacyjny produkcji działa wyłącznie na koncie AWS
 `261965598943`, profilu `akademia-ai` i w regionie `eu-central-1`.
 
+## Sekret capability testu prawnego
+
+Proces produkcyjny aplikacji i lokalny proces runnera wymagają zmiennej
+`CURRENT_RELEASE_ACCEPTANCE_SECRET`.
+
+- To osobny sekret tylko dla podpisywania krótkotrwałej capability testu
+  akceptacyjnego. Nie wolno używać w tej roli `ADMIN_PASSWORD`.
+- Sekret musi mieć co najmniej 32 losowe bajty zapisane jako base64url
+  (minimum 43 znaki) i być inny niż wszystkie hasła administracyjne.
+- Wartość przekazuje się wyłącznie przez zatwierdzony mechanizm sekretów do
+  środowiska aplikacji i procesu runnera. Nie umieszcza się jej w argumentach
+  CLI, logach, runbooku, raportach ani journalu.
+- Brak lub niepoprawny format zatrzymuje runner przed preflightem kodem
+  `CURRENT_RELEASE_ACCEPTANCE_SECRET_MISSING` albo
+  `CURRENT_RELEASE_ACCEPTANCE_SECRET_INVALID`.
+- Capability zawiera losowy nonce i wygasa najpóźniej po 60 sekundach.
+  Serwer ogranicza próby przed weryfikacją podpisu i atomowo zużywa nonce
+  tylko raz.
+
+Ten runbook nie zawiera wartości sekretu ani nie autoryzuje jego utworzenia
+lub zmiany w środowisku produkcyjnym.
+
 ## Kontrakt Cognito
 
 Runner odczytuje identyfikator puli wyłącznie z parametru SSM:

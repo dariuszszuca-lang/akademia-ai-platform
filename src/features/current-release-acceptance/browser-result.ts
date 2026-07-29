@@ -150,9 +150,14 @@ const forbiddenBrowserResultFields = new Set([
   'cookie',
   'signedurl',
   'filename',
+  'acceptancesecret',
+  'signature',
+  'nonce',
+  'expiresat',
 ])
 
 const forbiddenSecretValuePatterns = [
+  /^[A-Za-z0-9_-]{43,128}$/,
   /sk_live_[A-Za-z0-9_-]{4,}/i,
   /sk-ant-[A-Za-z0-9_-]{4,}/i,
   /pcsk_[A-Za-z0-9_-]{4,}/i,
