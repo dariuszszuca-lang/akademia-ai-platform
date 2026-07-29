@@ -14,8 +14,10 @@ const publicShells = [
   'src/app/(dashboard)/settings/subscription/page.tsx',
   'src/app/(dashboard)/pricing/page.tsx',
   'src/app/api/account/export/route.ts',
+  'src/components/DashboardShell.tsx',
   'src/components/Navbar.tsx',
   'src/components/CommandPalette.tsx',
+  'src/components/onboarding/OnboardingShell.tsx',
   'src/lib/agent/prompts.ts',
   'src/lib/billing/plans.ts',
 ]
@@ -42,8 +44,8 @@ describe('public product surfaces', () => {
   })
 
   it('keeps the dashboard shell accessible on keyboard and mobile', () => {
-    const layout = readFileSync(
-      resolve(process.cwd(), 'src/app/(dashboard)/layout.tsx'),
+    const shell = readFileSync(
+      resolve(process.cwd(), 'src/components/DashboardShell.tsx'),
       'utf8',
     )
     const navbar = readFileSync(
@@ -51,9 +53,30 @@ describe('public product surfaces', () => {
       'utf8',
     )
 
-    expect(layout).toContain('href="#main-content"')
-    expect(layout).toContain('id="main-content"')
+    expect(shell).toContain('href="#main-content"')
+    expect(shell).toContain('id="main-content"')
     expect(navbar).toContain('grid-cols-4')
     expect(navbar).not.toContain('overflow-x-auto')
+  })
+
+  it.each([
+    'src/app/(dashboard)/layout.tsx',
+    'src/app/(onboarding)/layout.tsx',
+  ])('%s redirects unsigned users before rendering', (file) => {
+    const source = readFileSync(resolve(process.cwd(), file), 'utf8')
+
+    expect(source).toContain("import { getServerUserId } from '@/lib/session'")
+    expect(source).toContain("import { redirect } from 'next/navigation'")
+    expect(source).toContain('await getServerUserId()')
+    expect(source).toContain("redirect('/login')")
+  })
+
+  it('does not use a demo identity for onboarding state', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/lib/onboarding/state.ts'),
+      'utf8',
+    )
+
+    expect(source).not.toContain('demo-user')
   })
 })

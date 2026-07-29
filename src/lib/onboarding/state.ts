@@ -1,9 +1,7 @@
 import { storeGet, storeSet } from '@/lib/store'
-import { getServerUserId } from '@/lib/session'
+import { requireServerUserId } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { emptyState, type OnboardingState } from './types'
-
-const DEMO_USER_ID = 'demo-user'
 
 /**
  * Revaliduje strony ktore renderuja stan onboardingu.
@@ -24,11 +22,9 @@ function revalidateOnboardingViews(): void {
 /**
  * Server-only getUserId.
  * Czyta httpOnly cookie z user.sub.
- * Fallback: demo-user (dla starszych testów; produkcyjnie zawsze user musi być zalogowany).
  */
 async function getUserId(): Promise<string> {
-  const sub = await getServerUserId()
-  return sub ?? DEMO_USER_ID
+  return requireServerUserId()
 }
 
 function stateKey(userId: string): string {

@@ -1,69 +1,15 @@
-"use client";
+import { redirect } from 'next/navigation'
+import DashboardShell from '@/components/DashboardShell'
+import { getServerUserId } from '@/lib/session'
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { ThemeProvider } from "@/lib/theme-context";
-import Navbar from "@/components/Navbar";
-import CommandPalette from "@/components/CommandPalette";
+export const dynamic = 'force-dynamic'
 
-function DashboardGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-5">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
-              <span className="text-white font-extrabold text-lg">PI</span>
-            </div>
-            <div className="absolute inset-0 w-12 h-12 rounded-xl border-2 border-accent/30 animate-ping motion-reduce:animate-none" />
-          </div>
-          <p className="text-sm text-foreground/40 tracking-wide">Ładowanie Studio...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) return null;
-
-  return (
-    <div className="min-h-screen bg-background">
-      <a
-        href="#main-content"
-        className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:not-sr-only focus:rounded-full focus:bg-foreground focus:px-5 focus:py-3 focus:text-sm focus:font-semibold focus:text-background"
-      >
-        Przejdź do treści
-      </a>
-      <Navbar />
-      <CommandPalette />
-      <main id="main-content" className="pt-36 pb-32 sm:pt-40">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {children}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  return (
-    <ThemeProvider>
-      <AuthProvider>
-        <DashboardGuard>{children}</DashboardGuard>
-      </AuthProvider>
-    </ThemeProvider>
-  );
+  if (!(await getServerUserId())) redirect('/login')
+
+  return <DashboardShell>{children}</DashboardShell>
 }
