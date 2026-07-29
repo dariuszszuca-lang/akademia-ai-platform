@@ -144,8 +144,9 @@ export function createAcceptanceCostGuard({
     throw new Error('CURRENT_RELEASE_COST_LIMIT_INVALID')
   }
 
-  const stopBeforeMicrounits = toMicrounits(stopBeforeUsd)
-  const maxMicrounits = toMicrounits(maxUsd)
+  const stopBeforeMicrounits =
+    usdToConservativeMicrounits(stopBeforeUsd)
+  const maxMicrounits = usdToConservativeMicrounits(maxUsd)
   const reservations = new Map<string, number>()
   let observedPipelineMicrounits: number | null = null
   let stopped = false
@@ -179,7 +180,8 @@ export function createAcceptanceCostGuard({
         throw new Error('CURRENT_RELEASE_COST_ESTIMATE_INVALID')
       }
 
-      const estimatedMicrounits = toMicrounits(estimatedUsd)
+      const estimatedMicrounits =
+        usdToConservativeMicrounits(estimatedUsd)
       if (
         estimatedMicrounits <= 0 ||
         totalMicrounits() + estimatedMicrounits >
@@ -211,7 +213,8 @@ export function createAcceptanceCostGuard({
         )
       }
 
-      observedPipelineMicrounits = toMicrounits(usd)
+      observedPipelineMicrounits =
+        usdToConservativeMicrounits(usd)
       const total = totalMicrounits()
       if (total > maxMicrounits) {
         stopped = true
@@ -236,8 +239,11 @@ export function createAcceptanceCostGuard({
   }
 }
 
-function toMicrounits(usd: number): number {
-  return Math.round(usd * USD_MICROUNITS)
+export function usdToConservativeMicrounits(usd: number): number {
+  const scaled = usd * USD_MICROUNITS
+  const floatingPointTolerance =
+    Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4
+  return Math.ceil(scaled - floatingPointTolerance)
 }
 
 function fromMicrounits(microunits: number): number {

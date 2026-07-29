@@ -206,6 +206,26 @@ describe('safe current release acceptance report', () => {
     ).toThrow('CURRENT_RELEASE_REPORT_COST_INVALID')
   })
 
+  it('binds provider cost to estimated and observed components', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        providerCostUsd: 0,
+      }),
+    ).toThrow('CURRENT_RELEASE_PROVIDER_COST_MISMATCH')
+  })
+
+  it('compares provider cost without IEEE-754 sum surprises', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        estimatedAnthropicCostUsd: 0.1,
+        observedPipelineCostUsd: 0.2,
+        providerCostUsd: 0.1 + 0.2,
+      }),
+    ).not.toThrow()
+  })
+
   it('rejects accepted=true when any scenario failed', () => {
     const input = validInput()
     const scenarios: ScenarioResult[] = [...input.scenarios]

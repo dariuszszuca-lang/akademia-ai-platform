@@ -130,6 +130,18 @@ describe('current release cost guard', () => {
     )
   })
 
+  it('does not round a fractional microunit down below the stop limit', () => {
+    const cost = createAcceptanceCostGuard({
+      stopBeforeUsd: 1.5,
+      maxUsd: 2,
+    })
+
+    expect(() => cost.reserve('fractional-overage', 1.5000004)).toThrow(
+      'CURRENT_RELEASE_COST_STOP',
+    )
+    expect(cost.totalEstimatedUsd()).toBe(0)
+  })
+
   it.each([0, -0.01, Number.NaN, Number.POSITIVE_INFINITY])(
     'rejects an invalid reservation amount: %s',
     (amount) => {
@@ -241,6 +253,19 @@ describe('current release cost guard', () => {
     expect(() => cost.reserve('after-maximum', 0.01)).toThrow(
       'CURRENT_RELEASE_COST_STOP',
     )
+  })
+
+  it('does not round observed fractional microunits below the maximum', () => {
+    const cost = createAcceptanceCostGuard({
+      stopBeforeUsd: 1.5,
+      maxUsd: 2,
+    })
+    cost.reserve('pipeline', 0.25)
+
+    expect(() =>
+      cost.recordObservedPipelineCost(2.0000004),
+    ).toThrow('CURRENT_RELEASE_COST_MAX')
+    expect(cost.totalEstimatedUsd()).toBe(2.000001)
   })
 
   it('avoids binary floating-point accumulation surprises', () => {

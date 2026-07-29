@@ -5,6 +5,7 @@ import {
   CURRENT_RELEASE_MAX_COST_USD,
   currentReleaseRunIdSchema,
   currentReleaseScenarioResultsSchema,
+  usdToConservativeMicrounits,
 } from './domain'
 
 const safeBaseUrlSchema = z
@@ -97,14 +98,32 @@ export const currentReleaseReportSchema = z
       })
     }
 
+    const estimatedAnthropicCostMicrounits =
+      usdToConservativeMicrounits(
+        report.estimatedAnthropicCostUsd,
+      )
+    const observedPipelineCostMicrounits =
+      usdToConservativeMicrounits(report.observedPipelineCostUsd)
+    const providerCostMicrounits =
+      usdToConservativeMicrounits(report.providerCostUsd)
+    const combinedCostMicrounits =
+      estimatedAnthropicCostMicrounits +
+      observedPipelineCostMicrounits
+
     if (
-      report.estimatedAnthropicCostUsd +
-        report.observedPipelineCostUsd >
-      CURRENT_RELEASE_MAX_COST_USD
+      combinedCostMicrounits >
+      usdToConservativeMicrounits(CURRENT_RELEASE_MAX_COST_USD)
     ) {
       context.addIssue({
         code: 'custom',
         message: 'CURRENT_RELEASE_REPORT_COST_INVALID',
+      })
+    }
+    if (providerCostMicrounits !== combinedCostMicrounits) {
+      context.addIssue({
+        code: 'custom',
+        path: ['providerCostUsd'],
+        message: 'CURRENT_RELEASE_PROVIDER_COST_MISMATCH',
       })
     }
 
