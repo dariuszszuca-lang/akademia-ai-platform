@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SessionConfigurationError } from '@/lib/auth-session'
 
 const mocks = vi.hoisted(() => ({
   getServerUserId: vi.fn(),
@@ -118,6 +119,23 @@ describe('POST /api/account/delete', () => {
     expect(mocks.deleteUser).not.toHaveBeenCalled()
   })
 
+  it('returns 503 when Cognito verification is not configured', async () => {
+    mocks.verifyCognitoAccessToken.mockRejectedValue(
+      new SessionConfigurationError(),
+    )
+    const { POST } = await import('./route')
+
+    const response = await POST(deleteRequest('Bearer token'))
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      error: 'authentication_unavailable',
+    })
+    expect(response.headers.get('set-cookie')).toBeNull()
+    expect(mocks.deleteAccountData).not.toHaveBeenCalled()
+    expect(mocks.deleteUser).not.toHaveBeenCalled()
+  })
+
   it('returns 403 when token subject differs from the signed session', async () => {
     mocks.verifyCognitoAccessToken.mockResolvedValue({ sub: 'user-b' })
     const { POST } = await import('./route')
@@ -187,6 +205,7 @@ describe('POST /api/account/delete', () => {
       await expect(response.json()).resolves.toEqual({
         error: 'deletion_failed',
       })
+      expect(response.headers.get('set-cookie')).toBeNull()
       if (stage === 'application') {
         expect(mocks.deleteUser).not.toHaveBeenCalled()
       }

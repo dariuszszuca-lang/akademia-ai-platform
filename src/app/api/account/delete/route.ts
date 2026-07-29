@@ -7,6 +7,7 @@ import {
   getPropertySourceRepository,
 } from '@/features/property-sources/server-repository'
 import { getStudioEventService } from '@/features/studio-events/server-repository'
+import { SessionConfigurationError } from '@/lib/auth-session'
 import { deleteUser } from '@/lib/cognito'
 import { verifyCognitoAccessToken } from '@/lib/cognito-token'
 import { getServerUserId, SESSION_COOKIE } from '@/lib/session'
@@ -48,7 +49,10 @@ export async function POST(req: Request) {
       verifyToken: async (token) => {
         try {
           return await verifyCognitoAccessToken(token)
-        } catch {
+        } catch (error) {
+          if (error instanceof SessionConfigurationError) {
+            throw error
+          }
           throw new Error('ACCOUNT_DELETE_INVALID_TOKEN')
         }
       },
@@ -82,6 +86,13 @@ export async function POST(req: Request) {
       },
     })
   } catch (error) {
+    if (error instanceof SessionConfigurationError) {
+      console.error('[account-delete] authentication_unavailable')
+      return NextResponse.json(
+        { error: 'authentication_unavailable' },
+        { status: 503 },
+      )
+    }
     if (
       error instanceof Error &&
       error.message === 'ACCOUNT_DELETE_INVALID_TOKEN'
