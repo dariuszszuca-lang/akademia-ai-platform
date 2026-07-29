@@ -151,18 +151,20 @@ export function createAcceptanceCostGuard({
   let observedPipelineMicrounits: number | null = null
   let stopped = false
 
-  function totalMicrounits(): number {
+  function totalMicrounits(
+    pipelineObservedMicrounits = observedPipelineMicrounits,
+  ): number {
     let total = 0
     for (const [label, amount] of reservations) {
       if (
         label === CURRENT_RELEASE_PIPELINE_RESERVATION_LABEL &&
-        observedPipelineMicrounits !== null
+        pipelineObservedMicrounits !== null
       ) {
         continue
       }
       total += amount
     }
-    return total + (observedPipelineMicrounits ?? 0)
+    return total + (pipelineObservedMicrounits ?? 0)
   }
 
   return {
@@ -178,6 +180,10 @@ export function createAcceptanceCostGuard({
       }
       if (!Number.isFinite(estimatedUsd) || estimatedUsd <= 0) {
         throw new Error('CURRENT_RELEASE_COST_ESTIMATE_INVALID')
+      }
+      if (estimatedUsd > stopBeforeUsd) {
+        stopped = true
+        throw new Error('CURRENT_RELEASE_COST_STOP')
       }
 
       const estimatedMicrounits =
@@ -212,14 +218,19 @@ export function createAcceptanceCostGuard({
           'CURRENT_RELEASE_PIPELINE_COST_ALREADY_RECORDED',
         )
       }
+      if (usd > maxUsd) {
+        stopped = true
+        throw new Error('CURRENT_RELEASE_COST_MAX')
+      }
 
-      observedPipelineMicrounits =
+      const candidateObservedMicrounits =
         usdToConservativeMicrounits(usd)
-      const total = totalMicrounits()
+      const total = totalMicrounits(candidateObservedMicrounits)
       if (total > maxMicrounits) {
         stopped = true
         throw new Error('CURRENT_RELEASE_COST_MAX')
       }
+      observedPipelineMicrounits = candidateObservedMicrounits
       if (total > stopBeforeMicrounits) {
         stopped = true
       }
@@ -240,10 +251,25 @@ export function createAcceptanceCostGuard({
 }
 
 export function usdToConservativeMicrounits(usd: number): number {
+  if (!Number.isFinite(usd)) {
+    throw new Error('CURRENT_RELEASE_COST_OVERFLOW')
+  }
+
   const scaled = usd * USD_MICROUNITS
+  if (!Number.isFinite(scaled)) {
+    throw new Error('CURRENT_RELEASE_COST_OVERFLOW')
+  }
+
   const floatingPointTolerance =
     Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4
-  return Math.ceil(scaled - floatingPointTolerance)
+  const microunits = Math.ceil(scaled - floatingPointTolerance)
+  if (
+    !Number.isFinite(microunits) ||
+    !Number.isSafeInteger(microunits)
+  ) {
+    throw new Error('CURRENT_RELEASE_COST_OVERFLOW')
+  }
+  return microunits
 }
 
 function fromMicrounits(microunits: number): number {

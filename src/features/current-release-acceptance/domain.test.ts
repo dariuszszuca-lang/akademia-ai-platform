@@ -4,6 +4,7 @@ import {
   currentReleaseScenarioResultsSchema,
   currentReleaseScenarios,
   type ScenarioResult,
+  usdToConservativeMicrounits,
 } from './domain'
 
 const requiredScenarios = [
@@ -142,6 +143,20 @@ describe('current release cost guard', () => {
     expect(cost.totalEstimatedUsd()).toBe(0)
   })
 
+  it('fails closed without mutating reservations on numeric overflow', () => {
+    const cost = createAcceptanceCostGuard({
+      stopBeforeUsd: 1.5,
+      maxUsd: 2,
+    })
+    cost.reserve('existing', 0.4)
+
+    expect(() => cost.reserve('huge', Number.MAX_VALUE)).toThrow(
+      'CURRENT_RELEASE_COST_STOP',
+    )
+    expect(cost.totalEstimatedUsd()).toBe(0.4)
+    expect(cost.isStopped()).toBe(true)
+  })
+
   it.each([0, -0.01, Number.NaN, Number.POSITIVE_INFINITY])(
     'rejects an invalid reservation amount: %s',
     (amount) => {
@@ -249,7 +264,8 @@ describe('current release cost guard', () => {
     expect(() => cost.recordObservedPipelineCost(2)).toThrow(
       'CURRENT_RELEASE_COST_MAX',
     )
-    expect(cost.totalEstimatedUsd()).toBe(2.1)
+    expect(cost.totalEstimatedUsd()).toBe(0.35)
+    expect(cost.observedPipelineCostUsd()).toBe(0)
     expect(() => cost.reserve('after-maximum', 0.01)).toThrow(
       'CURRENT_RELEASE_COST_STOP',
     )
@@ -265,7 +281,24 @@ describe('current release cost guard', () => {
     expect(() =>
       cost.recordObservedPipelineCost(2.0000004),
     ).toThrow('CURRENT_RELEASE_COST_MAX')
-    expect(cost.totalEstimatedUsd()).toBe(2.000001)
+    expect(cost.totalEstimatedUsd()).toBe(0.25)
+    expect(cost.observedPipelineCostUsd()).toBe(0)
+    expect(cost.isStopped()).toBe(true)
+  })
+
+  it('fails closed without recording an observed numeric overflow', () => {
+    const cost = createAcceptanceCostGuard({
+      stopBeforeUsd: 1.5,
+      maxUsd: 2,
+    })
+    cost.reserve('pipeline', 0.25)
+
+    expect(() =>
+      cost.recordObservedPipelineCost(Number.MAX_VALUE),
+    ).toThrow('CURRENT_RELEASE_COST_MAX')
+    expect(cost.totalEstimatedUsd()).toBe(0.25)
+    expect(cost.observedPipelineCostUsd()).toBe(0)
+    expect(cost.isStopped()).toBe(true)
   })
 
   it('avoids binary floating-point accumulation surprises', () => {
@@ -289,5 +322,11 @@ describe('current release cost guard', () => {
     expect(() =>
       createAcceptanceCostGuard({ stopBeforeUsd: 0, maxUsd: 2 }),
     ).toThrow('CURRENT_RELEASE_COST_LIMIT_INVALID')
+  })
+
+  it('rejects direct microunit conversion overflow', () => {
+    expect(() =>
+      usdToConservativeMicrounits(Number.MAX_VALUE),
+    ).toThrow('CURRENT_RELEASE_COST_OVERFLOW')
   })
 })
