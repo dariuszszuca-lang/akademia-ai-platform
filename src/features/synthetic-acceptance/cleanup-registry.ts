@@ -160,6 +160,19 @@ export type SyntheticCleanupRegistry = z.infer<
   typeof cleanupRegistrySchema
 >
 
+export function parseSyntheticCleanupRegistry(
+  value: unknown,
+): SyntheticCleanupRegistry {
+  const result = cleanupRegistrySchema.safeParse(value)
+  if (!result.success) {
+    throw new Error(
+      result.error.issues[0]?.message ??
+        'SYNTHETIC_CLEANUP_REGISTRY_INVALID',
+    )
+  }
+  return result.data
+}
+
 export function createSyntheticCleanupRegistry({
   runId,
   startedAt,
@@ -202,14 +215,7 @@ export function removeSyntheticCleanupRegistry(
 function parseRegistry(
   registry: SyntheticCleanupRegistry,
 ): SyntheticCleanupRegistry {
-  const result = cleanupRegistrySchema.safeParse(registry)
-  if (!result.success) {
-    throw new Error(
-      result.error.issues[0]?.message ??
-        'SYNTHETIC_CLEANUP_REGISTRY_INVALID',
-    )
-  }
-  return result.data
+  return parseSyntheticCleanupRegistry(registry)
 }
 
 async function writeRegistry(

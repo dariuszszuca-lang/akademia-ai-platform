@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { parseCurrentReleaseFixtures } from '../../../e2e/current-release/fixtures'
+import { getCurrentReleasePaths } from '../../../e2e/current-release/journal'
 
 const runId = 'syn-20260729T220000Z-deadbeef'
+const workspaceRoot = '/synthetic/workspace'
 
 function validEnvironment() {
+  const paths = getCurrentReleasePaths(workspaceRoot, runId)
   return {
     CURRENT_RELEASE_RUN_ID: runId,
     CURRENT_RELEASE_BASE_URL:
@@ -19,6 +22,20 @@ function validEnvironment() {
     ADMIN_PASSWORD: 'Synthetic-admin-password-789!',
     AWS_PROFILE: 'akademia-ai',
     AWS_REGION: 'eu-central-1',
+    CURRENT_RELEASE_WORKSPACE_ROOT: workspaceRoot,
+    CURRENT_RELEASE_REGISTRY_PATH: paths.registryPath,
+    CURRENT_RELEASE_RESULT_PATH: paths.resultPath,
+    CURRENT_RELEASE_GUARD_MARKER_PATH: paths.guardMarkerPath,
+    CURRENT_RELEASE_RUNNER_GUARD: 'a'.repeat(43),
+    CURRENT_RELEASE_BUDGET: JSON.stringify({
+      maxUsd: 2,
+      stopBeforeUsd: 1.5,
+      unitCosts: {
+        onboardingGenerationUsd: 0.06,
+        agentCallUsd: 0.08,
+        sourcePipelineUsd: 0.25,
+      },
+    }),
   }
 }
 
@@ -34,6 +51,17 @@ describe('current release Playwright fixtures', () => {
       adminPassword: 'Synthetic-admin-password-789!',
       awsProfile: 'akademia-ai',
       awsRegion: 'eu-central-1',
+      paths: getCurrentReleasePaths(workspaceRoot, runId),
+      runnerGuard: 'a'.repeat(43),
+      budget: {
+        maxUsd: 2,
+        stopBeforeUsd: 1.5,
+        unitCosts: {
+          onboardingGenerationUsd: 0.06,
+          agentCallUsd: 0.08,
+          sourcePipelineUsd: 0.25,
+        },
+      },
     })
   })
 

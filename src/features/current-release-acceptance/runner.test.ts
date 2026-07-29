@@ -1,10 +1,18 @@
+import { writeFileSync } from 'node:fs'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  buildPlaywrightChildEnvironment,
+  createDefaultBrowserExecutor,
   CURRENT_RELEASE_PRODUCTION_URL,
   runCurrentReleaseAcceptance,
   type CurrentReleaseRunnerDependencies,
   type CurrentReleaseRunnerOptions,
 } from './runner'
+import { getCurrentReleasePaths } from '../../../e2e/current-release/journal'
+import { createSyntheticCleanupRegistry } from '../synthetic-acceptance/cleanup-registry'
 import {
   currentReleaseScenarios,
   type ScenarioResult,
@@ -57,7 +65,10 @@ function validDependencies(
     checkDlq: vi.fn(async () => 0),
     checkAlarms: vi.fn(async () => 0),
     saveRegistry: vi.fn(async () => undefined),
+    loadRegistry: vi.fn(async () => null),
     removeRegistry: vi.fn(async () => undefined),
+    createGuardNonce: vi.fn(() => 'a'.repeat(43)),
+    prepareGuard: vi.fn(async () => undefined),
     executeBrowser: vi.fn(async () => ({
       scenarios: passingScenarios(),
       modelIds: ['claude-sonnet-4-6'],
@@ -233,6 +244,140 @@ describe('current release execution boundary', () => {
     expect(report.providerCostUsd).toBe(1.17)
   })
 
+  it('passes the actual per-run maximum to the child and validates actual usage', async () => {
+    const dependencies = validDependencies({
+      executeBrowser: vi.fn(async () => ({
+        scenarios: passingScenarios(),
+        modelIds: ['claude-sonnet-4-6'],
+        usage: {
+          onboardingGenerationCalls: 0,
+          agentCalls: 3,
+          sourcePipelineCalls: 1,
+          observedPipelineCostUsd: 0.1,
+        },
+      })),
+    })
+
+    const report = await runCurrentReleaseAcceptance(
+      validOptions({ maxCostUsd: 0.5 }),
+      dependencies,
+    )
+
+    const childInput = vi.mocked(dependencies.executeBrowser).mock
+      .calls[0]![0]
+    expect(JSON.parse(childInput.childEnv.CURRENT_RELEASE_BUDGET!)).toEqual(
+      {
+        maxUsd: 0.5,
+        stopBeforeUsd: 0.5,
+        unitCosts: {
+          onboardingGenerationUsd: 0.06,
+          agentCallUsd: 0.08,
+          sourcePipelineUsd: 0.25,
+        },
+      },
+    )
+    expect(report.estimatedAnthropicCostUsd).toBe(0.24)
+    expect(report.providerCostUsd).toBe(0.34)
+  })
+
+  it('does not pass unrelated parent secrets or endpoint overrides to Playwright', () => {
+    const environment = buildPlaywrightChildEnvironment(
+      {
+        PATH: '/usr/bin',
+        HOME: '/synthetic/home',
+        TMPDIR: '/tmp',
+        LANG: 'pl_PL.UTF-8',
+        AWS_ACCESS_KEY_ID: 'synthetic-access-key',
+        AWS_SECRET_ACCESS_KEY: 'synthetic-secret',
+        AWS_ENDPOINT_URL: 'http://127.0.0.1:9999',
+        STRIPE_SECRET_KEY: 'synthetic-stripe',
+        ANTHROPIC_API_KEY: 'synthetic-anthropic',
+        PINECONE_API_KEY: 'synthetic-pinecone',
+        VERCEL_TOKEN: 'synthetic-vercel',
+      },
+      {
+        CURRENT_RELEASE_RUN_ID: runId,
+        CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+      },
+    )
+
+    expect(environment).toEqual({
+      PATH: '/usr/bin',
+      HOME: '/synthetic/home',
+      TMPDIR: '/tmp',
+      LANG: 'pl_PL.UTF-8',
+      CURRENT_RELEASE_RUN_ID: runId,
+      CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+    })
+  })
+
+  it('passes the allowlisted environment to the actual browser wrapper', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'release-browser-env-'),
+    )
+    const paths = getCurrentReleasePaths(workspaceRoot, runId)
+    const registry = createSyntheticCleanupRegistry({
+      runId,
+      startedAt: '2026-07-29T22:00:00.000Z',
+    })
+    let capturedEnvironment: NodeJS.ProcessEnv | undefined
+    const executeBrowser = createDefaultBrowserExecutor(
+      workspaceRoot,
+      {
+        processEnvironment: {
+          PATH: '/usr/bin',
+          HOME: '/synthetic/home',
+          AWS_ACCESS_KEY_ID: 'synthetic-access-key',
+          STRIPE_SECRET_KEY: 'synthetic-stripe',
+        },
+        executeFile: (_file, _args, options) => {
+          capturedEnvironment = options.env
+          writeFileSync(
+            paths.resultPath,
+            JSON.stringify({
+              scenarios: passingScenarios(),
+              modelIds: ['claude-sonnet-4-6'],
+              usage: {
+                onboardingGenerationCalls: 0,
+                agentCalls: 0,
+                sourcePipelineCalls: 0,
+                observedPipelineCostUsd: 0,
+              },
+            }),
+          )
+          return ''
+        },
+      },
+    )
+
+    await executeBrowser({
+      runId,
+      baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+      childEnv: {
+        CURRENT_RELEASE_RUN_ID: runId,
+        CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+      },
+      costReservations: {
+        onboardingGenerationUsd: 0.06,
+        onboardingGenerationCalls: 7,
+        agentCallUsd: 0.08,
+        agentCalls: 8,
+        sourcePipelineUsd: 0.25,
+      },
+      resultPath: paths.resultPath,
+      registryPath: paths.registryPath,
+      paths,
+      registry,
+    })
+
+    expect(capturedEnvironment).toEqual({
+      PATH: '/usr/bin',
+      HOME: '/synthetic/home',
+      CURRENT_RELEASE_RUN_ID: runId,
+      CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
+    })
+  })
+
   it('always cleans up after a browser failure and preserves the registry for recovery', async () => {
     const secret = 'Synthetic-user-A-password-123!'
     const dependencies = validDependencies({
@@ -250,6 +395,47 @@ describe('current release execution boundary', () => {
     expect(dependencies.writeReport).not.toHaveBeenCalled()
     const cleanupInput = vi.mocked(dependencies.cleanup).mock.calls[0]![0]
     expect(JSON.stringify(cleanupInput)).not.toContain(secret)
+  })
+
+  it('reloads the atomic child journal before cleanup after browser failure', async () => {
+    let diskRegistry:
+      | Parameters<CurrentReleaseRunnerDependencies['saveRegistry']>[0]
+      | null = null
+    const subject = '11111111-1111-4111-8111-111111111111'
+    const dependencies = validDependencies({
+      saveRegistry: vi.fn(async (value) => {
+        diskRegistry = structuredClone(value)
+      }),
+      loadRegistry: vi.fn(async () =>
+        diskRegistry ? structuredClone(diskRegistry) : null,
+      ),
+      executeBrowser: vi.fn(async (input) => {
+        const partial = structuredClone(input.registry)
+        partial.releaseUsers[0]!.cognitoSub = subject
+        partial.kvKeys.push(`user:${subject}:profil`)
+        partial.adminAgentState = {
+          agentId: 'publikacja',
+          enabled: true,
+        }
+        await dependencies.saveRegistry(partial)
+        throw new Error('synthetic browser failure')
+      }),
+    })
+
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_FAILED')
+
+    const cleanupRegistry = vi.mocked(dependencies.cleanup).mock
+      .calls[0]![0]
+    expect(cleanupRegistry.releaseUsers[0]?.cognitoSub).toBe(subject)
+    expect(cleanupRegistry.kvKeys).toEqual([
+      `user:${subject}:profil`,
+    ])
+    expect(cleanupRegistry.adminAgentState).toEqual({
+      agentId: 'publikacja',
+      enabled: true,
+    })
   })
 
   it('applies a validated secret-free child registry update before cleanup', async () => {
@@ -305,7 +491,7 @@ describe('current release execution boundary', () => {
     expect(dependencies.saveRegistry).toHaveBeenCalledTimes(2)
   })
 
-  it('preserves the registry when a cleanup check fails', async () => {
+  it('writes a rejected report, preserves registry and exits nonzero when cleanup residue remains', async () => {
     const dependencies = validDependencies({
       cleanup: vi.fn(async () => ({
         databaseEmpty: true,
@@ -318,11 +504,10 @@ describe('current release execution boundary', () => {
       })),
     })
 
-    const report = await runCurrentReleaseAcceptance(
-      validOptions(),
-      dependencies,
-    )
-
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
+    const report = vi.mocked(dependencies.writeReport).mock.calls[0]![0]
     expect(report.accepted).toBe(false)
     expect(dependencies.removeRegistry).not.toHaveBeenCalled()
   })
@@ -346,7 +531,7 @@ describe('current release execution boundary', () => {
     )
   })
 
-  it('preserves the recovery registry when any scenario fails', async () => {
+  it('writes a rejected report and preserves recovery registry when any scenario fails', async () => {
     const scenarios = passingScenarios()
     scenarios[0] = {
       ...scenarios[0]!,
@@ -365,12 +550,30 @@ describe('current release execution boundary', () => {
       })),
     })
 
-    const report = await runCurrentReleaseAcceptance(
-      validOptions(),
-      dependencies,
-    )
-
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
+    const report = vi.mocked(dependencies.writeReport).mock.calls[0]![0]
     expect(report.accepted).toBe(false)
+    expect(dependencies.removeRegistry).not.toHaveBeenCalled()
+  })
+
+  it('reports a stable combined failure when browser and cleanup both fail', async () => {
+    const secret = 'Synthetic-user-A-password-123!'
+    const dependencies = validDependencies({
+      executeBrowser: vi.fn(async () => {
+        throw new Error(`browser ${secret}`)
+      }),
+      cleanup: vi.fn(async () => {
+        throw new Error(`cleanup ${secret}`)
+      }),
+    })
+
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_BROWSER_AND_CLEANUP_FAILED',
+    )
     expect(dependencies.removeRegistry).not.toHaveBeenCalled()
   })
 

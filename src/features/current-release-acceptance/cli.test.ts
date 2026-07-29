@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { parseCurrentReleaseCliArgs } from '../../../scripts/current-release-acceptance'
+import {
+  parseCurrentReleaseCliArgs,
+  runCurrentReleaseCli,
+} from '../../../scripts/current-release-acceptance'
 
 const validArgs = [
   '--allow-production',
@@ -50,4 +53,24 @@ describe('current release acceptance CLI', () => {
       )
     },
   )
+
+  it('returns exit code 1 and a secret-free summary for rejected acceptance', async () => {
+    const output: string[] = []
+    const errorOutput: string[] = []
+    const code = await runCurrentReleaseCli(validArgs, {
+      execute: async () => {
+        throw new Error('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
+      },
+      writeOutput: (value) => output.push(value),
+      writeError: (value) => errorOutput.push(value),
+    })
+
+    expect(code).toBe(1)
+    expect(output).toEqual([])
+    expect(errorOutput.join('')).toContain(
+      '"errorCode":"CURRENT_RELEASE_ACCEPTANCE_REJECTED"',
+    )
+    expect(errorOutput.join('')).toContain('"accepted":false')
+    expect(errorOutput.join('')).not.toContain('password')
+  })
 })

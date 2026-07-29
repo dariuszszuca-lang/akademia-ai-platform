@@ -1,0 +1,430 @@
+import {
+  lstat,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
+import {
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from 'node:path'
+import {
+  parseSyntheticCleanupRegistry,
+  type SyntheticCleanupRegistry,
+} from '../../src/features/synthetic-acceptance/cleanup-registry'
+import { currentReleaseRunIdSchema } from '../../src/features/current-release-acceptance/domain'
+
+export type CurrentReleasePaths = {
+  workspaceRoot: string
+  reportDirectory: string
+  browserDirectory: string
+  registryPath: string
+  resultPath: string
+  guardMarkerPath: string
+}
+
+export function getCurrentReleasePaths(
+  workspaceRoot: string,
+  runId: string,
+): CurrentReleasePaths {
+  const parsedRunId = currentReleaseRunIdSchema.parse(runId)
+  if (!isAbsolute(workspaceRoot)) {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+  const root = resolve(workspaceRoot)
+  const reportDirectory = resolve(
+    root,
+    'reports',
+    'current-release-acceptance',
+  )
+  const browserDirectory = resolve(
+    root,
+    'Temp',
+    'current-release-playwright',
+    parsedRunId,
+  )
+  const paths = {
+    workspaceRoot: root,
+    reportDirectory,
+    browserDirectory,
+    registryPath: resolve(
+      reportDirectory,
+      `${parsedRunId}.run.json`,
+    ),
+    resultPath: resolve(browserDirectory, 'result.json'),
+    guardMarkerPath: resolve(browserDirectory, 'guard.json'),
+  }
+  assertContained(
+    reportDirectory,
+    paths.registryPath,
+    `${parsedRunId}.run.json`,
+  )
+  assertContained(
+    browserDirectory,
+    paths.resultPath,
+    'result.json',
+  )
+  assertContained(
+    browserDirectory,
+    paths.guardMarkerPath,
+    'guard.json',
+  )
+  return paths
+}
+
+export async function writeCurrentReleaseJournal(
+  paths: CurrentReleasePaths,
+  value: SyntheticCleanupRegistry,
+): Promise<void> {
+  assertExactPaths(paths)
+  const registry = parseSyntheticCleanupRegistry(value)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.reportDirectory)
+  await rejectUnsafeExistingFile(paths.registryPath)
+  const temporaryPath = resolve(
+    paths.reportDirectory,
+    `${registry.runId}.run.${process.pid}.${Date.now()}.tmp`,
+  )
+  assertContained(paths.reportDirectory, temporaryPath)
+  try {
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(registry, null, 2)}\n`,
+      { mode: 0o600, flag: 'wx' },
+    )
+    await rejectUnsafeExistingFile(paths.registryPath)
+    await rename(temporaryPath, paths.registryPath)
+  } finally {
+    await rm(temporaryPath, { force: true })
+  }
+}
+
+export async function readCurrentReleaseJournal(
+  paths: CurrentReleasePaths,
+  expectedRunId: string,
+): Promise<SyntheticCleanupRegistry> {
+  assertExactPaths(paths)
+  const parsedRunId = currentReleaseRunIdSchema.parse(expectedRunId)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.reportDirectory)
+  const file = await lstat(paths.registryPath)
+  if (!file.isFile() || file.isSymbolicLink()) {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+  let raw: unknown
+  try {
+    raw = JSON.parse(await readFile(paths.registryPath, 'utf8'))
+  } catch {
+    throw new Error('CURRENT_RELEASE_JOURNAL_INVALID')
+  }
+  const registry = parseSyntheticCleanupRegistry(raw)
+  if (registry.runId !== parsedRunId) {
+    throw new Error('CURRENT_RELEASE_JOURNAL_INVALID')
+  }
+  return registry
+}
+
+export async function removeCurrentReleaseJournal(
+  paths: CurrentReleasePaths,
+): Promise<void> {
+  assertExactPaths(paths)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.reportDirectory)
+  try {
+    const stat = await lstat(paths.registryPath)
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error('CURRENT_RELEASE_PATH_INVALID')
+    }
+    await rm(paths.registryPath)
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return
+    }
+    throw error
+  }
+}
+
+export async function prepareCurrentReleaseResultPath(
+  paths: CurrentReleasePaths,
+  runId: string,
+): Promise<void> {
+  const expected = getCurrentReleasePaths(paths.workspaceRoot, runId)
+  assertPathsEqual(paths, expected)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.browserDirectory)
+  try {
+    const stat = await lstat(paths.resultPath)
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error('CURRENT_RELEASE_PATH_INVALID')
+    }
+    await rm(paths.resultPath)
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return
+    }
+    throw error
+  }
+}
+
+export async function readCurrentReleaseResult(
+  paths: CurrentReleasePaths,
+  runId: string,
+): Promise<string> {
+  const expected = getCurrentReleasePaths(paths.workspaceRoot, runId)
+  assertPathsEqual(paths, expected)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.browserDirectory)
+  const stat = await lstat(paths.resultPath)
+  if (stat.isSymbolicLink() || !stat.isFile()) {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+  return readFile(paths.resultPath, 'utf8')
+}
+
+export async function writeCurrentReleaseReportArtifacts(
+  paths: CurrentReleasePaths,
+  runId: string,
+  json: string,
+  markdown: string,
+): Promise<void> {
+  const expected = getCurrentReleasePaths(paths.workspaceRoot, runId)
+  assertPathsEqual(paths, expected)
+  await ensureSafeDirectory(paths.workspaceRoot, paths.reportDirectory)
+  await Promise.all([
+    writeAtomicArtifact(
+      paths.reportDirectory,
+      resolve(paths.reportDirectory, `${runId}.json`),
+      json,
+    ),
+    writeAtomicArtifact(
+      paths.reportDirectory,
+      resolve(paths.reportDirectory, `${runId}.md`),
+      markdown,
+    ),
+  ])
+}
+
+export function createCurrentReleaseJournal(
+  paths: CurrentReleasePaths,
+  runId: string,
+) {
+  const parsedRunId = currentReleaseRunIdSchema.parse(runId)
+  let sequence = Promise.resolve()
+
+  function update(
+    mutate: (registry: SyntheticCleanupRegistry) => void,
+  ): Promise<void> {
+    sequence = sequence.then(async () => {
+      const registry = await readCurrentReleaseJournal(
+        paths,
+        parsedRunId,
+      )
+      mutate(registry)
+      await writeCurrentReleaseJournal(paths, registry)
+    })
+    return sequence
+  }
+
+  return {
+    recordUserSubject(
+      role: 'a' | 'b',
+      cognitoSub: string,
+    ): Promise<void> {
+      return update((registry) => {
+        const user = registry.releaseUsers.find(
+          (candidate) => candidate.role === role,
+        )
+        if (!user) {
+          throw new Error('CURRENT_RELEASE_JOURNAL_INVALID')
+        }
+        user.cognitoSub = cognitoSub
+      })
+    },
+
+    recordKvKey(kvKey: string): Promise<void> {
+      return update((registry) => {
+        if (!registry.kvKeys.includes(kvKey)) {
+          registry.kvKeys.push(kvKey)
+        }
+      })
+    },
+
+    recordAdminPreviousState(
+      agentId: string,
+      enabled: boolean,
+    ): Promise<void> {
+      return update((registry) => {
+        if (registry.adminAgentState !== null) {
+          throw new Error('CURRENT_RELEASE_ADMIN_STATE_ALREADY_RECORDED')
+        }
+        registry.adminAgentState = { agentId, enabled }
+      })
+    },
+
+    recordResources(input: {
+      organizationId: string
+      projectId?: string
+      sourceId?: string
+      storageKey?: string
+    }): Promise<void> {
+      return update((registry) => {
+        if (
+          registry.organizationId &&
+          registry.organizationId !== input.organizationId
+        ) {
+          throw new Error('CURRENT_RELEASE_JOURNAL_INVALID')
+        }
+        registry.organizationId = input.organizationId
+        registry.organizationPrefix =
+          `originals/organizations/${input.organizationId}/`
+        pushUnique(registry.projectIds, input.projectId)
+        pushUnique(registry.sourceIds, input.sourceId)
+        pushUnique(registry.storageKeys, input.storageKey)
+      })
+    },
+  }
+}
+
+function pushUnique(
+  values: string[],
+  value: string | undefined,
+): void {
+  if (value && !values.includes(value)) values.push(value)
+}
+
+function assertExactPaths(paths: CurrentReleasePaths): void {
+  let runId: string
+  try {
+    runId = extractRunId(paths.registryPath)
+  } catch {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+  const expected = getCurrentReleasePaths(
+    paths.workspaceRoot,
+    runId,
+  )
+  assertPathsEqual(paths, expected)
+}
+
+function assertPathsEqual(
+  actual: CurrentReleasePaths,
+  expected: CurrentReleasePaths,
+): void {
+  if (
+    Object.keys(expected).some(
+      (key) =>
+        expected[key as keyof CurrentReleasePaths] !==
+        actual[key as keyof CurrentReleasePaths],
+    )
+  ) {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+}
+
+function extractRunId(registryPath: string): string {
+  const fileName = registryPath.split(sep).at(-1) ?? ''
+  return currentReleaseRunIdSchema.parse(
+    fileName.replace(/\.run\.json$/, ''),
+  )
+}
+
+function assertContained(
+  parent: string,
+  candidate: string,
+  exactBaseName?: string,
+): void {
+  const path = relative(parent, candidate)
+  if (
+    path === '' ||
+    path === '..' ||
+    path.startsWith(`..${sep}`) ||
+    isAbsolute(path) ||
+    (exactBaseName !== undefined && path !== exactBaseName)
+  ) {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+}
+
+async function ensureSafeDirectory(
+  workspaceRoot: string,
+  directory: string,
+): Promise<void> {
+  assertContained(workspaceRoot, directory)
+  await rejectSymlink(workspaceRoot)
+  const relativeDirectory = relative(workspaceRoot, directory)
+  let current = workspaceRoot
+  for (const segment of relativeDirectory.split(sep)) {
+    current = resolve(current, segment)
+    try {
+      await rejectSymlink(current)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        await mkdir(current, { mode: 0o700 })
+      } else {
+        throw error
+      }
+    }
+  }
+}
+
+async function rejectSymlink(path: string): Promise<void> {
+  const stat = await lstat(path)
+  if (stat.isSymbolicLink() || !stat.isDirectory()) {
+    throw new Error('CURRENT_RELEASE_PATH_INVALID')
+  }
+}
+
+async function rejectUnsafeExistingFile(path: string): Promise<void> {
+  try {
+    const stat = await lstat(path)
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error('CURRENT_RELEASE_PATH_INVALID')
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return
+    }
+    throw error
+  }
+}
+
+async function writeAtomicArtifact(
+  directory: string,
+  destination: string,
+  contents: string,
+): Promise<void> {
+  assertContained(directory, destination)
+  await rejectUnsafeExistingFile(destination)
+  const temporaryPath = resolve(
+    directory,
+    `artifact.${process.pid}.${Date.now()}.${Math.random()
+      .toString(16)
+      .slice(2)}.tmp`,
+  )
+  assertContained(directory, temporaryPath)
+  try {
+    await writeFile(temporaryPath, contents, {
+      mode: 0o600,
+      flag: 'wx',
+    })
+    await rejectUnsafeExistingFile(destination)
+    await rename(temporaryPath, destination)
+  } finally {
+    await rm(temporaryPath, { force: true })
+  }
+}

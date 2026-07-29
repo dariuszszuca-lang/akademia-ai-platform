@@ -1,4 +1,7 @@
 import { defineConfig } from '@playwright/test'
+import { assertPlaywrightLaunchAllowed } from './e2e/current-release/guard'
+
+assertPlaywrightLaunchAllowed(process.env)
 
 export default defineConfig({
   testDir: './e2e/current-release',

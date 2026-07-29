@@ -1,21 +1,24 @@
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import {
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from 'node:fs/promises'
-import { join, resolve } from 'node:path'
 import { z } from 'zod'
+import {
+  getCurrentReleasePaths,
+  prepareCurrentReleaseResultPath,
+  readCurrentReleaseResult,
+  readCurrentReleaseJournal,
+  removeCurrentReleaseJournal,
+  writeCurrentReleaseReportArtifacts,
+  writeCurrentReleaseJournal,
+  type CurrentReleasePaths,
+} from '../../../e2e/current-release/journal'
+import {
+  writePlaywrightGuardMarker,
+} from '../../../e2e/current-release/guard'
 import {
   createSyntheticCleanupRegistry,
   type SyntheticCleanupRegistry,
 } from '../synthetic-acceptance/cleanup-registry'
 import {
-  createAcceptanceCostGuard,
-  CURRENT_RELEASE_COST_STOP_USD,
   CURRENT_RELEASE_MAX_COST_USD,
   currentReleaseRunIdSchema,
   currentReleaseScenarioResultsSchema,
@@ -42,8 +45,6 @@ export const CURRENT_RELEASE_COST_RESERVATIONS = {
   agentCallUsd: 0.08,
   agentCalls: 8,
   sourcePipelineUsd: 0.25,
-  stopBeforeUsd: CURRENT_RELEASE_COST_STOP_USD,
-  maxUsd: CURRENT_RELEASE_MAX_COST_USD,
 } as const
 
 export type CurrentReleaseRunnerOptions = {
@@ -72,6 +73,7 @@ export type BrowserExecutionResult = {
   usage: {
     onboardingGenerationCalls: number
     agentCalls: number
+    sourcePipelineCalls?: number
     observedPipelineCostUsd: number
   }
   registryUpdate?: BrowserRegistryUpdate
@@ -94,6 +96,8 @@ export type BrowserExecutionInput = {
   childEnv: Record<string, string>
   costReservations: typeof CURRENT_RELEASE_COST_RESERVATIONS
   resultPath: string
+  registryPath: string
+  paths: CurrentReleasePaths
   registry: SyntheticCleanupRegistry
 }
 
@@ -111,7 +115,16 @@ export type CurrentReleaseRunnerDependencies = {
   saveRegistry: (
     registry: SyntheticCleanupRegistry,
   ) => Promise<void>
+  loadRegistry: (
+    runId: string,
+  ) => Promise<SyntheticCleanupRegistry | null>
   removeRegistry: (runId: string) => Promise<void>
+  createGuardNonce: () => string
+  prepareGuard: (input: {
+    paths: CurrentReleasePaths
+    runId: string
+    nonce: string
+  }) => Promise<void>
   executeBrowser: (
     input: BrowserExecutionInput,
   ) => Promise<BrowserExecutionResult>
@@ -170,6 +183,12 @@ const browserExecutionResultSchema = z
       .object({
         onboardingGenerationCalls: z.number().int().nonnegative(),
         agentCalls: z.number().int().nonnegative(),
+        sourcePipelineCalls: z
+          .number()
+          .int()
+          .min(0)
+          .max(1)
+          .default(1),
         observedPipelineCostUsd: z.number().nonnegative(),
       })
       .strict(),
@@ -212,23 +231,23 @@ export async function runCurrentReleaseAcceptance(
       cognitoSub: null,
     },
   ]
+  let activeRegistry = registry
 
-  const costGuard = createAcceptanceCostGuard({
-    stopBeforeUsd: Math.min(
-      CURRENT_RELEASE_COST_STOP_USD,
-      options.maxCostUsd,
-    ),
+  const paths = getCurrentReleasePaths(options.workspaceRoot, runId)
+  const resultPath = paths.resultPath
+  const guardNonce = dependencies.createGuardNonce()
+  const childBudget = {
     maxUsd: options.maxCostUsd,
-  })
-  reservePlannedCosts(costGuard)
-
-  const resultPath = resolve(
-    options.workspaceRoot,
-    'Temp',
-    'current-release-playwright',
-    runId,
-    'result.json',
-  )
+    stopBeforeUsd: Math.min(1.5, options.maxCostUsd),
+    unitCosts: {
+      onboardingGenerationUsd:
+        CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd,
+      agentCallUsd:
+        CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd,
+      sourcePipelineUsd:
+        CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd,
+    },
+  }
   const childEnv = {
     CURRENT_RELEASE_RUN_ID: runId,
     CURRENT_RELEASE_BASE_URL: options.baseUrl,
@@ -240,9 +259,11 @@ export async function runCurrentReleaseAcceptance(
     AWS_PROFILE: options.profile,
     AWS_REGION: options.region,
     CURRENT_RELEASE_RESULT_PATH: resultPath,
-    CURRENT_RELEASE_COST_RESERVATIONS: JSON.stringify(
-      CURRENT_RELEASE_COST_RESERVATIONS,
-    ),
+    CURRENT_RELEASE_REGISTRY_PATH: paths.registryPath,
+    CURRENT_RELEASE_GUARD_MARKER_PATH: paths.guardMarkerPath,
+    CURRENT_RELEASE_WORKSPACE_ROOT: paths.workspaceRoot,
+    CURRENT_RELEASE_RUNNER_GUARD: guardNonce,
+    CURRENT_RELEASE_BUDGET: JSON.stringify(childBudget),
   }
 
   let browserResult: BrowserExecutionResult | null = null
@@ -251,15 +272,27 @@ export async function runCurrentReleaseAcceptance(
   let cleanupFailed = false
 
   try {
-    await dependencies.saveRegistry(registry)
+    await dependencies.saveRegistry(activeRegistry)
+    await dependencies.prepareGuard({
+      paths,
+      runId,
+      nonce: guardNonce,
+    })
     const candidate = await dependencies.executeBrowser({
       runId,
       baseUrl: options.baseUrl,
       childEnv,
       costReservations: CURRENT_RELEASE_COST_RESERVATIONS,
       resultPath,
-      registry,
+      registryPath: paths.registryPath,
+      paths,
+      registry: activeRegistry,
     })
+    activeRegistry = await refreshRegistry(
+      dependencies,
+      runId,
+      activeRegistry,
+    )
     const parsedCandidate =
       browserExecutionResultSchema.safeParse(candidate)
     if (!parsedCandidate.success) {
@@ -269,22 +302,42 @@ export async function runCurrentReleaseAcceptance(
       browserResult = parsedCandidate.data
       if (browserResult.registryUpdate) {
         applyBrowserRegistryUpdate(
-          registry,
+          activeRegistry,
           browserResult.registryUpdate,
         )
-        await dependencies.saveRegistry(registry)
+        await dependencies.saveRegistry(activeRegistry)
       }
     }
   } catch {
     executionErrorCode ??= 'CURRENT_RELEASE_BROWSER_FAILED'
+    try {
+      activeRegistry = await refreshRegistry(
+        dependencies,
+        runId,
+        activeRegistry,
+      )
+    } catch {
+      executionErrorCode =
+        'CURRENT_RELEASE_BROWSER_AND_JOURNAL_FAILED'
+    }
   } finally {
     try {
-      cleanup = await dependencies.cleanup(registry)
+      activeRegistry = await refreshRegistry(
+        dependencies,
+        runId,
+        activeRegistry,
+      )
+      cleanup = await dependencies.cleanup(activeRegistry)
     } catch {
       cleanupFailed = true
     }
   }
 
+  if (executionErrorCode && cleanupFailed) {
+    throw new Error(
+      'CURRENT_RELEASE_BROWSER_AND_CLEANUP_FAILED',
+    )
+  }
   if (executionErrorCode) {
     throw new Error(executionErrorCode)
   }
@@ -299,17 +352,24 @@ export async function runCurrentReleaseAcceptance(
     throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
   }
   validateBrowserUsage(parsedBrowser.data)
-  costGuard.recordObservedPipelineCost(
-    parsedBrowser.data.usage.observedPipelineCostUsd,
-  )
-
   const estimatedAnthropicCostUsd =
     CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd *
-      CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationCalls +
+      parsedBrowser.data.usage.onboardingGenerationCalls +
     CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd *
-      CURRENT_RELEASE_COST_RESERVATIONS.agentCalls
+      parsedBrowser.data.usage.agentCalls
   const observedPipelineCostUsd =
-    costGuard.observedPipelineCostUsd()
+    parsedBrowser.data.usage.observedPipelineCostUsd
+  const reservedProviderCostUsd = roundUsd(
+    estimatedAnthropicCostUsd +
+      CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd *
+        parsedBrowser.data.usage.sourcePipelineCalls,
+  )
+  if (
+    reservedProviderCostUsd > childBudget.stopBeforeUsd ||
+    reservedProviderCostUsd > childBudget.maxUsd
+  ) {
+    throw new Error('CURRENT_RELEASE_COST_STOP')
+  }
   const providerCostUsd = roundUsd(
     estimatedAnthropicCostUsd + observedPipelineCostUsd,
   )
@@ -344,21 +404,52 @@ export async function runCurrentReleaseAcceptance(
   }
   if (report.accepted) {
     await dependencies.removeRegistry(runId)
+  } else {
+    throw new Error('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
   }
   return report
 }
 
+type BrowserExecuteFile = (
+  executable: string,
+  args: string[],
+  options: {
+    cwd: string
+    env: NodeJS.ProcessEnv
+    encoding: 'utf8'
+    stdio: ['ignore', 'pipe', 'pipe']
+    timeout: number
+    maxBuffer: number
+  },
+) => string
+
 export function createDefaultBrowserExecutor(
   workspaceRoot: string,
+  runtime: {
+    processEnvironment?: Record<string, string | undefined>
+    executeFile?: BrowserExecuteFile
+  } = {},
 ): CurrentReleaseRunnerDependencies['executeBrowser'] {
+  const executeFile =
+    runtime.executeFile ??
+    (execFileSync as unknown as BrowserExecuteFile)
   return async (input) => {
-    await mkdir(resolve(input.resultPath, '..'), {
-      recursive: true,
-      mode: 0o700,
-    })
-    await rm(input.resultPath, { force: true })
+    const expectedPaths = getCurrentReleasePaths(
+      workspaceRoot,
+      input.runId,
+    )
+    if (
+      input.resultPath !== expectedPaths.resultPath ||
+      input.registryPath !== expectedPaths.registryPath
+    ) {
+      throw new Error('CURRENT_RELEASE_PATH_INVALID')
+    }
+    await prepareCurrentReleaseResultPath(
+      expectedPaths,
+      input.runId,
+    )
     try {
-      execFileSync(
+      executeFile(
         'npx',
         [
           'playwright',
@@ -369,7 +460,10 @@ export function createDefaultBrowserExecutor(
         ],
         {
           cwd: workspaceRoot,
-          env: { ...process.env, ...input.childEnv },
+          env: buildPlaywrightChildEnvironment(
+            runtime.processEnvironment ?? process.env,
+            input.childEnv,
+          ) as unknown as NodeJS.ProcessEnv,
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'pipe'],
           timeout: 45 * 60_000,
@@ -382,7 +476,10 @@ export function createDefaultBrowserExecutor(
 
     let raw: string
     try {
-      raw = await readFile(input.resultPath, 'utf8')
+      raw = await readCurrentReleaseResult(
+        expectedPaths,
+        input.runId,
+      )
     } catch {
       throw new Error('CURRENT_RELEASE_BROWSER_RESULT_MISSING')
     }
@@ -398,35 +495,37 @@ export async function saveCurrentReleaseRegistry(
   workspaceRoot: string,
   registry: SyntheticCleanupRegistry,
 ): Promise<void> {
-  const directory = resolve(
-    workspaceRoot,
-    'reports',
-    'current-release-acceptance',
+  await writeCurrentReleaseJournal(
+    getCurrentReleasePaths(workspaceRoot, registry.runId),
+    registry,
   )
-  const path = join(directory, `${registry.runId}.run.json`)
-  const temporaryPath = `${path}.${process.pid}.tmp`
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  await writeFile(
-    temporaryPath,
-    `${JSON.stringify(registry, null, 2)}\n`,
-    { mode: 0o600 },
-  )
-  await rename(temporaryPath, path)
+}
+
+export async function readCurrentReleaseRegistry(
+  workspaceRoot: string,
+  runId: string,
+): Promise<SyntheticCleanupRegistry | null> {
+  const paths = getCurrentReleasePaths(workspaceRoot, runId)
+  try {
+    return await readCurrentReleaseJournal(paths, runId)
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    ) {
+      return null
+    }
+    throw error
+  }
 }
 
 export async function removeCurrentReleaseRegistry(
   workspaceRoot: string,
   runId: string,
 ): Promise<void> {
-  const parsedRunId = currentReleaseRunIdSchema.parse(runId)
-  await rm(
-    resolve(
-      workspaceRoot,
-      'reports',
-      'current-release-acceptance',
-      `${parsedRunId}.run.json`,
-    ),
-    { force: true },
+  await removeCurrentReleaseJournal(
+    getCurrentReleasePaths(workspaceRoot, runId),
   )
 }
 
@@ -434,24 +533,12 @@ export async function writeCurrentReleaseReport(
   workspaceRoot: string,
   report: CurrentReleaseReport,
 ): Promise<void> {
-  const directory = resolve(
-    workspaceRoot,
-    'reports',
-    'current-release-acceptance',
+  await writeCurrentReleaseReportArtifacts(
+    getCurrentReleasePaths(workspaceRoot, report.runId),
+    report.runId,
+    serializeCurrentReleaseReport(report),
+    `${renderCurrentReleaseReportMarkdown(report)}\n`,
   )
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  await Promise.all([
-    writeFile(
-      join(directory, `${report.runId}.json`),
-      serializeCurrentReleaseReport(report),
-      { mode: 0o600 },
-    ),
-    writeFile(
-      join(directory, `${report.runId}.md`),
-      `${renderCurrentReleaseReportMarkdown(report)}\n`,
-      { mode: 0o600 },
-    ),
-  ])
 }
 
 export function createCurrentReleaseRunId(now: Date): string {
@@ -466,6 +553,52 @@ export function createCurrentReleaseRunId(now: Date): string {
 
 export function createCurrentReleasePassword(): string {
   return `Aa1!${randomBytes(32).toString('base64url')}`
+}
+
+export function createCurrentReleaseGuardNonce(): string {
+  return randomBytes(32).toString('base64url')
+}
+
+export async function prepareCurrentReleaseGuard(input: {
+  paths: CurrentReleasePaths
+  runId: string
+  nonce: string
+}): Promise<void> {
+  await writePlaywrightGuardMarker(
+    input.paths,
+    input.runId,
+    input.nonce,
+  )
+}
+
+export function buildPlaywrightChildEnvironment(
+  parent: Record<string, string | undefined>,
+  contract: Record<string, string>,
+): Record<string, string> {
+  const allowedSystemKeys = [
+    'PATH',
+    'HOME',
+    'TMPDIR',
+    'LANG',
+    'LC_ALL',
+    'PLAYWRIGHT_BROWSERS_PATH',
+  ] as const
+  const environment: Record<string, string> = {}
+  for (const key of allowedSystemKeys) {
+    const value = parent[key]?.trim()
+    if (value) environment[key] = value
+  }
+  for (const [key, value] of Object.entries(contract)) {
+    if (
+      key.startsWith('CURRENT_RELEASE_') ||
+      key === 'ADMIN_PASSWORD' ||
+      key === 'AWS_PROFILE' ||
+      key === 'AWS_REGION'
+    ) {
+      environment[key] = value
+    }
+  }
+  return environment
 }
 
 async function runPreflight(
@@ -538,42 +671,17 @@ function validateGeneratedPassword(password: string): void {
   }
 }
 
-function reservePlannedCosts(
-  costGuard: ReturnType<typeof createAcceptanceCostGuard>,
-): void {
-  for (
-    let index = 0;
-    index <
-    CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationCalls;
-    index += 1
-  ) {
-    costGuard.reserve(
-      `onboarding.${index + 1}`,
-      CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd,
-    )
-  }
-  for (
-    let index = 0;
-    index < CURRENT_RELEASE_COST_RESERVATIONS.agentCalls;
-    index += 1
-  ) {
-    costGuard.reserve(
-      `agent.${index + 1}`,
-      CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd,
-    )
-  }
-  costGuard.reserve(
-    'pipeline',
-    CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd,
-  )
-}
-
 function validateBrowserUsage(result: BrowserExecutionResult): void {
   if (
     result.usage.onboardingGenerationCalls >
       CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationCalls ||
     result.usage.agentCalls >
-      CURRENT_RELEASE_COST_RESERVATIONS.agentCalls
+      CURRENT_RELEASE_COST_RESERVATIONS.agentCalls ||
+    (result.usage.sourcePipelineCalls === 0 &&
+      result.usage.observedPipelineCostUsd !== 0) ||
+    (result.usage.sourcePipelineCalls === 1 &&
+      result.usage.observedPipelineCostUsd >
+        CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd)
   ) {
     throw new Error('CURRENT_RELEASE_BROWSER_USAGE_INVALID')
   }
@@ -657,4 +765,12 @@ function cleanupChecksPass(cleanup: CurrentReleaseCleanup): boolean {
 
 function roundUsd(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000
+}
+
+async function refreshRegistry(
+  dependencies: CurrentReleaseRunnerDependencies,
+  runId: string,
+  fallback: SyntheticCleanupRegistry,
+): Promise<SyntheticCleanupRegistry> {
+  return (await dependencies.loadRegistry(runId)) ?? fallback
 }

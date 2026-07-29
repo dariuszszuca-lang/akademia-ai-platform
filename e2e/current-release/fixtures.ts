@@ -1,5 +1,13 @@
 import { z } from 'zod'
 import { currentReleaseRunIdSchema } from '../../src/features/current-release-acceptance/domain'
+import {
+  getCurrentReleasePaths,
+  type CurrentReleasePaths,
+} from './journal'
+import {
+  parseChildBudgetContract,
+  type ChildBudgetContract,
+} from './budget'
 
 const PRODUCTION_URL =
   'https://akademia-ai-platform.vercel.app' as const
@@ -25,6 +33,14 @@ const environmentSchema = z
     ADMIN_PASSWORD: strongPasswordSchema,
     AWS_PROFILE: z.literal('akademia-ai'),
     AWS_REGION: z.literal('eu-central-1'),
+    CURRENT_RELEASE_WORKSPACE_ROOT: z.string().min(1),
+    CURRENT_RELEASE_REGISTRY_PATH: z.string().min(1),
+    CURRENT_RELEASE_RESULT_PATH: z.string().min(1),
+    CURRENT_RELEASE_GUARD_MARKER_PATH: z.string().min(1),
+    CURRENT_RELEASE_RUNNER_GUARD: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/),
+    CURRENT_RELEASE_BUDGET: z.string().min(1),
   })
   .passthrough()
   .superRefine((environment, context) => {
@@ -55,6 +71,30 @@ const environmentSchema = z
         message: 'CURRENT_RELEASE_USERS_NOT_UNIQUE',
       })
     }
+    try {
+      const paths = getCurrentReleasePaths(
+        environment.CURRENT_RELEASE_WORKSPACE_ROOT,
+        environment.CURRENT_RELEASE_RUN_ID,
+      )
+      if (
+        paths.registryPath !==
+          environment.CURRENT_RELEASE_REGISTRY_PATH ||
+        paths.resultPath !==
+          environment.CURRENT_RELEASE_RESULT_PATH ||
+        paths.guardMarkerPath !==
+          environment.CURRENT_RELEASE_GUARD_MARKER_PATH
+      ) {
+        throw new Error('path mismatch')
+      }
+      parseChildBudgetContract(
+        environment.CURRENT_RELEASE_BUDGET,
+      )
+    } catch {
+      context.addIssue({
+        code: 'custom',
+        message: 'CURRENT_RELEASE_RUNNER_CONTRACT_INVALID',
+      })
+    }
   })
 
 export type CurrentReleaseFixtures = {
@@ -67,6 +107,9 @@ export type CurrentReleaseFixtures = {
   adminPassword: string
   awsProfile: 'akademia-ai'
   awsRegion: 'eu-central-1'
+  paths: CurrentReleasePaths
+  runnerGuard: string
+  budget: ChildBudgetContract
 }
 
 export function parseCurrentReleaseFixtures(
@@ -76,6 +119,10 @@ export function parseCurrentReleaseFixtures(
   if (!result.success) {
     throw new Error('CURRENT_RELEASE_FIXTURES_INVALID')
   }
+  const paths = getCurrentReleasePaths(
+    result.data.CURRENT_RELEASE_WORKSPACE_ROOT,
+    result.data.CURRENT_RELEASE_RUN_ID,
+  )
 
   return {
     runId: result.data.CURRENT_RELEASE_RUN_ID,
@@ -87,5 +134,10 @@ export function parseCurrentReleaseFixtures(
     adminPassword: result.data.ADMIN_PASSWORD,
     awsProfile: result.data.AWS_PROFILE,
     awsRegion: result.data.AWS_REGION,
+    paths,
+    runnerGuard: result.data.CURRENT_RELEASE_RUNNER_GUARD,
+    budget: parseChildBudgetContract(
+      result.data.CURRENT_RELEASE_BUDGET,
+    ),
   }
 }
