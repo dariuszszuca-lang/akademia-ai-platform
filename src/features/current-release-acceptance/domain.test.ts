@@ -227,8 +227,28 @@ describe('current release cost guard', () => {
     expect(() =>
       invalid.recordObservedPipelineCost(Number.NaN),
     ).toThrow('CURRENT_RELEASE_PIPELINE_COST_INVALID')
+    expect(invalid.isStopped()).toBe(true)
+    expect(invalid.totalEstimatedUsd()).toBe(0.25)
+    expect(() => invalid.reserve('after-nan', 0.01)).toThrow(
+      'CURRENT_RELEASE_COST_STOP',
+    )
     expect(() => invalid.recordObservedPipelineCost(-0.01)).toThrow(
       'CURRENT_RELEASE_PIPELINE_COST_INVALID',
+    )
+    expect(invalid.totalEstimatedUsd()).toBe(0.25)
+
+    const negative = createAcceptanceCostGuard({
+      stopBeforeUsd: 1.5,
+      maxUsd: 2,
+    })
+    negative.reserve('pipeline', 0.25)
+    expect(() =>
+      negative.recordObservedPipelineCost(-0.01),
+    ).toThrow('CURRENT_RELEASE_PIPELINE_COST_INVALID')
+    expect(negative.isStopped()).toBe(true)
+    expect(negative.totalEstimatedUsd()).toBe(0.25)
+    expect(() => negative.reserve('after-negative', 0.01)).toThrow(
+      'CURRENT_RELEASE_COST_STOP',
     )
 
     const repeated = createAcceptanceCostGuard({
@@ -240,6 +260,11 @@ describe('current release cost guard', () => {
     expect(() => repeated.recordObservedPipelineCost(0.1)).toThrow(
       'CURRENT_RELEASE_PIPELINE_COST_ALREADY_RECORDED',
     )
+    expect(repeated.isStopped()).toBe(true)
+    expect(repeated.totalEstimatedUsd()).toBe(0.1)
+    expect(() => repeated.reserve('after-repeat', 0.01)).toThrow(
+      'CURRENT_RELEASE_COST_STOP',
+    )
   })
 
   it('requires a pipeline reservation before recording observed cost', () => {
@@ -250,6 +275,11 @@ describe('current release cost guard', () => {
 
     expect(() => cost.recordObservedPipelineCost(0.1)).toThrow(
       'CURRENT_RELEASE_PIPELINE_RESERVATION_MISSING',
+    )
+    expect(cost.isStopped()).toBe(true)
+    expect(cost.totalEstimatedUsd()).toBe(0)
+    expect(() => cost.reserve('after-missing', 0.01)).toThrow(
+      'CURRENT_RELEASE_COST_STOP',
     )
   })
 

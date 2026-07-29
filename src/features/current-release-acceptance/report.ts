@@ -5,7 +5,6 @@ import {
   CURRENT_RELEASE_MAX_COST_USD,
   currentReleaseRunIdSchema,
   currentReleaseScenarioResultsSchema,
-  usdToConservativeMicrounits,
 } from './domain'
 
 const safeBaseUrlSchema = z
@@ -37,10 +36,26 @@ const safeModelIdSchema = z
   .max(240)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/)
 
-const contractualCostSchema = z
-  .number()
-  .nonnegative()
-  .max(CURRENT_RELEASE_MAX_COST_USD)
+function exactCostSchema(maxUsd: number) {
+  return z
+    .number()
+    .nonnegative()
+    .max(maxUsd)
+    .superRefine((value, context) => {
+      if (usdToExactMicrounits(value) === null) {
+        context.addIssue({
+          code: 'custom',
+          message: 'CURRENT_RELEASE_COST_PRECISION_INVALID',
+        })
+      }
+    })
+}
+
+const contractualCostSchema = exactCostSchema(
+  CURRENT_RELEASE_MAX_COST_USD,
+)
+const CURRENT_RELEASE_MAX_COST_MICROUNITS =
+  CURRENT_RELEASE_MAX_COST_USD * 1_000_000
 
 const cleanupSchema = z
   .object({
@@ -69,7 +84,7 @@ export const currentReleaseReportSchema = z
     completedAt: z.string().datetime(),
     scenarios: currentReleaseScenarioResultsSchema,
     modelIds: z.array(safeModelIdSchema).max(20),
-    estimatedAnthropicCostUsd: contractualCostSchema.max(
+    estimatedAnthropicCostUsd: exactCostSchema(
       CURRENT_RELEASE_COST_STOP_USD,
     ),
     observedPipelineCostUsd: contractualCostSchema,
@@ -79,6 +94,18 @@ export const currentReleaseReportSchema = z
   })
   .strict()
   .superRefine((report, context) => {
+    try {
+      assertSafeReportValues(report)
+    } catch (error) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'CURRENT_RELEASE_REPORT_SECRET_VALUE',
+      })
+    }
+
     if (
       new Date(report.completedAt).getTime() <
       new Date(report.startedAt).getTime()
@@ -99,20 +126,27 @@ export const currentReleaseReportSchema = z
     }
 
     const estimatedAnthropicCostMicrounits =
-      usdToConservativeMicrounits(
+      usdToExactMicrounits(
         report.estimatedAnthropicCostUsd,
       )
     const observedPipelineCostMicrounits =
-      usdToConservativeMicrounits(report.observedPipelineCostUsd)
+      usdToExactMicrounits(report.observedPipelineCostUsd)
     const providerCostMicrounits =
-      usdToConservativeMicrounits(report.providerCostUsd)
+      usdToExactMicrounits(report.providerCostUsd)
+    if (
+      estimatedAnthropicCostMicrounits === null ||
+      observedPipelineCostMicrounits === null ||
+      providerCostMicrounits === null
+    ) {
+      return
+    }
     const combinedCostMicrounits =
       estimatedAnthropicCostMicrounits +
       observedPipelineCostMicrounits
 
     if (
       combinedCostMicrounits >
-      usdToConservativeMicrounits(CURRENT_RELEASE_MAX_COST_USD)
+      CURRENT_RELEASE_MAX_COST_MICROUNITS
     ) {
       context.addIssue({
         code: 'custom',
@@ -143,6 +177,13 @@ export const currentReleaseReportSchema = z
         message: 'CURRENT_RELEASE_ACCEPTED_INVALID',
       })
     }
+    if (report.accepted && report.modelIds.length === 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['modelIds'],
+        message: 'CURRENT_RELEASE_ACCEPTED_MODEL_IDS_REQUIRED',
+      })
+    }
   })
 
 export type CurrentReleaseReport = z.infer<
@@ -152,7 +193,7 @@ export type CurrentReleaseReport = z.infer<
 export function createCurrentReleaseReport(
   input: unknown,
 ): CurrentReleaseReport {
-  assertNoForbiddenReportFields(input)
+  assertSafeReportValues(input)
   return currentReleaseReportSchema.parse(input)
 }
 
@@ -216,6 +257,9 @@ export function renderCurrentReleaseReportMarkdown(
 function isAcceptedResult(
   report: z.infer<typeof currentReleaseReportSchema>,
 ): boolean {
+  // `accepted` is the operator's manual final verdict. The schema only
+  // enforces the fail-closed direction: true is forbidden when objective
+  // scenario or cleanup evidence is incomplete.
   return (
     report.scenarios.every((scenario) => scenario.status === 'passed') &&
     report.cleanup.databaseEmpty &&
@@ -238,10 +282,27 @@ const forbiddenReportFields = new Set([
   'signedurl',
 ])
 
-function assertNoForbiddenReportFields(input: unknown): void {
+const forbiddenSecretValuePatterns = [
+  /sk_live_[A-Za-z0-9_-]{4,}/i,
+  /sk-ant-[A-Za-z0-9_-]{4,}/i,
+  /AKIA[A-Z0-9]{16}/,
+  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+]
+
+function assertSafeReportValues(input: unknown): void {
   const visited = new WeakSet<object>()
 
   function inspect(value: unknown): void {
+    if (typeof value === 'string') {
+      if (
+        forbiddenSecretValuePatterns.some((pattern) =>
+          pattern.test(value),
+        )
+      ) {
+        throw new Error('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+      }
+      return
+    }
     if (!value || typeof value !== 'object') return
     if (visited.has(value)) return
     visited.add(value)
@@ -260,4 +321,23 @@ function assertNoForbiddenReportFields(input: unknown): void {
   }
 
   inspect(input)
+}
+
+function usdToExactMicrounits(usd: number): number | null {
+  if (!Number.isFinite(usd)) return null
+
+  const scaled = usd * 1_000_000
+  if (!Number.isFinite(scaled)) return null
+
+  const nearestMicrounit = Math.round(scaled)
+  const floatingPointTolerance =
+    Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4
+  if (
+    !Number.isSafeInteger(nearestMicrounit) ||
+    Math.abs(scaled - nearestMicrounit) >
+      floatingPointTolerance
+  ) {
+    return null
+  }
+  return nearestMicrounit
 }

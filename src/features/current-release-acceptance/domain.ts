@@ -202,6 +202,7 @@ export function createAcceptanceCostGuard({
 
     recordObservedPipelineCost(usd) {
       if (!Number.isFinite(usd) || usd < 0) {
+        stopped = true
         throw new Error('CURRENT_RELEASE_PIPELINE_COST_INVALID')
       }
       if (
@@ -209,11 +210,13 @@ export function createAcceptanceCostGuard({
           CURRENT_RELEASE_PIPELINE_RESERVATION_LABEL,
         )
       ) {
+        stopped = true
         throw new Error(
           'CURRENT_RELEASE_PIPELINE_RESERVATION_MISSING',
         )
       }
       if (observedPipelineMicrounits !== null) {
+        stopped = true
         throw new Error(
           'CURRENT_RELEASE_PIPELINE_COST_ALREADY_RECORDED',
         )

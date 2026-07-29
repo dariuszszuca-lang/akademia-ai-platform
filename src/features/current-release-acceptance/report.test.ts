@@ -9,6 +9,20 @@ import {
   type ScenarioResult,
 } from './domain'
 
+const syntheticStripeSecretMarker = [
+  'sk',
+  'live',
+  'deadbeef',
+].join('_')
+const syntheticAnthropicSecretMarker =
+  ['sk', 'ant', 'synthetic', 'deadbeef'].join('-')
+const syntheticAwsAccessKeyMarker = [
+  'AK',
+  'IA',
+  'SYNTHETIC',
+  'DEADBEE',
+].join('')
+
 function validInput() {
   return {
     contractVersion: 'current-release-acceptance-v1' as const,
@@ -80,6 +94,66 @@ describe('safe current release acceptance report', () => {
         scenarios,
       }),
     ).toThrow('CURRENT_RELEASE_REPORT_FORBIDDEN_FIELD')
+  })
+
+  it('rejects secret-shaped values in model and deployment identifiers', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        modelIds: [syntheticStripeSecretMarker],
+      }),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        deploymentId: syntheticAnthropicSecretMarker,
+      }),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+  })
+
+  it('rejects secret-shaped values in URL query and userinfo', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        baseUrl:
+          `https://studio.example.invalid/?key=${syntheticAwsAccessKeyMarker}`,
+      }),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        baseUrl:
+          `https://${syntheticStripeSecretMarker}@studio.example.invalid`,
+      }),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+  })
+
+  it('rejects secret-shaped values before JSON or Markdown serialization', () => {
+    const report = createCurrentReleaseReport(validInput())
+    const polluted = {
+      ...report,
+      modelIds: [syntheticAnthropicSecretMarker],
+    }
+
+    expect(() =>
+      serializeCurrentReleaseReport(polluted as typeof report),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+    expect(() =>
+      renderCurrentReleaseReportMarkdown(
+        polluted as typeof report,
+      ),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+  })
+
+  it('keeps real safe model identifiers valid', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        modelIds: [
+          'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
+        ],
+      }),
+    ).not.toThrow()
   })
 
   it('rejects unexpected root and cleanup fields', () => {
@@ -226,6 +300,29 @@ describe('safe current release acceptance report', () => {
     ).not.toThrow()
   })
 
+  it.each([
+    {
+      estimatedAnthropicCostUsd: 0.0000004,
+      observedPipelineCostUsd: 0.0000004,
+      providerCostUsd: 0.0000008,
+    },
+    {
+      estimatedAnthropicCostUsd: 0.0000004,
+      observedPipelineCostUsd: 0,
+      providerCostUsd: 0.0000009,
+    },
+  ])(
+    'rejects sub-microunit report arithmetic: %o',
+    (costs) => {
+      expect(() =>
+        createCurrentReleaseReport({
+          ...validInput(),
+          ...costs,
+        }),
+      ).toThrow('CURRENT_RELEASE_COST_PRECISION_INVALID')
+    },
+  )
+
   it('rejects accepted=true when any scenario failed', () => {
     const input = validInput()
     const scenarios: ScenarioResult[] = [...input.scenarios]
@@ -278,6 +375,25 @@ describe('safe current release acceptance report', () => {
       createCurrentReleaseReport({
         ...input,
         scenarios,
+        accepted: false,
+      }),
+    ).not.toThrow()
+  })
+
+  it('requires a model identifier for an accepted report', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        modelIds: [],
+      }),
+    ).toThrow('CURRENT_RELEASE_ACCEPTED_MODEL_IDS_REQUIRED')
+  })
+
+  it('allows a clean report to retain the manual accepted=false verdict', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        modelIds: [],
         accepted: false,
       }),
     ).not.toThrow()
