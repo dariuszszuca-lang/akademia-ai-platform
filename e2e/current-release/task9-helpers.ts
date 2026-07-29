@@ -248,10 +248,154 @@ export function assertIsolationSummary(
   }
 }
 
+export type UiIsolationSummary = {
+  accessBlocked: boolean
+  workspaceAbsent: boolean
+  identifiersAbsent: boolean
+}
+
+export function summarizeUiIsolationResponse(input: {
+  status: number | null
+  visibleText: string
+  workspaceVisible: boolean
+  forbiddenIdentifiers: readonly string[]
+}): UiIsolationSummary {
+  return {
+    accessBlocked:
+      input.status === 404 ||
+      /(?:\b404\b|not found|nie znalezion)/i.test(
+        input.visibleText,
+      ),
+    workspaceAbsent: !input.workspaceVisible,
+    identifiersAbsent: input.forbiddenIdentifiers
+      .filter((identifier) => identifier.length > 0)
+      .every(
+        (identifier) => !input.visibleText.includes(identifier),
+      ),
+  }
+}
+
+export function assertUiIsolationSummary(
+  summary: UiIsolationSummary,
+): void {
+  if (
+    !summary.accessBlocked ||
+    !summary.workspaceAbsent ||
+    !summary.identifiersAbsent
+  ) {
+    throw new Error('ISOLATION_UI_ACCESSIBLE')
+  }
+}
+
+export type FactUpdateSummary = {
+  factId: string
+  value: number
+  version: number
+  status: 'confirmed'
+  visibility: 'internal'
+}
+
+export function parseFactUpdateResponse(
+  payload: unknown,
+  expected: {
+    factId: string
+    projectId: string
+    subjectA: string
+    value: number
+    version: number
+  },
+): FactUpdateSummary {
+  const fact =
+    isRecord(payload) && isRecord(payload.fact)
+      ? payload.fact
+      : null
+  if (
+    fact === null ||
+    fact.id !== expected.factId ||
+    fact.propertyProjectId !== expected.projectId ||
+    fact.key !== 'area.usable' ||
+    fact.label !== 'Powierzchnia użytkowa' ||
+    fact.valueType !== 'number' ||
+    fact.value !== expected.value ||
+    fact.unit !== 'm²' ||
+    fact.status !== 'confirmed' ||
+    fact.visibility !== 'internal' ||
+    fact.confirmedByUserId !== expected.subjectA ||
+    fact.confirmedByUserId === 'current-session-user' ||
+    !Number.isSafeInteger(fact.version) ||
+    fact.version !== expected.version ||
+    expected.version < 1
+  ) {
+    throw new Error('STUDIO_FACT_UPDATE_INVALID')
+  }
+
+  return {
+    factId: expected.factId,
+    value: expected.value,
+    version: expected.version,
+    status: 'confirmed',
+    visibility: 'internal',
+  }
+}
+
+export function assertRejectedAdminLogin(
+  status: number,
+  payload: unknown,
+): void {
+  if (
+    status !== 401 ||
+    !isRecord(payload) ||
+    !hasExactKeys(payload, ['error']) ||
+    payload.error !== 'Invalid password'
+  ) {
+    throw new Error('ADMIN_INVALID_PASSWORD_NOT_REJECTED')
+  }
+}
+
+export function parseAdminAgentState(
+  payload: unknown,
+  agentId: string,
+): {
+  enabled: boolean
+  kvConfigured: true
+} {
+  if (
+    !isRecord(payload) ||
+    !hasExactKeys(payload, ['agents', 'kv']) ||
+    !Array.isArray(payload.agents) ||
+    !isRecord(payload.kv) ||
+    !hasExactKeys(payload.kv, ['configured']) ||
+    typeof payload.kv.configured !== 'boolean'
+  ) {
+    throw new Error('ADMIN_AGENT_STATE_INVALID')
+  }
+  if (!payload.kv.configured) {
+    throw new Error('ADMIN_KV_UNAVAILABLE')
+  }
+
+  const matchingAgents = payload.agents.filter(
+    (agent) => isRecord(agent) && agent.id === agentId,
+  )
+  if (
+    matchingAgents.length !== 1 ||
+    typeof matchingAgents[0]!.enabled !== 'boolean'
+  ) {
+    throw new Error('ADMIN_AGENT_STATE_INVALID')
+  }
+
+  return {
+    enabled: matchingAgents[0]!.enabled as boolean,
+    kvConfigured: true,
+  }
+}
+
 export type AccountExportSummary = {
   userMatches: boolean
   profilePresent: boolean
   personasPresent: boolean
+  onboardingPresent: boolean
+  subscriptionStatePresent: boolean
+  pilotAccessModeConfirmed: boolean
   currentResourcesPresent: boolean
   accountExportedEventPresent: boolean
   forbiddenBIdentifiersAbsent: boolean
@@ -267,6 +411,7 @@ export function summarizeAccountExport(
     currentResourceIds: readonly string[]
     sourceId: string
     forbiddenBIdentifiers: readonly string[]
+    pilotAccessModeConfirmed: boolean
   },
 ): AccountExportSummary {
   const root = isRecord(payload) ? payload : {}
@@ -291,6 +436,12 @@ export function summarizeAccountExport(
     personasPresent:
       isNonEmptyData(root.personaBuyer) &&
       isNonEmptyData(root.personaSeller),
+    onboardingPresent: hasOnboardingState(root.onboarding),
+    subscriptionStatePresent: hasSubscriptionState(
+      root.subscription,
+    ),
+    pilotAccessModeConfirmed:
+      expected.pilotAccessModeConfirmed === true,
     currentResourcesPresent: expected.currentResourceIds.every(
       (identifier) => containsExactScalar(studio, identifier),
     ),
@@ -319,6 +470,9 @@ export function assertAccountExportSummary(
     !summary.userMatches ||
     !summary.profilePresent ||
     !summary.personasPresent ||
+    !summary.onboardingPresent ||
+    !summary.subscriptionStatePresent ||
+    !summary.pilotAccessModeConfirmed ||
     !summary.currentResourcesPresent ||
     !summary.accountExportedEventPresent ||
     !summary.forbiddenBIdentifiersAbsent ||
@@ -453,6 +607,42 @@ function isNonEmptyData(value: unknown): boolean {
   if (typeof value === 'string') return value.trim().length > 0
   if (Array.isArray(value)) return value.length > 0
   return isRecord(value) && Object.keys(value).length > 0
+}
+
+function hasOnboardingState(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.currentStep === 'string' &&
+    value.currentStep.trim().length > 0 &&
+    isRecord(value.expressAnswers) &&
+    Object.keys(value.expressAnswers).length > 0
+  )
+}
+
+const subscriptionPlans = new Set([
+  'trial',
+  'starter',
+  'pro',
+  'agency',
+])
+const subscriptionStatuses = new Set([
+  'trialing',
+  'active',
+  'past_due',
+  'canceled',
+  'incomplete',
+  'expired',
+  'none',
+])
+
+function hasSubscriptionState(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.plan === 'string' &&
+    subscriptionPlans.has(value.plan) &&
+    typeof value.status === 'string' &&
+    subscriptionStatuses.has(value.status)
+  )
 }
 
 function hasExactKeys(

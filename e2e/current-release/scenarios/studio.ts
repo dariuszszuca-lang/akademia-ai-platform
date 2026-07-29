@@ -3,9 +3,12 @@ import { getUserSubject } from '../operator'
 import { createSyntheticSourcePdf } from '../synthetic-source-pdf'
 import {
   assertIsolationSummary,
+  assertUiIsolationSummary,
   createSingleSourcePipeline,
+  parseFactUpdateResponse,
   selectTargetProposals,
   summarizeIsolationResponse,
+  summarizeUiIsolationResponse,
   type Task9ProposalCandidate,
   type Task9Runtime,
   type Task9SelectedProposals,
@@ -203,12 +206,42 @@ export async function runStudioScenarios(
         fact.status !== 'confirmed' ||
         fact.visibility !== 'internal' ||
         fact.confirmedByUserId !== nextSubjectA ||
-        fact.confirmedByUserId === 'current-session-user'
+        fact.confirmedByUserId === 'current-session-user' ||
+        !Number.isSafeInteger(fact.version) ||
+        (fact.version as number) < 1
       ) {
         throw new Error('STUDIO_FACT_RESPONSE_INVALID')
       }
 
       await runtime.recordFactId(nextFactId)
+      const updatePath =
+        `/api/properties/${createdProjectId}/facts/${nextFactId}`
+      const createdVersion = fact.version as number
+      for (const update of [
+        { value: 81, version: createdVersion + 1 },
+        { value: 80, version: createdVersion + 2 },
+      ] as const) {
+        const updateResponse =
+          await runtime.contextA.request.patch(updatePath, {
+            data: { value: update.value },
+          })
+        if (updateResponse.status() !== 200) {
+          throw new Error('STUDIO_FACT_UPDATE_INVALID')
+        }
+        parseFactUpdateResponse(
+          await readJson(
+            updateResponse,
+            'STUDIO_FACT_UPDATE_INVALID',
+          ),
+          {
+            factId: nextFactId,
+            projectId: createdProjectId,
+            subjectA: nextSubjectA,
+            value: update.value,
+            version: update.version,
+          },
+        )
+      }
       factId = nextFactId
       subjectA = nextSubjectA
     },
@@ -420,6 +453,7 @@ export async function runStudioScenarios(
       for (const label of [
         'Utworzono teczkę',
         'Dodano fakt',
+        'Zmieniono fakt',
         'Zarejestrowano źródło',
         'AI przygotowało propozycję',
         'Rozstrzygnięto propozycję',
@@ -466,6 +500,26 @@ export async function runStudioScenarios(
         )
         assertIsolationSummary(summary)
       }
+
+      const navigation = await runtime.pageB.goto(
+        `/nieruchomosci/${createdProjectId}`,
+      )
+      const visibleText =
+        await runtime.pageB.locator('body').innerText()
+      const workspaceVisible =
+        (await runtime.pageB
+          .getByRole('heading', { name: title, exact: true })
+          .count()) > 0 ||
+        (await runtime.pageB
+          .locator('nav[aria-label="Sekcje teczki"]')
+          .count()) > 0
+      const uiSummary = summarizeUiIsolationResponse({
+        status: navigation?.status() ?? null,
+        visibleText,
+        workspaceVisible,
+        forbiddenIdentifiers,
+      })
+      assertUiIsolationSummary(uiSummary)
       subjectB = nextSubjectB
     },
   )

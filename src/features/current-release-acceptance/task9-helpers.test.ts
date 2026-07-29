@@ -8,16 +8,23 @@ import { createSyntheticSourcePdf } from '../../../e2e/current-release/synthetic
 import {
   assertAccountExportSummary,
   assertIsolationSummary,
+  assertRejectedAdminLogin,
+  assertUiIsolationSummary,
   calculateObservedPipelineUsage,
   createSingleSourcePipeline,
+  parseAdminAgentState,
+  parseFactUpdateResponse,
   parseSafeDeletionResponse,
   selectTargetProposals,
   summarizeAccountExport,
   summarizeIsolationResponse,
+  summarizeUiIsolationResponse,
   type Task9ProposalCandidate,
 } from '../../../e2e/current-release/task9-helpers'
 
 const sourceId = '33333333-3333-4333-8333-333333333333'
+const projectId = '22222222-2222-4222-8222-222222222222'
+const factId = '55555555-5555-4555-8555-555555555555'
 
 describe('Task 9 proposal selection', () => {
   it('selects the same targets when proposals are reversed', () => {
@@ -196,6 +203,130 @@ describe('Task 9 safe summaries', () => {
     }
   })
 
+  it('reduces a blocked UI navigation to booleans without persisting page text', () => {
+    const clean = summarizeUiIsolationResponse({
+      status: 404,
+      visibleText: '404 This page could not be found.',
+      workspaceVisible: false,
+      forbiddenIdentifiers: ['SYN private-title', projectId],
+    })
+
+    expect(clean).toEqual({
+      accessBlocked: true,
+      workspaceAbsent: true,
+      identifiersAbsent: true,
+    })
+    expect(() => assertUiIsolationSummary(clean)).not.toThrow()
+
+    const leaked = summarizeUiIsolationResponse({
+      status: 404,
+      visibleText: `404 SYN private-title ${projectId}`,
+      workspaceVisible: false,
+      forbiddenIdentifiers: ['SYN private-title', projectId],
+    })
+    expect(() => assertUiIsolationSummary(leaked)).toThrow(
+      'ISOLATION_UI_ACCESSIBLE',
+    )
+    expect(JSON.stringify(leaked)).not.toContain('private-title')
+  })
+
+  it('validates a persisted fact edit without returning the response body', () => {
+    const summary = parseFactUpdateResponse(
+      {
+        fact: {
+          id: factId,
+          propertyProjectId: projectId,
+          key: 'area.usable',
+          label: 'Powierzchnia użytkowa',
+          valueType: 'number',
+          value: 81,
+          unit: 'm²',
+          status: 'confirmed',
+          visibility: 'internal',
+          confirmedByUserId: 'subject-a',
+          version: 2,
+        },
+      },
+      {
+        factId,
+        projectId,
+        subjectA: 'subject-a',
+        value: 81,
+        version: 2,
+      },
+    )
+
+    expect(summary).toEqual({
+      factId,
+      value: 81,
+      version: 2,
+      status: 'confirmed',
+      visibility: 'internal',
+    })
+    expect(() =>
+      parseFactUpdateResponse(
+        {
+          fact: {
+            id: factId,
+            propertyProjectId: projectId,
+            key: 'area.usable',
+            label: 'Powierzchnia użytkowa',
+            valueType: 'number',
+            value: 81,
+            unit: 'm²',
+            status: 'confirmed',
+            visibility: 'internal',
+            confirmedByUserId: 'subject-a',
+            version: 1,
+          },
+        },
+        {
+          factId,
+          projectId,
+          subjectA: 'subject-a',
+          value: 81,
+          version: 2,
+        },
+      ),
+    ).toThrow('STUDIO_FACT_UPDATE_INVALID')
+  })
+
+  it('requires an explicit rejected admin password response', () => {
+    expect(() =>
+      assertRejectedAdminLogin(401, {
+        error: 'Invalid password',
+      }),
+    ).not.toThrow()
+    expect(() =>
+      assertRejectedAdminLogin(200, { ok: true }),
+    ).toThrow('ADMIN_INVALID_PASSWORD_NOT_REJECTED')
+  })
+
+  it('requires configured KV while parsing the exact admin agent state', () => {
+    expect(
+      parseAdminAgentState(
+        {
+          agents: [
+            { id: 'publikacja', enabled: true },
+            { id: 'prawny', enabled: false },
+          ],
+          kv: { configured: true },
+        },
+        'publikacja',
+      ),
+    ).toEqual({ enabled: true, kvConfigured: true })
+
+    expect(() =>
+      parseAdminAgentState(
+        {
+          agents: [{ id: 'publikacja', enabled: true }],
+          kv: { configured: false },
+        },
+        'publikacja',
+      ),
+    ).toThrow('ADMIN_KV_UNAVAILABLE')
+  })
+
   it('summarizes current export resources and matching source jobs in memory', () => {
     const summary = summarizeAccountExport(
       {
@@ -203,6 +334,14 @@ describe('Task 9 safe summaries', () => {
         profil: { markdown: 'profil' },
         personaBuyer: { markdown: 'buyer' },
         personaSeller: { markdown: 'seller' },
+        onboarding: {
+          currentStep: 'deep',
+          expressAnswers: { q1: 'synthetic-answer' },
+        },
+        subscription: {
+          plan: 'trial',
+          status: 'trialing',
+        },
         propertyStudio: {
           projects: [{ id: 'project-a' }],
           facts: [{ id: 'fact-a' }],
@@ -234,6 +373,7 @@ describe('Task 9 safe summaries', () => {
         ],
         sourceId,
         forbiddenBIdentifiers: ['subject-b', 'marker-b'],
+        pilotAccessModeConfirmed: true,
       },
     )
 
@@ -241,6 +381,9 @@ describe('Task 9 safe summaries', () => {
       userMatches: true,
       profilePresent: true,
       personasPresent: true,
+      onboardingPresent: true,
+      subscriptionStatePresent: true,
+      pilotAccessModeConfirmed: true,
       currentResourcesPresent: true,
       accountExportedEventPresent: true,
       forbiddenBIdentifiersAbsent: true,
@@ -258,6 +401,14 @@ describe('Task 9 safe summaries', () => {
         profil: { markdown: 'profil' },
         personaBuyer: { markdown: 'buyer' },
         personaSeller: { markdown: 'seller' },
+        onboarding: {
+          currentStep: 'deep',
+          expressAnswers: { q1: 'synthetic-answer' },
+        },
+        subscription: {
+          plan: 'trial',
+          status: 'trialing',
+        },
         propertyStudio: {
           projects: [{ id: 'project-a' }],
           facts: [{ id: 'fact-a' }],
@@ -279,6 +430,7 @@ describe('Task 9 safe summaries', () => {
         ],
         sourceId,
         forbiddenBIdentifiers: ['subject-b'],
+        pilotAccessModeConfirmed: true,
       },
     )
 
@@ -288,6 +440,47 @@ describe('Task 9 safe summaries', () => {
     )
     expect(JSON.stringify(summary)).not.toContain(
       'must-never-be-returned',
+    )
+  })
+
+  it('fails closed without onboarding, subscription state, or explicit pilot access mode', () => {
+    const summary = summarizeAccountExport(
+      {
+        userId: 'subject-a',
+        profil: { markdown: 'profil' },
+        personaBuyer: { markdown: 'buyer' },
+        personaSeller: { markdown: 'seller' },
+        propertyStudio: {
+          projects: [{ id: 'project-a' }],
+          facts: [{ id: 'fact-a' }],
+          sources: [{ id: sourceId }],
+          factProposals: [{ id: 'area' }, { id: 'price' }],
+          sourceJobs: [],
+          productEvents: [{ name: 'account.exported' }],
+        },
+      },
+      {
+        subjectA: 'subject-a',
+        currentResourceIds: [
+          'project-a',
+          'fact-a',
+          sourceId,
+          'area',
+          'price',
+        ],
+        sourceId,
+        forbiddenBIdentifiers: ['subject-b'],
+        pilotAccessModeConfirmed: false,
+      },
+    )
+
+    expect(summary).toMatchObject({
+      onboardingPresent: false,
+      subscriptionStatePresent: false,
+      pilotAccessModeConfirmed: false,
+    })
+    expect(() => assertAccountExportSummary(summary)).toThrow(
+      'ACCOUNT_EXPORT_INVALID',
     )
   })
 

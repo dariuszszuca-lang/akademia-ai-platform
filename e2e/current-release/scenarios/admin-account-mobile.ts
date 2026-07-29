@@ -5,6 +5,8 @@ import {
 import { getUserSubject } from '../operator'
 import {
   assertAccountExportSummary,
+  assertRejectedAdminLogin,
+  parseAdminAgentState,
   parseSafeDeletionResponse,
   summarizeAccountExport,
   type Task9Runtime,
@@ -61,6 +63,23 @@ export async function runAdminAccountMobileScenarios(
         response,
         'ACCOUNT_EXPORT_INVALID',
       )
+
+      await pageA.goto('/settings/subscription')
+      await expect(
+        pageA.getByRole('heading', {
+          name: 'Dostęp pilotażowy Pro',
+          exact: true,
+        }),
+      ).toBeVisible()
+      await expect(
+        pageA.getByText('Aktywny', { exact: true }),
+      ).toBeVisible()
+      await expect(
+        pageA.getByText(
+          /Płatności są obecnie wyłączone\./,
+        ),
+      ).toBeVisible()
+
       const summary = summarizeAccountExport(payload, {
         subjectA: studio.subjectA,
         currentResourceIds: [
@@ -76,6 +95,7 @@ export async function runAdminAccountMobileScenarios(
           runtime.fixtures.userB,
           `synthetic-release-${runtime.fixtures.runId}-b`,
         ],
+        pilotAccessModeConfirmed: true,
       })
       assertAccountExportSummary(summary)
       if (
@@ -122,9 +142,36 @@ async function runAdminToggle(
 
   try {
     await pageA.goto('/admin/login')
+    const passwordInput = pageA.locator(
+      'input[type="password"]',
+    )
+    const wrongPassword =
+      runtime.fixtures.adminPassword ===
+      'NotTheAdminPassword!2026'
+        ? 'AnotherWrongAdminPassword!2026'
+        : 'NotTheAdminPassword!2026'
+    await passwordInput.fill(wrongPassword)
+    const rejectedLoginPromise = pageA.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/api/admin/auth',
+    )
     await pageA
-      .locator('input[type="password"]')
-      .fill(runtime.fixtures.adminPassword)
+      .getByRole('button', { name: 'Zaloguj', exact: true })
+      .click()
+    const rejectedLogin = await rejectedLoginPromise
+    assertRejectedAdminLogin(
+      rejectedLogin.status(),
+      await readJson(
+        rejectedLogin,
+        'ADMIN_INVALID_PASSWORD_NOT_REJECTED',
+      ),
+    )
+    await expect(
+      pageA.getByText('Invalid password', { exact: true }),
+    ).toBeVisible()
+
+    await passwordInput.fill(runtime.fixtures.adminPassword)
     const loginPromise = pageA.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
@@ -280,6 +327,20 @@ async function runMobileChecks(
         expect(
           page.getByRole('heading', { name: /Twoje konto/ }),
         ).toBeVisible(),
+    },
+    {
+      path: '/settings/subscription',
+      ready: async () => {
+        await expect(
+          page.getByRole('heading', {
+            name: 'Dostęp pilotażowy Pro',
+            exact: true,
+          }),
+        ).toBeVisible()
+        await expect(
+          page.getByText('Aktywny', { exact: true }),
+        ).toBeVisible()
+      },
     },
   ]
 
@@ -488,19 +549,7 @@ async function readAdminAgentState(
     response,
     'ADMIN_AGENT_STATE_INVALID',
   )
-  if (!isRecord(payload) || !Array.isArray(payload.agents)) {
-    throw new Error('ADMIN_AGENT_STATE_INVALID')
-  }
-  const publicationAgents = payload.agents.filter(
-    (agent) => isRecord(agent) && agent.id === 'publikacja',
-  )
-  if (
-    publicationAgents.length !== 1 ||
-    typeof publicationAgents[0]!.enabled !== 'boolean'
-  ) {
-    throw new Error('ADMIN_AGENT_STATE_INVALID')
-  }
-  return publicationAgents[0]!.enabled
+  return parseAdminAgentState(payload, 'publikacja').enabled
 }
 
 async function assertAdminPatch(
