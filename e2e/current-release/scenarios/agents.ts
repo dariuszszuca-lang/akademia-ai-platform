@@ -2,10 +2,10 @@ import {
   createLegalNoHitProbeNonce,
   signLegalNoHitProbe,
 } from '../../../src/features/current-release-acceptance/legal-probe'
-import type { APIResponse } from '@playwright/test'
 import {
   assertLegalNegativeSummary,
   assertLegalPositiveSummary,
+  calculateEphemeralStateExpiresAt,
   collectObservableModelId,
   summarizeAgentBody,
   type Task8BrowserHandoff,
@@ -23,7 +23,8 @@ export const agentCallMatrix = [
 export async function runAgentScenarios(
   runtime: Task8BrowserHandoff,
 ): Promise<void> {
-  const foreignMarker = `SYN-B-${runtime.fixtures.runId}`
+  const foreignMarkers = runtime.foreignUserMarkers
+  let legalReplayExpiresAt = 0
 
   await runtime.runScenario(
     'agents.six',
@@ -39,12 +40,14 @@ export async function runAgentScenarios(
             goal:
               `Krótka odpowiedź testowa dla ${runtime.fixtures.runId}.`,
           })
-          const body = await response.text()
           collectObservableModelId(
-            await response.headers(),
+            response.headers,
             runtime.modelIds,
           )
-          const summary = summarizeAgentBody(body, foreignMarker)
+          const summary = summarizeAgentBody(
+            response.body,
+            foreignMarkers,
+          )
           if (
             !summary.nonEmpty ||
             summary.hasGenerationError ||
@@ -70,12 +73,14 @@ export async function runAgentScenarios(
           goal:
             'Jaka forma jest wymagana dla umowy przenoszącej własność nieruchomości? Podaj podstawę i numer artykułu.',
         })
-        const body = await response.text()
         collectObservableModelId(
-          await response.headers(),
+          response.headers,
           runtime.modelIds,
         )
-        assertLegalPositiveSummary(body, foreignMarker)
+        assertLegalPositiveSummary(
+          response.body,
+          foreignMarkers,
+        )
       })
     },
   )
@@ -86,6 +91,7 @@ export async function runAgentScenarios(
     async () => {
       const nonce = createLegalNoHitProbeNonce()
       const expiresAt = Math.floor(Date.now() / 1000) + 45
+      legalReplayExpiresAt = expiresAt
       const signature = signLegalNoHitProbe({
         acceptanceSecret: runtime.fixtures.acceptanceSecret,
         runId: runtime.fixtures.runId,
@@ -114,12 +120,14 @@ export async function runAgentScenarios(
               String(expiresAt),
           },
         )
-        const body = await response.text()
         collectObservableModelId(
-          await response.headers(),
+          response.headers,
           runtime.modelIds,
         )
-        assertLegalNegativeSummary(body, foreignMarker)
+        assertLegalNegativeSummary(
+          response.body,
+          foreignMarkers,
+        )
       })
     },
   )
@@ -133,6 +141,12 @@ export async function runAgentScenarios(
   ) {
     throw new Error('CURRENT_RELEASE_TASK8_USAGE_INVALID')
   }
+  runtime.networkLedger.reconcile(usage)
+  runtime.ephemeralStateExpiresAt =
+    calculateEphemeralStateExpiresAt(
+      Date.now(),
+      legalReplayExpiresAt,
+    )
 }
 
 async function callAgent(
@@ -144,16 +158,44 @@ async function callAgent(
     goal: string
   },
   headers?: Record<string, string>,
-): Promise<APIResponse> {
-  const response = await runtime.contextA.request.post(
-    '/api/agents/run',
-    {
-      data,
-      headers,
-    },
+): Promise<{
+  body: string
+  headers: Record<string, string>
+}> {
+  const networkResponse = runtime.pageA.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/agents/run',
   )
-  if (response.status() !== 200) {
+  const browserResult = runtime.pageA.evaluate(
+    async ({ requestData, requestHeaders }) => {
+      const response = await fetch('/api/agents/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...requestHeaders,
+        },
+        body: JSON.stringify(requestData),
+      })
+      return {
+        status: response.status,
+        body: await response.text(),
+      }
+    },
+    { requestData: data, requestHeaders: headers ?? {} },
+  )
+  const [observedResponse, result] = await Promise.all([
+    networkResponse,
+    browserResult,
+  ])
+  if (
+    observedResponse.status() !== 200 ||
+    result.status !== 200
+  ) {
     throw new Error('AGENT_RESPONSE_INVALID')
   }
-  return response
+  return {
+    body: result.body,
+    headers: observedResponse.headers(),
+  }
 }

@@ -19,9 +19,12 @@ import { createChildCostBudget } from '../budget'
 import type { createCurrentReleaseJournal } from '../journal'
 import {
   buildTask8BrowserHandoff,
+  buildForeignUserMarkers,
+  calculateEphemeralStateExpiresAt,
   collectObservableModelId,
   syntheticAnswer,
   type Task8BrowserHandoff,
+  type Task8NetworkLedger,
   type Task8ScenarioRunner,
 } from '../ui-helpers'
 
@@ -57,6 +60,7 @@ export type Task8AuthOnboardingRuntime = {
   modelIds: Set<string>
   runScenario: Task8ScenarioRunner
   lifecycle: Task8BrowserLifecycle
+  networkLedger: Task8NetworkLedger
 }
 
 export async function runAuthOnboardingScenarios(
@@ -65,6 +69,7 @@ export async function runAuthOnboardingScenarios(
   const contextA = await runtime.browser.newContext({
     baseURL: runtime.fixtures.baseUrl,
   })
+  runtime.networkLedger.attach(contextA)
   const pageA = await contextA.newPage()
   runtime.lifecycle.contextA = contextA
   runtime.lifecycle.pageA = pageA
@@ -271,6 +276,7 @@ export async function runAuthOnboardingScenarios(
       contextB = await runtime.browser.newContext({
         baseURL: runtime.fixtures.baseUrl,
       })
+      runtime.networkLedger.attach(contextB)
       pageB = await contextB.newPage()
       runtime.lifecycle.contextB = contextB
       runtime.lifecycle.pageB = pageB
@@ -364,7 +370,18 @@ export async function runAuthOnboardingScenarios(
     budget: runtime.budget,
     operatorContext: runtime.operatorContext,
     modelIds: runtime.modelIds,
+    networkLedger: runtime.networkLedger,
     runScenario: runtime.runScenario,
+    foreignUserMarkers: buildForeignUserMarkers({
+      runId: runtime.fixtures.runId,
+      userB: runtime.fixtures.userB,
+      userBSubject: requireSubject(userBSubject),
+    }),
+    ephemeralStateExpiresAt:
+      calculateEphemeralStateExpiresAt(
+        Date.now(),
+        Math.floor(Date.now() / 1000) + 60,
+      ),
     userASubject: requireSubject(userASubject),
     userBSubject: requireSubject(userBSubject),
   })

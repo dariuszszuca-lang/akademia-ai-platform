@@ -13,6 +13,7 @@ import {
 } from './scenarios/auth-onboarding'
 import { runAgentScenarios } from './scenarios/agents'
 import { createScenarioRunner } from './ui-helpers'
+import { createTask8NetworkLedger } from './ui-helpers'
 
 test.describe.serial(
   'Property Intelligence Studio — current release acceptance',
@@ -44,6 +45,7 @@ test.describe.serial(
       const recorder = createCurrentReleaseScenarioRecorder()
       const modelIds = new Set<string>()
       const runScenario = createScenarioRunner(recorder)
+      const networkLedger = createTask8NetworkLedger()
 
       const handoff = await runAuthOnboardingScenarios({
         browser,
@@ -54,6 +56,7 @@ test.describe.serial(
         modelIds,
         runScenario,
         lifecycle,
+        networkLedger,
       })
       await runAgentScenarios(handoff)
 

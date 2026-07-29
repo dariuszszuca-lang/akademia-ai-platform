@@ -3,8 +3,12 @@ import {
   assertLegalNegativeSummary,
   assertLegalPositiveSummary,
   buildTask8BrowserHandoff,
+  buildForeignUserMarkers,
+  calculateEphemeralStateExpiresAt,
   collectObservableModelId,
+  createTask8NetworkLedger,
   createScenarioRunner,
+  expectedTask8ModelCallSequence,
   summarizeAgentBody,
   syntheticAnswer,
   task8BrowserScenarios,
@@ -58,7 +62,7 @@ describe('current release UI helpers', () => {
     expect(
       summarizeAgentBody(
         'Bezpieczna odpowiedź dla SYN-A-deadbeef',
-        'SYN-B-deadbeef',
+        ['SYN-B-deadbeef'],
       ),
     ).toEqual({
       nonEmpty: true,
@@ -68,7 +72,7 @@ describe('current release UI helpers', () => {
     expect(
       summarizeAgentBody(
         '[Błąd generowania: provider failed] SYN-B-deadbeef',
-        'SYN-B-deadbeef',
+        ['SYN-B-deadbeef'],
       ),
     ).toEqual({
       nonEmpty: true,
@@ -77,10 +81,39 @@ describe('current release UI helpers', () => {
     })
   })
 
+  it('detects every actual B marker, not only the path-B prefix', () => {
+    const markers = buildForeignUserMarkers({
+      runId,
+      userB:
+        `synthetic-release-${runId}-b@example.invalid`,
+      userBSubject:
+        '22222222-2222-4222-8222-222222222222',
+    })
+    expect(markers).toEqual([
+      'Syntetyczna odpowiedź B-',
+      `SYN-B-${runId}-buyer-`,
+      `SYN-B-${runId}-seller-`,
+      `synthetic-release-${runId}-b@example.invalid`,
+      '22222222-2222-4222-8222-222222222222',
+    ])
+    expect(
+      summarizeAgentBody(
+        'Wyciek Syntetyczna odpowiedź B-1',
+        markers,
+      ).leaksForeignMarker,
+    ).toBe(true)
+    expect(
+      summarizeAgentBody(
+        `Wyciek SYN-B-${runId}-seller-4`,
+        markers,
+      ).leaksForeignMarker,
+    ).toBe(true)
+  })
+
   it('summarizes positive legal metadata and article evidence', () => {
     const summary = assertLegalPositiveSummary(
       '[[META]]{"sources":[{"id":"s1","ustawa":"Kodeks cywilny","art":"158","ksiega":"","url":"","score":0.93}]}[[/META]]\nForma wynika z art. 158.',
-      'SYN-B-deadbeef',
+      ['SYN-B-deadbeef'],
     )
 
     expect(summary).toEqual({
@@ -88,6 +121,7 @@ describe('current release UI helpers', () => {
       nonEmptySources: true,
       hasArticleSource: true,
       hasArticleInAnswer: true,
+      hasMatchingArticleCitation: true,
       hasGenerationError: false,
       leaksForeignMarker: false,
     })
@@ -95,11 +129,20 @@ describe('current release UI helpers', () => {
     expect(Object.keys(summary)).not.toContain('sources')
   })
 
+  it('rejects a cited article that differs from every source article', () => {
+    expect(() =>
+      assertLegalPositiveSummary(
+        '[[META]]{"sources":[{"id":"s1","ustawa":"Kodeks cywilny","art":"999","ksiega":"","url":"","score":0.93}]}[[/META]]\nForma wynika z art. 158.',
+        ['SYN-B-deadbeef'],
+      ),
+    ).toThrow('CURRENT_RELEASE_LEGAL_POSITIVE_INVALID')
+  })
+
   it('requires deterministic legal no-hit evidence without metadata', () => {
     expect(
       assertLegalNegativeSummary(
         'W bazie nie znalazłem przepisu wprost odnoszącego się do tego pytania\n\nOdpowiedź.',
-        'SYN-B-deadbeef',
+        ['SYN-B-deadbeef'],
       ),
     ).toEqual({
       hasNoSourceMessage: true,
@@ -110,7 +153,7 @@ describe('current release UI helpers', () => {
     expect(() =>
       assertLegalNegativeSummary(
         '[[META]]{"sources":[]}[[/META]]',
-        'SYN-B-deadbeef',
+        ['SYN-B-deadbeef'],
       ),
     ).toThrow('CURRENT_RELEASE_LEGAL_NEGATIVE_INVALID')
   })
@@ -194,6 +237,126 @@ describe('current release UI helpers', () => {
     ])
   })
 
+  it('reconciles exactly 9 onboarding and 8 agent production calls', () => {
+    const ledger = createTask8NetworkLedger()
+    for (const [index, call] of expectedTask8ModelCallSequence.entries()) {
+      const id = `call-${index}`
+      ledger.observeRequest(
+        id,
+        'POST',
+        `https://akademia-ai-platform.vercel.app${call.pathname}`,
+      )
+      ledger.observeResponse(id, 200)
+    }
+
+    expect(
+      ledger.reconcile({
+        onboardingGenerationCalls: 9,
+        agentCalls: 8,
+        sourcePipelineCalls: 0,
+        reservedUsd: 1.18,
+      }),
+    ).toEqual({
+      onboardingGenerationCalls: 9,
+      agentCalls: 8,
+    })
+  })
+
+  it.each([
+    'missing',
+    'duplicate',
+    'extra',
+    'order',
+    'failed-status',
+  ])('rejects an observed ledger with %s calls', (defect) => {
+    const ledger = createTask8NetworkLedger()
+    let calls = [...expectedTask8ModelCallSequence]
+    if (defect === 'missing') calls = calls.slice(0, -1)
+    if (defect === 'duplicate') {
+      calls.splice(1, 0, calls[0]!)
+    }
+    if (defect === 'extra') {
+      calls.push({
+        kind: 'agent',
+        pathname: '/api/agents/run',
+      })
+    }
+    if (defect === 'order') {
+      ;[calls[0], calls[1]] = [calls[1]!, calls[0]!]
+    }
+    for (const [index, call] of calls.entries()) {
+      const id = `call-${index}`
+      ledger.observeRequest(
+        id,
+        'POST',
+        `https://akademia-ai-platform.vercel.app${call.pathname}`,
+      )
+      ledger.observeResponse(
+        id,
+        defect === 'failed-status' && index === 0 ? 500 : 200,
+      )
+    }
+
+    expect(() =>
+      ledger.reconcile({
+        onboardingGenerationCalls: 9,
+        agentCalls: 8,
+        sourcePipelineCalls: 0,
+        reservedUsd: 1.18,
+      }),
+    ).toThrow('CURRENT_RELEASE_NETWORK_LEDGER_INVALID')
+  })
+
+  it('rejects a budget that disagrees with observed calls', () => {
+    const ledger = createTask8NetworkLedger()
+    for (const [index, call] of expectedTask8ModelCallSequence.entries()) {
+      const id = `call-${index}`
+      ledger.observeRequest(
+        id,
+        'POST',
+        `https://akademia-ai-platform.vercel.app${call.pathname}`,
+      )
+      ledger.observeResponse(id, 200)
+    }
+
+    expect(() =>
+      ledger.reconcile({
+        onboardingGenerationCalls: 8,
+        agentCalls: 8,
+        sourcePipelineCalls: 0,
+        reservedUsd: 1.12,
+      }),
+    ).toThrow('CURRENT_RELEASE_NETWORK_BUDGET_MISMATCH')
+  })
+
+  it('ignores non-production and non-POST observations', () => {
+    const ledger = createTask8NetworkLedger()
+    ledger.observeRequest(
+      'local',
+      'POST',
+      'http://127.0.0.1:3000/api/agents/run',
+    )
+    ledger.observeResponse('local', 200)
+    ledger.observeRequest(
+      'get',
+      'GET',
+      'https://akademia-ai-platform.vercel.app/api/agents/run',
+    )
+    ledger.observeResponse('get', 200)
+    expect(ledger.snapshot()).toEqual([])
+  })
+
+  it('exposes a conservative secret-free ephemeral expiry', () => {
+    expect(
+      calculateEphemeralStateExpiresAt(
+        Date.UTC(2026, 6, 29, 22, 0, 20),
+        Math.floor(Date.UTC(2026, 6, 29, 22, 1, 5) / 1000),
+      ),
+    ).toBe(
+      Math.floor(Date.UTC(2026, 6, 29, 22, 1, 10) / 1000),
+    )
+  })
+
   it('returns the persistent A/B runtime as the Task 9 handoff', () => {
     const contextA = { id: 'context-a' }
     const pageA = { id: 'page-a' }
@@ -204,6 +367,15 @@ describe('current release UI helpers', () => {
     const fixtures = { id: 'fixtures' }
     const modelIds = new Set(['claude-haiku-4-5-20251001'])
     const runScenario = vi.fn()
+    const networkLedger = createTask8NetworkLedger()
+    const foreignUserMarkers = buildForeignUserMarkers({
+      runId,
+      userB:
+        `synthetic-release-${runId}-b@example.invalid`,
+      userBSubject:
+        '22222222-2222-4222-8222-222222222222',
+    })
+    const ephemeralStateExpiresAt = 1_785_363_670
 
     expect(
       buildTask8BrowserHandoff({
@@ -216,6 +388,9 @@ describe('current release UI helpers', () => {
         operatorContext,
         modelIds,
         runScenario,
+        networkLedger,
+        foreignUserMarkers,
+        ephemeralStateExpiresAt,
         userASubject: '11111111-1111-4111-8111-111111111111',
         userBSubject: '22222222-2222-4222-8222-222222222222',
       }),
@@ -229,6 +404,9 @@ describe('current release UI helpers', () => {
       operatorContext,
       modelIds,
       runScenario,
+      networkLedger,
+      foreignUserMarkers,
+      ephemeralStateExpiresAt,
       userASubject: '11111111-1111-4111-8111-111111111111',
       userBSubject: '22222222-2222-4222-8222-222222222222',
     })
