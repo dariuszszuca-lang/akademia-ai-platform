@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { PropertyFact } from '@/features/properties/domain'
 import {
   coerceFactValue,
-  toFactKey,
+  resolveFactKey,
 } from '@/features/properties/form-utils'
 
 type AddFactFormProps = {
@@ -53,7 +53,7 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            key: toFactKey(label),
+            key: resolveFactKey(label),
             label,
             category: formData.get('category'),
             valueType,

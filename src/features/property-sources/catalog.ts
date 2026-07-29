@@ -172,6 +172,27 @@ export const propertyFactCatalog = [
   },
 ] as const satisfies readonly FactDefinition[]
 
+function normalizeFactLabel(label: string) {
+  return label
+    .trim()
+    .toLocaleLowerCase('pl-PL')
+    .replace(/ł/g, 'l')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+export function resolveFactDefinitionByLabel(
+  label: string,
+): FactDefinition | null {
+  const normalizedLabel = normalizeFactLabel(label)
+  const definition = propertyFactCatalog.find(
+    (candidate) => normalizeFactLabel(candidate.label) === normalizedLabel,
+  )
+
+  return definition ?? null
+}
+
 export function resolveFactDefinition(
   key: string,
   propertyType: PropertyProject['propertyType'],

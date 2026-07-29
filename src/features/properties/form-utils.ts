@@ -1,4 +1,5 @@
 import type { PropertyFact } from './domain'
+import { resolveFactDefinitionByLabel } from '../property-sources/catalog'
 
 export function toFactKey(label: string) {
   const words = label
@@ -24,6 +25,10 @@ export function toFactKey(label: string) {
       .join('')
 
   return /^[a-z]/.test(key) ? key : `fact${key}`
+}
+
+export function resolveFactKey(label: string): string {
+  return resolveFactDefinitionByLabel(label)?.key ?? toFactKey(label)
 }
 
 export function coerceFactValue(
