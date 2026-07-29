@@ -7,6 +7,7 @@ import { createChildCostBudget } from '../../../e2e/current-release/budget'
 import { createSyntheticSourcePdf } from '../../../e2e/current-release/synthetic-source-pdf'
 import {
   assertAccountExportSummary,
+  assertDownloadedPdfSummary,
   assertIsolationSummary,
   assertRejectedAdminLogin,
   assertUiIsolationSummary,
@@ -14,9 +15,12 @@ import {
   createSingleSourcePipeline,
   parseAdminAgentState,
   parseFactUpdateResponse,
+  parsePersistedFactList,
+  parseProposalDecisionReadback,
   parseSafeDeletionResponse,
   selectTargetProposals,
   summarizeAccountExport,
+  summarizeDownloadedPdf,
   summarizeIsolationResponse,
   summarizeUiIsolationResponse,
   type Task9ProposalCandidate,
@@ -86,6 +90,64 @@ describe('Task 9 proposal selection', () => {
         proposal('price', 'price.asking', 'conflict'),
       ]),
     ).toThrow('STUDIO_PRICE_PENDING_MISSING')
+  })
+
+  it('reads back one accepted area and one rejected price by exact IDs and keys', () => {
+    const summary = parseProposalDecisionReadback(
+      {
+        proposals: [
+          {
+            id: 'price',
+            factKey: 'price.asking',
+            status: 'rejected',
+          },
+          {
+            id: 'area',
+            factKey: 'area.usable',
+            status: 'accepted',
+          },
+        ],
+      },
+      {
+        acceptedId: 'area',
+        rejectedId: 'price',
+      },
+    )
+
+    expect(summary).toEqual({
+      accepted: {
+        id: 'area',
+        factKey: 'area.usable',
+        status: 'accepted',
+      },
+      rejected: {
+        id: 'price',
+        factKey: 'price.asking',
+        status: 'rejected',
+      },
+    })
+    expect(() =>
+      parseProposalDecisionReadback(
+        {
+          proposals: [
+            {
+              id: 'area',
+              factKey: 'area.usable',
+              status: 'needs_review',
+            },
+            {
+              id: 'price',
+              factKey: 'price.asking',
+              status: 'rejected',
+            },
+          ],
+        },
+        {
+          acceptedId: 'area',
+          rejectedId: 'price',
+        },
+      ),
+    ).toThrow('STUDIO_PROPOSAL_READBACK_INVALID')
   })
 })
 
@@ -289,6 +351,103 @@ describe('Task 9 safe summaries', () => {
         },
       ),
     ).toThrow('STUDIO_FACT_UPDATE_INVALID')
+  })
+
+  it('validates the final fact through an independent list readback', () => {
+    const summary = parsePersistedFactList(
+      {
+        facts: [
+          {
+            id: factId,
+            propertyProjectId: projectId,
+            key: 'area.usable',
+            label: 'Powierzchnia użytkowa',
+            valueType: 'number',
+            value: 80,
+            unit: 'm²',
+            status: 'confirmed',
+            visibility: 'internal',
+            confirmedByUserId: 'subject-a',
+            version: 3,
+          },
+        ],
+      },
+      {
+        factId,
+        projectId,
+        subjectA: 'subject-a',
+        value: 80,
+        version: 3,
+      },
+    )
+
+    expect(summary).toEqual({
+      factId,
+      key: 'area.usable',
+      value: 80,
+      version: 3,
+      status: 'confirmed',
+      visibility: 'internal',
+    })
+    expect(() =>
+      parsePersistedFactList(
+        {
+          facts: [
+            {
+              id: factId,
+              propertyProjectId: projectId,
+              key: 'area.usable',
+              label: 'Powierzchnia użytkowa',
+              valueType: 'number',
+              value: 81,
+              unit: 'm²',
+              status: 'confirmed',
+              visibility: 'internal',
+              confirmedByUserId: 'subject-a',
+              version: 3,
+            },
+          ],
+        },
+        {
+          factId,
+          projectId,
+          subjectA: 'subject-a',
+          value: 80,
+          version: 3,
+        },
+      ),
+    ).toThrow('STUDIO_FACT_READBACK_INVALID')
+  })
+
+  it('reduces a downloaded PDF to bounded evidence without retaining bytes or a URL', () => {
+    const pdf = Buffer.concat([
+      Buffer.from('%PDF-1.7\n', 'ascii'),
+      Buffer.alloc(200, 65),
+    ])
+    const summary = summarizeDownloadedPdf({
+      status: 200,
+      contentType: 'application/pdf',
+      body: pdf,
+    })
+
+    expect(summary).toEqual({
+      statusIs200: true,
+      contentTypeIsPdf: true,
+      bodyLooksLikePdf: true,
+      bodySizeBytes: pdf.byteLength,
+    })
+    expect(() => assertDownloadedPdfSummary(summary)).not.toThrow()
+    expect(JSON.stringify(summary)).not.toContain('%PDF')
+
+    expect(() =>
+      assertDownloadedPdfSummary(
+        summarizeDownloadedPdf({
+          status: 200,
+          contentType: 'text/html',
+          body: Buffer.from('<html>not a pdf</html>'),
+        }),
+      ),
+    ).toThrow('STUDIO_SOURCE_DOWNLOAD_INVALID')
   })
 
   it('requires an explicit rejected admin password response', () => {

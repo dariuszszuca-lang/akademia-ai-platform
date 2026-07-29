@@ -1,13 +1,20 @@
-import { expect } from '@playwright/test'
+import {
+  expect,
+  type APIResponse,
+} from '@playwright/test'
 import { getUserSubject } from '../operator'
 import { createSyntheticSourcePdf } from '../synthetic-source-pdf'
 import {
+  assertDownloadedPdfSummary,
   assertIsolationSummary,
   assertUiIsolationSummary,
   createSingleSourcePipeline,
   parseFactUpdateResponse,
+  parsePersistedFactList,
+  parseProposalDecisionReadback,
   selectTargetProposals,
   summarizeIsolationResponse,
+  summarizeDownloadedPdf,
   summarizeUiIsolationResponse,
   type Task9ProposalCandidate,
   type Task9Runtime,
@@ -45,7 +52,7 @@ export async function runStudioScenarios(
   let subjectA: string | null = null
   let subjectB: string | null = null
   let selectedProposals: Task9SelectedProposals | null = null
-  let areaDecision: { id: string; status: 'needs_review' } | null =
+  let areaDecision: { id: string; status: 'accepted' } | null =
     null
   let priceDecision: { id: string; status: 'rejected' } | null =
     null
@@ -242,6 +249,25 @@ export async function runStudioScenarios(
           },
         )
       }
+
+      const factsReadback =
+        await runtime.contextA.request.get(factsPath)
+      if (factsReadback.status() !== 200) {
+        throw new Error('STUDIO_FACT_READBACK_INVALID')
+      }
+      parsePersistedFactList(
+        await readJson(
+          factsReadback,
+          'STUDIO_FACT_READBACK_INVALID',
+        ),
+        {
+          factId: nextFactId,
+          projectId: createdProjectId,
+          subjectA: nextSubjectA,
+          value: 80,
+          version: createdVersion + 2,
+        },
+      )
       factId = nextFactId
       subjectA = nextSubjectA
     },
@@ -374,13 +400,9 @@ export async function runStudioScenarios(
         runtime,
         projectId: createdProjectId,
         proposal: selected.area,
-        buttonName: 'Zostaw konflikt',
-        expectedStatus: 'needs_review',
+        buttonName: 'Przyjmij nową',
+        expectedStatus: 'accepted',
       })
-      areaDecision = {
-        id: areaResult.id,
-        status: 'needs_review',
-      }
 
       const priceResult = await decideProposalFromUi({
         runtime,
@@ -389,10 +411,25 @@ export async function runStudioScenarios(
         buttonName: 'Odrzuć',
         expectedStatus: 'rejected',
       })
-      priceDecision = {
-        id: priceResult.id,
-        status: 'rejected',
+      const readbackResponse =
+        await runtime.contextA.request.get(
+          `/api/properties/${createdProjectId}/proposals?sourceId=${createdSourceId}`,
+        )
+      if (readbackResponse.status() !== 200) {
+        throw new Error('STUDIO_PROPOSAL_READBACK_INVALID')
       }
+      const readback = parseProposalDecisionReadback(
+        await readJson(
+          readbackResponse,
+          'STUDIO_PROPOSAL_READBACK_INVALID',
+        ),
+        {
+          acceptedId: areaResult.id,
+          rejectedId: priceResult.id,
+        },
+      )
+      areaDecision = readback.accepted
+      priceDecision = readback.rejected
 
       await runtime.pageA.goto(
         `/nieruchomosci/${createdProjectId}/braki`,
@@ -403,17 +440,11 @@ export async function runStudioScenarios(
           exact: true,
         }),
       ).toBeVisible()
-      const areaIssue = runtime.pageA
-        .locator('article')
-        .filter({
-          has: runtime.pageA.getByText(
-            'Powierzchnia użytkowa',
-            { exact: true },
-          ),
-        })
-      await expect(areaIssue).toHaveCount(1)
       await expect(
-        areaIssue.getByText('Konflikt', { exact: true }),
+        runtime.pageA.getByRole('heading', {
+          name: 'Brak otwartych kwestii',
+          exact: true,
+        }),
       ).toBeVisible()
     },
   )
@@ -424,7 +455,7 @@ export async function runStudioScenarios(
   )
   const finalAreaDecision = requireValue<{
     id: string
-    status: 'needs_review'
+    status: 'accepted'
   }>(
     areaDecision,
     'STUDIO_PROPOSALS_NOT_AVAILABLE',
@@ -614,15 +645,35 @@ async function assertSingleDownloadGrant(
   ) {
     throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
   }
+
+  let downloadResponse: APIResponse | null = null
+  try {
+    downloadResponse = await runtime.contextA.request.get(
+      payload.url,
+    )
+    const summary = summarizeDownloadedPdf({
+      status: downloadResponse.status(),
+      contentType:
+        downloadResponse.headers()['content-type'] ?? '',
+      body: await downloadResponse.body(),
+    })
+    assertDownloadedPdfSummary(summary)
+  } catch {
+    throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
+  } finally {
+    if (downloadResponse !== null) {
+      await downloadResponse.dispose().catch(() => {})
+    }
+  }
 }
 
 async function decideProposalFromUi<
-  TStatus extends 'needs_review' | 'rejected',
+  TStatus extends 'accepted' | 'rejected',
 >(input: {
   runtime: Task9Runtime
   projectId: string
   proposal: Task9ProposalCandidate
-  buttonName: 'Zostaw konflikt' | 'Odrzuć'
+  buttonName: 'Przyjmij nową' | 'Odrzuć'
   expectedStatus: TStatus
 }): Promise<{ id: string; status: TStatus }> {
   const { pageA } = input.runtime

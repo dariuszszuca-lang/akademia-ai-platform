@@ -87,7 +87,7 @@ export type Task9StudioState = {
   subjectA: string
   subjectB: string
   proposals: {
-    area: { id: string; status: 'needs_review' }
+    area: { id: string; status: 'accepted' }
     price: { id: string; status: 'rejected' }
   }
 }
@@ -129,6 +129,69 @@ export function selectTargetProposals(
       ...price,
       factKey: 'price.asking',
       status: 'pending',
+    },
+  }
+}
+
+export type Task9ProposalDecisionReadback = {
+  accepted: {
+    id: string
+    factKey: 'area.usable'
+    status: 'accepted'
+  }
+  rejected: {
+    id: string
+    factKey: 'price.asking'
+    status: 'rejected'
+  }
+}
+
+export function parseProposalDecisionReadback(
+  payload: unknown,
+  expected: {
+    acceptedId: string
+    rejectedId: string
+  },
+): Task9ProposalDecisionReadback {
+  if (
+    expected.acceptedId === expected.rejectedId ||
+    !isRecord(payload) ||
+    !Array.isArray(payload.proposals)
+  ) {
+    throw new Error('STUDIO_PROPOSAL_READBACK_INVALID')
+  }
+
+  const accepted = payload.proposals.filter(
+    (proposal) =>
+      isRecord(proposal) &&
+      proposal.id === expected.acceptedId,
+  )
+  const rejected = payload.proposals.filter(
+    (proposal) =>
+      isRecord(proposal) &&
+      proposal.id === expected.rejectedId,
+  )
+  if (
+    accepted.length !== 1 ||
+    accepted[0]!.factKey !== 'area.usable' ||
+    accepted[0]!.status !== 'accepted' ||
+    rejected.length !== 1 ||
+    rejected[0]!.factKey !== 'price.asking' ||
+    rejected[0]!.status !== 'rejected'
+  ) {
+    throw new Error('STUDIO_PROPOSAL_READBACK_INVALID')
+  }
+
+  return {
+    accepted: {
+      id: expected.acceptedId,
+      factKey: 'area.usable',
+      status: 'accepted',
+    },
+    rejected: {
+      id: expected.rejectedId,
+      factKey: 'price.asking',
+      status: 'rejected',
     },
   }
 }
@@ -335,6 +398,111 @@ export function parseFactUpdateResponse(
     version: expected.version,
     status: 'confirmed',
     visibility: 'internal',
+  }
+}
+
+export type PersistedFactSummary = {
+  factId: string
+  key: 'area.usable'
+  value: number
+  version: number
+  status: 'confirmed'
+  visibility: 'internal'
+}
+
+export function parsePersistedFactList(
+  payload: unknown,
+  expected: {
+    factId: string
+    projectId: string
+    subjectA: string
+    value: number
+    version: number
+  },
+): PersistedFactSummary {
+  if (!isRecord(payload) || !Array.isArray(payload.facts)) {
+    throw new Error('STUDIO_FACT_READBACK_INVALID')
+  }
+  const facts = payload.facts.filter(
+    (fact) => isRecord(fact) && fact.id === expected.factId,
+  )
+  if (facts.length !== 1) {
+    throw new Error('STUDIO_FACT_READBACK_INVALID')
+  }
+  const fact = facts[0]!
+  if (
+    fact.propertyProjectId !== expected.projectId ||
+    fact.key !== 'area.usable' ||
+    fact.label !== 'Powierzchnia użytkowa' ||
+    fact.valueType !== 'number' ||
+    fact.value !== expected.value ||
+    fact.unit !== 'm²' ||
+    fact.status !== 'confirmed' ||
+    fact.visibility !== 'internal' ||
+    fact.confirmedByUserId !== expected.subjectA ||
+    fact.confirmedByUserId === 'current-session-user' ||
+    !Number.isSafeInteger(fact.version) ||
+    fact.version !== expected.version ||
+    expected.version < 1
+  ) {
+    throw new Error('STUDIO_FACT_READBACK_INVALID')
+  }
+
+  return {
+    factId: expected.factId,
+    key: 'area.usable',
+    value: expected.value,
+    version: expected.version,
+    status: 'confirmed',
+    visibility: 'internal',
+  }
+}
+
+export type DownloadedPdfSummary = {
+  statusIs200: boolean
+  contentTypeIsPdf: boolean
+  bodyLooksLikePdf: boolean
+  bodySizeBytes: number
+}
+
+export function summarizeDownloadedPdf(input: {
+  status: number
+  contentType: string
+  body: Uint8Array
+}): DownloadedPdfSummary {
+  const bodySizeBytes = input.body.byteLength
+  const hasPdfHeader =
+    input.body.length >= 5 &&
+    input.body[0] === 0x25 &&
+    input.body[1] === 0x50 &&
+    input.body[2] === 0x44 &&
+    input.body[3] === 0x46 &&
+    input.body[4] === 0x2d
+
+  return {
+    statusIs200: input.status === 200,
+    contentTypeIsPdf:
+      input.contentType
+        .split(';', 1)[0]
+        ?.trim()
+        .toLocaleLowerCase('en-US') === 'application/pdf',
+    bodyLooksLikePdf:
+      hasPdfHeader &&
+      bodySizeBytes >= 100 &&
+      bodySizeBytes <= 25 * 1024 * 1024,
+    bodySizeBytes,
+  }
+}
+
+export function assertDownloadedPdfSummary(
+  summary: DownloadedPdfSummary,
+): void {
+  if (
+    !summary.statusIs200 ||
+    !summary.contentTypeIsPdf ||
+    !summary.bodyLooksLikePdf
+  ) {
+    throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
   }
 }
 
