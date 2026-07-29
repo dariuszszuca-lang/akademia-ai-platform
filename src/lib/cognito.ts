@@ -91,6 +91,12 @@ export async function signOut(accessToken: string) {
   });
 }
 
+export async function deleteUser(accessToken: string) {
+  return cognitoRequest("DeleteUser", {
+    AccessToken: accessToken,
+  });
+}
+
 export async function forgotPassword(email: string) {
   return cognitoRequest("ForgotPassword", {
     ClientId: CLIENT_ID,

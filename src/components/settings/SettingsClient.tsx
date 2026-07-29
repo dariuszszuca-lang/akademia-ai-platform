@@ -5,6 +5,44 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import type { BillingMode } from "@/lib/billing/mode";
 
+type AccountDeletionClient = {
+  readAccessToken: () => string | null;
+  request: (url: string, init: RequestInit) => Promise<Response>;
+  clearSession: () => void;
+  redirectToLogin: () => void;
+};
+
+export async function deleteCurrentAccount(
+  client: AccountDeletionClient = {
+    readAccessToken: () => localStorage.getItem("accessToken"),
+    request: (url, init) => fetch(url, init),
+    clearSession: () => localStorage.clear(),
+    redirectToLogin: () => {
+      window.location.href = "/login";
+    },
+  },
+) {
+  const accessToken = client.readAccessToken();
+  if (!accessToken) {
+    throw new Error("Sesja wygasła. Zaloguj się ponownie.");
+  }
+
+  const response = await client.request("/api/account/delete", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ confirm: "DELETE" }),
+  });
+  if (!response.ok) {
+    throw new Error("Usunięcie się nie powiodło");
+  }
+
+  client.clearSession();
+  client.redirectToLogin();
+}
+
 export default function SettingsClient({
   billingMode,
 }: {
@@ -43,13 +81,7 @@ export default function SettingsClient({
     }
     setDeleting(true);
     try {
-      const res = await fetch("/api/account/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "DELETE" }),
-      });
-      if (!res.ok) throw new Error("Usunięcie się nie powiodło");
-      window.location.href = "/login";
+      await deleteCurrentAccount();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Błąd usuwania");
       setDeleting(false);
