@@ -89,6 +89,9 @@ export function verifyAdminSessionToken(
       secret,
     )
     const actualBuffer = Buffer.from(signature, 'base64url')
+    if (actualBuffer.toString('base64url') !== signature) {
+      return false
+    }
     const expectedBuffer = Buffer.from(
       expectedSignature,
       'base64url',

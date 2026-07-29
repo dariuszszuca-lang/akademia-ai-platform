@@ -81,6 +81,34 @@ describe('admin authentication helpers', () => {
     expect(decoded).not.toContain('synthetic-admin-password')
   })
 
+  it('rejects a noncanonical base64url representation of the same signature bits', () => {
+    const secret = 'synthetic-session-secret'
+    const token = createAdminSessionToken(
+      secret,
+      Date.UTC(2026, 6, 29, 10),
+    )
+    const [payload, signature] = token.split('.')
+    const alphabet =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+    const finalIndex = alphabet.indexOf(signature.at(-1) ?? '')
+    if (finalIndex < 0 || finalIndex % 4 !== 0) {
+      throw new Error('Expected a canonical SHA-256 signature fixture')
+    }
+    const noncanonicalSignature =
+      signature.slice(0, -1) + alphabet[finalIndex + 1]
+
+    expect(
+      Buffer.from(noncanonicalSignature, 'base64url'),
+    ).toEqual(Buffer.from(signature, 'base64url'))
+    expect(
+      verifyAdminSessionToken(
+        `${payload}.${noncanonicalSignature}`,
+        secret,
+        Date.UTC(2026, 6, 29, 11),
+      ),
+    ).toBe(false)
+  })
+
   it('keeps the admin cookie lifetime aligned to seven days', () => {
     const response = setSessionCookie(
       NextResponse.json({ ok: true }),
