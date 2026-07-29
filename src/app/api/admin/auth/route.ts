@@ -4,7 +4,12 @@ import {
   setSessionCookie,
   verifyPassword,
 } from '@/lib/admin-auth'
-import { LIMITS, rateLimit } from '@/lib/rate-limit'
+import {
+  clearRateLimit,
+  getRateLimitStatus,
+  LIMITS,
+  rateLimit,
+} from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   if (!isAdminConfigured()) {
@@ -40,29 +45,51 @@ export async function POST(request: Request) {
       .get('x-forwarded-for')
       ?.split(',')[0]
       ?.trim() || 'unknown'
-  const limit = await rateLimit(
+  const status = await getRateLimitStatus(
     'admin-auth',
     identifier,
     LIMITS.ADMIN_AUTH.limit,
     LIMITS.ADMIN_AUTH.windowMinutes,
   )
-  if (!limit.ok) {
+  if (!status.ok) {
     return NextResponse.json(
       { error: 'Too many attempts' },
       {
         status: 429,
-        headers: { 'Retry-After': String(limit.resetIn) },
+        headers: { 'Retry-After': String(status.resetIn) },
       },
     )
   }
 
   if (!verifyPassword(password)) {
+    const failure = await rateLimit(
+      'admin-auth',
+      identifier,
+      LIMITS.ADMIN_AUTH.limit,
+      LIMITS.ADMIN_AUTH.windowMinutes,
+    )
+    if (!failure.ok) {
+      return NextResponse.json(
+        { error: 'Too many attempts' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(failure.resetIn),
+          },
+        },
+      )
+    }
     return NextResponse.json(
       { error: 'Invalid password' },
       { status: 401 },
     )
   }
 
+  await clearRateLimit(
+    'admin-auth',
+    identifier,
+    LIMITS.ADMIN_AUTH.windowMinutes,
+  )
   const response = NextResponse.json({ ok: true })
   return setSessionCookie(response)
 }

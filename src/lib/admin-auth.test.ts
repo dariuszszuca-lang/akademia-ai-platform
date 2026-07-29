@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { NextResponse } from 'next/server'
 import {
   createAdminSessionToken,
+  setSessionCookie,
   verifyAdminSessionToken,
   verifyPassword,
 } from './admin-auth'
@@ -32,11 +34,62 @@ describe('admin authentication helpers', () => {
   })
 
   it('rejects a session token signed with a different secret', () => {
-    const token = createAdminSessionToken('first-synthetic-secret')
+    const token = createAdminSessionToken(
+      'first-synthetic-secret',
+      Date.UTC(2026, 6, 29, 10),
+    )
 
     expect(
-      verifyAdminSessionToken(token, 'second-synthetic-secret'),
+      verifyAdminSessionToken(
+        token,
+        'second-synthetic-secret',
+        Date.UTC(2026, 6, 29, 11),
+      ),
     ).toBe(false)
+  })
+
+  it('expires the signed session on the server after seven days', () => {
+    const issuedAt = Date.UTC(2026, 6, 29, 10)
+    const sevenDays = 7 * 24 * 60 * 60 * 1000
+    const secret = 'synthetic-session-secret'
+    const token = createAdminSessionToken(secret, issuedAt)
+
+    expect(
+      verifyAdminSessionToken(
+        token,
+        secret,
+        issuedAt + sevenDays - 1,
+      ),
+    ).toBe(true)
+    expect(
+      verifyAdminSessionToken(token, secret, issuedAt + sevenDays),
+    ).toBe(false)
+  })
+
+  it('does not include the session secret in its signed payload', () => {
+    const secret = 'synthetic-session-secret'
+    const token = createAdminSessionToken(
+      secret,
+      Date.UTC(2026, 6, 29, 10),
+    )
+    const [payload] = token.split('.')
+    const decoded = Buffer.from(payload, 'base64url').toString(
+      'utf8',
+    )
+
+    expect(decoded).not.toContain(secret)
+    expect(decoded).not.toContain('synthetic-admin-password')
+  })
+
+  it('keeps the admin cookie lifetime aligned to seven days', () => {
+    const response = setSessionCookie(
+      NextResponse.json({ ok: true }),
+    )
+    const setCookie = response.headers.get('set-cookie')
+
+    expect(setCookie).toContain('Max-Age=604800')
+    expect(setCookie).toContain('HttpOnly')
+    expect(setCookie).toContain('SameSite=strict')
   })
 
   it.each(['', 'not-a-valid-token', '***'])(

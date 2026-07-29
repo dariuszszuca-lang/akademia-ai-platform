@@ -16,20 +16,21 @@ export function buildAgentSystemPrompt(
   legalChunks?: LegalChunk[],
 ): string {
   const isLegal = agent.id === 'prawny'
-  const legalBlock =
-    isLegal && legalChunks && legalChunks.length > 0
-      ? `
+  const legalBlock = isLegal
+    ? `
 
 RELEWANTNE FRAGMENTY POLSKIEGO PRAWA (cytuj te artykuły dosłownie gdzie pasuje):
 
-${formatChunksForPrompt(legalChunks)}
+${formatChunksForPrompt(legalChunks ?? [])}
 
 ZASADY DLA AGENTA PRAWNEGO:
 - Cytuj DOKŁADNIE numer artykułu z powyższych fragmentów (np. "art. 158 KC stanowi że...")
 - Jeśli fragment nie odpowiada na pytanie, powiedz wprost: "W bazie nie znalazłem przepisu wprost odnoszącego się do tego pytania" zamiast halucynować
+- Bez relewantnych źródeł nie cytuj ani nie oznaczaj przepisów jako pewnych.
+- Poinformuj o braku źródeł i poproś o dokument lub dodatkowy kontekst.
 - Zawsze przypominaj: "To wymaga konsultacji z prawnikiem przed decyzją" gdy pytanie wymaga oceny indywidualnej
 - Nie udzielaj porady prawnej, tylko informacji o przepisach`
-      : ''
+    : ''
 
   return `Jesteś agentem "${agent.name}" w ${PRODUCT_NAME} dla agentów nieruchomości.
 Pracujesz na profilu użytkownika i — jeśli został podany — na zatwierdzonych danych teczki nieruchomości.

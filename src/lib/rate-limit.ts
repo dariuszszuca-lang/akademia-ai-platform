@@ -1,4 +1,8 @@
-import { storeGet, storeSet } from '@/lib/store'
+import {
+  storeDelete,
+  storeGet,
+  storeIncrementWithExpiry,
+} from '@/lib/store'
 
 /**
  * Rate limiter oparty o KV.
@@ -12,24 +16,93 @@ type RateLimitResult = {
   resetIn: number // sekund do resetu
 }
 
+const RATE_LIMIT_TTL_MARGIN_SECONDS = 5
+
+type RateLimitWindow = {
+  key: string
+  expiresAtEpochSeconds: number
+  resetIn: number
+}
+
+function rateLimitWindow(
+  bucket: string,
+  identifier: string,
+  windowMinutes: number,
+): RateLimitWindow {
+  const now = Date.now()
+  const windowMs = windowMinutes * 60 * 1000
+  const windowStart = Math.floor(now / windowMs)
+  const resetAt = (windowStart + 1) * windowMs
+
+  return {
+    key: `rate:${bucket}:${identifier}:${windowStart}`,
+    expiresAtEpochSeconds:
+      Math.ceil(resetAt / 1000) +
+      RATE_LIMIT_TTL_MARGIN_SECONDS,
+    resetIn: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+  }
+}
+
 export async function rateLimit(
   bucket: string,
   identifier: string,
   limit: number,
   windowMinutes: number = 1,
 ): Promise<RateLimitResult> {
-  const now = new Date()
-  const windowStart = Math.floor(now.getTime() / (windowMinutes * 60 * 1000))
-  const key = `rate:${bucket}:${identifier}:${windowStart}`
-
-  const current = (await storeGet<number>(key)) ?? 0
-  if (current >= limit) {
-    const resetIn = Math.ceil(((windowStart + 1) * windowMinutes * 60 * 1000 - now.getTime()) / 1000)
-    return { ok: false, remaining: 0, resetIn }
+  const window = rateLimitWindow(
+    bucket,
+    identifier,
+    windowMinutes,
+  )
+  const current = await storeIncrementWithExpiry(
+    window.key,
+    window.expiresAtEpochSeconds,
+  )
+  if (current > limit) {
+    return {
+      ok: false,
+      remaining: 0,
+      resetIn: window.resetIn,
+    }
   }
 
-  await storeSet(key, current + 1)
-  return { ok: true, remaining: limit - current - 1, resetIn: 0 }
+  return {
+    ok: true,
+    remaining: Math.max(0, limit - current),
+    resetIn: window.resetIn,
+  }
+}
+
+export async function getRateLimitStatus(
+  bucket: string,
+  identifier: string,
+  limit: number,
+  windowMinutes: number = 1,
+): Promise<RateLimitResult> {
+  const window = rateLimitWindow(
+    bucket,
+    identifier,
+    windowMinutes,
+  )
+  const current = (await storeGet<number>(window.key)) ?? 0
+  return {
+    ok: current < limit,
+    remaining: Math.max(0, limit - current),
+    resetIn: window.resetIn,
+  }
+}
+
+export async function clearRateLimit(
+  bucket: string,
+  identifier: string,
+  windowMinutes: number = 1,
+): Promise<void> {
+  const window = rateLimitWindow(
+    bucket,
+    identifier,
+    windowMinutes,
+  )
+  await storeDelete(window.key)
 }
 
 /**
