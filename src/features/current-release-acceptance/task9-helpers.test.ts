@@ -1,11 +1,24 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { createChildCostBudget } from '../../../e2e/current-release/budget'
-import { createSyntheticSourcePdf } from '../../../e2e/current-release/synthetic-source-pdf'
+import {
+  createSyntheticSourcePdf,
+  removeSyntheticSourcePdf,
+  usingSyntheticSourcePdf,
+} from '../../../e2e/current-release/synthetic-source-pdf'
 import {
   assertAccountExportSummary,
   assertDownloadedPdfSummary,
@@ -26,6 +39,7 @@ import {
   parseRejectedPriceDecisionResponse,
   parseSafeDeletionResponse,
   parseSignedS3DownloadUrl,
+  recordTask9Usage,
   runAdminFinallyProtocol,
   selectTargetProposals,
   summarizeAccountExport,
@@ -513,6 +527,53 @@ describe('Task 9 source accounting', () => {
 })
 
 describe('Task 9 safe summaries', () => {
+  it.each([
+    'UI_MOBILE_FAILED',
+    'ACCOUNT_DELETE_FAILED',
+  ])(
+    'records safe export usage exactly once before a later %s failure',
+    async (laterError) => {
+      const recorded: unknown[] = []
+      const usage = {
+        observedPipelineCostUsd: 0.25,
+        modelIds: ['claude-sonnet-4-6'],
+      }
+
+      await expect(
+        (async () => {
+          await recordTask9Usage(usage, async (value: unknown) => {
+            recorded.push(value)
+          })
+          throw new Error(laterError)
+        })(),
+      ).rejects.toThrow(laterError)
+      expect(recorded).toEqual([usage])
+    },
+  )
+
+  it('rejects zero-cost or unsafe usage before calling the recorder', async () => {
+    let calls = 0
+    const recordUsage = async () => {
+      calls += 1
+    }
+
+    for (const invalid of [
+      {
+        observedPipelineCostUsd: 0,
+        modelIds: ['claude-sonnet-4-6'],
+      },
+      {
+        observedPipelineCostUsd: 0.25,
+        modelIds: ['token=unsafe'],
+      },
+    ]) {
+      await expect(
+        recordTask9Usage(invalid, recordUsage),
+      ).rejects.toThrow('TASK9_USAGE_INVALID')
+    }
+    expect(calls).toBe(0)
+  })
+
   it('reduces isolation responses to booleans and never throws the body', () => {
     const clean = summarizeIsolationResponse(
       404,
@@ -1107,6 +1168,108 @@ describe('Task 9 synthetic source PDF', () => {
       expect(document.getTitle()).toContain(runId)
       expect(document.getSubject()).toContain('83,40 m2')
       expect(document.getSubject()).toContain('750 000 PLN')
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('removes the local PDF after successful evidence use and remains idempotent', async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'task9-source-cleanup-success-'),
+    )
+    let artifactPath = ''
+
+    try {
+      const evidence = await usingSyntheticSourcePdf(
+        {
+          browserDirectory: directory,
+          runId: 'syn-20260729T203001Z-a1b2c3d4',
+        },
+        async (pdf: { path: string; checksumSha256: string }) => {
+          artifactPath = pdf.path
+          expect(await stat(pdf.path)).toBeDefined()
+          return pdf.checksumSha256
+        },
+      )
+      expect(evidence).toMatch(/^[a-f0-9]{64}$/)
+      await expect(stat(artifactPath)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+      await expect(
+        removeSyntheticSourcePdf(artifactPath, directory),
+      ).resolves.toBeUndefined()
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('removes the local PDF when registration or evidence use fails', async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'task9-source-cleanup-failure-'),
+    )
+    let artifactPath = ''
+
+    try {
+      await expect(
+        usingSyntheticSourcePdf(
+          {
+            browserDirectory: directory,
+            runId: 'syn-20260729T203002Z-a1b2c3d4',
+          },
+          async (pdf: { path: string }) => {
+            artifactPath = pdf.path
+            throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
+          },
+        ),
+      ).rejects.toThrow('STUDIO_SOURCE_REGISTRATION_INVALID')
+      await expect(stat(artifactPath)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to remove a symlink and leaves its target untouched', async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'task9-source-cleanup-symlink-'),
+    )
+    const browserDirectory = join(directory, 'browser')
+    const outsidePath = join(directory, 'outside.pdf')
+    const linkPath = join(browserDirectory, 'source.pdf')
+
+    try {
+      await mkdir(browserDirectory)
+      await writeFile(outsidePath, 'outside-target')
+      await symlink(outsidePath, linkPath)
+      await expect(
+        removeSyntheticSourcePdf(linkPath, browserDirectory),
+      ).rejects.toThrow('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+      expect(await readFile(outsidePath, 'utf8')).toBe(
+        'outside-target',
+      )
+      expect((await lstat(linkPath)).isSymbolicLink()).toBe(true)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses to remove a PDF outside the browser directory', async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'task9-source-cleanup-outside-'),
+    )
+    const browserDirectory = join(directory, 'browser')
+    const outsidePath = join(directory, 'outside.pdf')
+
+    try {
+      await mkdir(browserDirectory)
+      await writeFile(outsidePath, 'outside-target')
+      await expect(
+        removeSyntheticSourcePdf(outsidePath, browserDirectory),
+      ).rejects.toThrow('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+      expect(await readFile(outsidePath, 'utf8')).toBe(
+        'outside-target',
+      )
     } finally {
       await rm(directory, { recursive: true, force: true })
     }

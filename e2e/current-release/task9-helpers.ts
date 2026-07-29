@@ -9,7 +9,10 @@ import {
   createChildCostBudget,
 } from './budget'
 import type { ResolvedOperatorContext } from './operator'
-import type { CurrentReleaseScenario } from '../../src/features/current-release-acceptance/domain'
+import {
+  CURRENT_RELEASE_MAX_COST_USD,
+  type CurrentReleaseScenario,
+} from '../../src/features/current-release-acceptance/domain'
 
 export type CurrentReleaseBrowserScenario = Exclude<
   CurrentReleaseScenario,
@@ -21,6 +24,11 @@ export type SafeDeletionReceipt = {
   sourceObjects: number
   propertyStudio: 1
   accountKeys: 5
+}
+
+export type Task9BrowserUsage = {
+  observedPipelineCostUsd: number
+  modelIds: string[]
 }
 
 export type Task9Runtime = {
@@ -51,6 +59,7 @@ export type Task9Runtime = {
     role: 'a' | 'b',
     receipt: SafeDeletionReceipt,
   ): Promise<void>
+  recordUsage(input: Task9BrowserUsage): Promise<void>
 }
 
 export type Task9ProposalCandidate = {
@@ -79,6 +88,51 @@ export type Task9SelectedProposals = {
     factKey: 'price.asking'
     status: 'pending'
   }
+}
+
+const safeTask9ModelIdPattern =
+  /^(?:claude-[a-z0-9]+(?:-[a-z0-9]+)*|eu\.anthropic\.claude-[a-z0-9]+(?:-[a-z0-9]+)*(?::[0-9]+)?)$/
+
+export async function recordTask9Usage(
+  input: unknown,
+  recordUsage: (usage: Task9BrowserUsage) => Promise<void>,
+): Promise<Task9BrowserUsage> {
+  if (
+    !isRecord(input) ||
+    Object.keys(input).length !== 2 ||
+    typeof input.observedPipelineCostUsd !== 'number' ||
+    !Number.isFinite(input.observedPipelineCostUsd) ||
+    input.observedPipelineCostUsd <= 0 ||
+    input.observedPipelineCostUsd >
+      CURRENT_RELEASE_MAX_COST_USD ||
+    !Number.isSafeInteger(
+      input.observedPipelineCostUsd * 1_000_000,
+    ) ||
+    !Array.isArray(input.modelIds) ||
+    input.modelIds.length === 0 ||
+    input.modelIds.length > 20
+  ) {
+    throw new Error('TASK9_USAGE_INVALID')
+  }
+  const modelIds = input.modelIds.map((modelId) =>
+    typeof modelId === 'string' ? modelId.trim() : '',
+  )
+  if (
+    modelIds.some(
+      (modelId) =>
+        !safeTask9ModelIdPattern.test(modelId),
+    ) ||
+    new Set(modelIds).size !== modelIds.length
+  ) {
+    throw new Error('TASK9_USAGE_INVALID')
+  }
+
+  const usage = {
+    observedPipelineCostUsd: input.observedPipelineCostUsd,
+    modelIds,
+  }
+  await recordUsage(usage)
+  return usage
 }
 
 export type Task9StudioState = {
@@ -431,8 +485,6 @@ export function parseCurrentSourceJobEvidence(
   observedPipelineCostUsd: number
   modelIds: string[]
 } {
-  const safeModelIdPattern =
-    /^(?:claude-[a-z0-9]+(?:-[a-z0-9]+)*|eu\.anthropic\.claude-[a-z0-9]+(?:-[a-z0-9]+)*(?::[0-9]+)?)$/
   const matching = jobs.filter(
     (job) =>
       isRecord(job) &&
@@ -453,7 +505,7 @@ export function parseCurrentSourceJobEvidence(
     typeof job.modelId !== 'string' ||
     job.modelId.trim().length === 0 ||
     job.modelId.trim().length > 200 ||
-    !safeModelIdPattern.test(job.modelId.trim()) ||
+    !safeTask9ModelIdPattern.test(job.modelId.trim()) ||
     !Number.isFinite(expected.maxUsd) ||
     expected.maxUsd <= 0 ||
     !Number.isFinite(expected.reservedUsd) ||

@@ -3,7 +3,7 @@ import {
   type APIResponse,
 } from '@playwright/test'
 import { getUserSubject } from '../operator'
-import { createSyntheticSourcePdf } from '../synthetic-source-pdf'
+import { usingSyntheticSourcePdf } from '../synthetic-source-pdf'
 import {
   assertDownloadedPdfSummary,
   assertIsolationSummary,
@@ -293,87 +293,101 @@ export async function runStudioScenarios(
     'studio.source',
     'STUDIO_SOURCE_FAILED',
     async () => {
-      const pdf = await createSyntheticSourcePdf({
-        browserDirectory: runtime.fixtures.paths.browserDirectory,
-        runId: runtime.fixtures.runId,
-      })
-      if (
-        pdf.sizeBytes <= 0 ||
-        pdf.sizeBytes > 25 * 1024 * 1024
-      ) {
-        throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
-      }
-
-      const { pageA } = runtime
-      await pageA.goto(
-        `/nieruchomosci/${createdProjectId}/zrodla`,
-      )
-      const registrationPath =
-        `/api/properties/${createdProjectId}/sources`
-      const registrationPromise = pageA.waitForResponse(
-        (response) =>
-          response.request().method() === 'POST' &&
-          new URL(response.url()).pathname === registrationPath,
-      )
-      const pipeline = createSingleSourcePipeline(runtime.budget)
-      await pipeline.run(() =>
-        pageA.locator('input[type="file"]').setInputFiles(pdf.path),
-      )
-      const registration = await registrationPromise
-      if (
-        registration.status() !== 201 ||
-        pipeline.calls() !== 1 ||
-        runtime.budget.snapshot().sourcePipelineCalls !== 1
-      ) {
-        throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
-      }
-
-      const source = readNestedRecord(
-        await readJson(
-          registration,
-          'STUDIO_SOURCE_REGISTRATION_INVALID',
-        ),
-        'source',
-        'STUDIO_SOURCE_REGISTRATION_INVALID',
-      )
-      const nextSourceId = readUuid(
-        source.id,
-        'STUDIO_SOURCE_REGISTRATION_INVALID',
-      )
-      if (
-        source.organizationId !== createdOrganizationId ||
-        source.propertyProjectId !== createdProjectId ||
-        typeof source.storageKey !== 'string' ||
-        source.storageKey.length === 0 ||
-        source.mediaType !== 'application/pdf' ||
-        source.sizeBytes !== pdf.sizeBytes ||
-        source.checksumSha256 !== pdf.checksumSha256
-      ) {
-        throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
-      }
-      const nextStorageKey = source.storageKey
-
-      await runtime.recordResources({
-        organizationId: createdOrganizationId,
-        sourceId: nextSourceId,
-        storageKey: nextStorageKey,
-      })
-      sourceId = nextSourceId
-      storageKey = nextStorageKey
-
-      await pollSourceUntilTerminal(
-        runtime,
-        createdProjectId,
-        nextSourceId,
-      )
-      await assertSingleDownloadGrant(
-        runtime,
-        createdProjectId,
-        nextSourceId,
+      await usingSyntheticSourcePdf(
         {
-          storageKey: nextStorageKey,
-          sizeBytes: pdf.sizeBytes,
-          checksumSha256: pdf.checksumSha256,
+          browserDirectory:
+            runtime.fixtures.paths.browserDirectory,
+          runId: runtime.fixtures.runId,
+        },
+        async (pdf) => {
+          if (
+            pdf.sizeBytes <= 0 ||
+            pdf.sizeBytes > 25 * 1024 * 1024
+          ) {
+            throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+          }
+
+          const { pageA } = runtime
+          await pageA.goto(
+            `/nieruchomosci/${createdProjectId}/zrodla`,
+          )
+          const registrationPath =
+            `/api/properties/${createdProjectId}/sources`
+          const registrationPromise = pageA.waitForResponse(
+            (response) =>
+              response.request().method() === 'POST' &&
+              new URL(response.url()).pathname ===
+                registrationPath,
+          )
+          const pipeline = createSingleSourcePipeline(
+            runtime.budget,
+          )
+          await pipeline.run(() =>
+            pageA
+              .locator('input[type="file"]')
+              .setInputFiles(pdf.path),
+          )
+          const registration = await registrationPromise
+          if (
+            registration.status() !== 201 ||
+            pipeline.calls() !== 1 ||
+            runtime.budget.snapshot().sourcePipelineCalls !== 1
+          ) {
+            throw new Error(
+              'STUDIO_SOURCE_REGISTRATION_INVALID',
+            )
+          }
+
+          const source = readNestedRecord(
+            await readJson(
+              registration,
+              'STUDIO_SOURCE_REGISTRATION_INVALID',
+            ),
+            'source',
+            'STUDIO_SOURCE_REGISTRATION_INVALID',
+          )
+          const nextSourceId = readUuid(
+            source.id,
+            'STUDIO_SOURCE_REGISTRATION_INVALID',
+          )
+          if (
+            source.organizationId !== createdOrganizationId ||
+            source.propertyProjectId !== createdProjectId ||
+            typeof source.storageKey !== 'string' ||
+            source.storageKey.length === 0 ||
+            source.mediaType !== 'application/pdf' ||
+            source.sizeBytes !== pdf.sizeBytes ||
+            source.checksumSha256 !== pdf.checksumSha256
+          ) {
+            throw new Error(
+              'STUDIO_SOURCE_REGISTRATION_INVALID',
+            )
+          }
+          const nextStorageKey = source.storageKey
+
+          await runtime.recordResources({
+            organizationId: createdOrganizationId,
+            sourceId: nextSourceId,
+            storageKey: nextStorageKey,
+          })
+          sourceId = nextSourceId
+          storageKey = nextStorageKey
+
+          await pollSourceUntilTerminal(
+            runtime,
+            createdProjectId,
+            nextSourceId,
+          )
+          await assertSingleDownloadGrant(
+            runtime,
+            createdProjectId,
+            nextSourceId,
+            {
+              storageKey: nextStorageKey,
+              sizeBytes: pdf.sizeBytes,
+              checksumSha256: pdf.checksumSha256,
+            },
+          )
         },
       )
     },

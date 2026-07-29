@@ -3,9 +3,10 @@ import {
   chmod,
   lstat,
   mkdir,
+  rm,
   writeFile,
 } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import {
   PDFDocument,
   StandardFonts,
@@ -15,14 +16,16 @@ import { currentReleaseRunIdSchema } from '../../src/features/current-release-ac
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024
 
-export async function createSyntheticSourcePdf(input: {
-  browserDirectory: string
-  runId: string
-}): Promise<{
+export type SyntheticSourcePdf = {
   path: string
   sizeBytes: number
   checksumSha256: string
-}> {
+}
+
+export async function createSyntheticSourcePdf(input: {
+  browserDirectory: string
+  runId: string
+}): Promise<SyntheticSourcePdf> {
   const runId = currentReleaseRunIdSchema.parse(input.runId)
   const browserDirectory = resolve(input.browserDirectory)
   const path = resolve(
@@ -96,6 +99,62 @@ export async function createSyntheticSourcePdf(input: {
   }
 }
 
+export async function removeSyntheticSourcePdf(
+  path: string,
+  browserDirectory: string,
+): Promise<void> {
+  const directory = resolve(browserDirectory)
+  const artifactPath = resolve(path)
+  if (dirname(artifactPath) !== directory) {
+    throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+  }
+
+  try {
+    const directoryStat = await lstat(directory)
+    if (
+      directoryStat.isSymbolicLink() ||
+      !directoryStat.isDirectory()
+    ) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+    }
+  } catch (error) {
+    if (isMissingFile(error)) return
+    throw error
+  }
+
+  try {
+    const artifactStat = await lstat(artifactPath)
+    if (
+      artifactStat.isSymbolicLink() ||
+      !artifactStat.isFile()
+    ) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+    }
+    await rm(artifactPath)
+  } catch (error) {
+    if (isMissingFile(error)) return
+    throw error
+  }
+}
+
+export async function usingSyntheticSourcePdf<T>(
+  input: {
+    browserDirectory: string
+    runId: string
+  },
+  action: (pdf: SyntheticSourcePdf) => Promise<T>,
+): Promise<T> {
+  const pdf = await createSyntheticSourcePdf(input)
+  try {
+    return await action(pdf)
+  } finally {
+    await removeSyntheticSourcePdf(
+      pdf.path,
+      input.browserDirectory,
+    )
+  }
+}
+
 async function rejectSymlink(path: string): Promise<void> {
   try {
     const file = await lstat(path)
@@ -112,6 +171,14 @@ async function rejectSymlink(path: string): Promise<void> {
     }
     throw error
   }
+}
+
+function isMissingFile(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  )
 }
 
 function timestampFromRunId(runId: string): Date {

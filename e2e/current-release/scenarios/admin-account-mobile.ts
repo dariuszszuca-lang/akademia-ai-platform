@@ -11,17 +11,16 @@ import {
   assertRejectedAdminLogin,
   parseAdminAgentState,
   parseSafeDeletionResponse,
+  recordTask9Usage,
   runAdminFinallyProtocol,
   summarizeAccountExport,
   summarizePilotAccessEvidence,
+  type Task9BrowserUsage,
   type Task9Runtime,
   type Task9StudioState,
 } from '../task9-helpers'
 
-export type Task9BrowserUsage = {
-  observedPipelineCostUsd: number
-  modelIds: string[]
-}
+export type { Task9BrowserUsage } from '../task9-helpers'
 
 export async function runAdminAccountMobileScenarios(
   runtime: Task9Runtime,
@@ -115,7 +114,6 @@ export async function runAdminAccountMobileScenarios(
           ],
           pilotAccessModeConfirmed,
         })
-        assertAccountExportSummary(summary)
         if (
           runtime.budget.snapshot().sourcePipelineCalls !== 1
         ) {
@@ -123,11 +121,15 @@ export async function runAdminAccountMobileScenarios(
             'STUDIO_SOURCE_PIPELINE_CALLS_INVALID',
           )
         }
-        exportUsage = {
-          observedPipelineCostUsd:
-            summary.observedPipelineCostUsd,
-          modelIds: summary.modelIds,
-        }
+        assertAccountExportSummary(summary)
+        exportUsage = await recordTask9Usage(
+          {
+            observedPipelineCostUsd:
+              summary.observedPipelineCostUsd,
+            modelIds: summary.modelIds,
+          },
+          (usage) => runtime.recordUsage(usage),
+        )
       } finally {
         await cleanupDownload(download)
       }
