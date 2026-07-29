@@ -22,6 +22,16 @@ const syntheticAwsAccessKeyMarker = [
   'SYNTHETIC',
   'DEADBEE',
 ].join('')
+const syntheticPineconeSecretMarker = [
+  'pcsk',
+  'synthetic',
+  'deadbeef',
+].join('_')
+const unknownCredentialLikeMarker = [
+  'credential',
+  'synthetic',
+  'deadbeef',
+].join('_')
 
 function validInput() {
   return {
@@ -145,11 +155,44 @@ describe('safe current release acceptance report', () => {
     ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
   })
 
+  it('rejects Pinecone-shaped values before report serialization', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        modelIds: [syntheticPineconeSecretMarker],
+      }),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+
+    const report = createCurrentReleaseReport(validInput())
+    const polluted = {
+      ...report,
+      modelIds: [syntheticPineconeSecretMarker],
+    }
+    expect(() =>
+      serializeCurrentReleaseReport(polluted as typeof report),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+    expect(() =>
+      renderCurrentReleaseReportMarkdown(
+        polluted as typeof report,
+      ),
+    ).toThrow('CURRENT_RELEASE_REPORT_SECRET_VALUE')
+  })
+
+  it('rejects credential-like identifiers outside model families', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        modelIds: [unknownCredentialLikeMarker],
+      }),
+    ).toThrow('CURRENT_RELEASE_MODEL_ID_INVALID')
+  })
+
   it('keeps real safe model identifiers valid', () => {
     expect(() =>
       createCurrentReleaseReport({
         ...validInput(),
         modelIds: [
+          'claude-sonnet-4-6',
           'eu.anthropic.claude-haiku-4-5-20251001-v1:0',
         ],
       }),
@@ -227,6 +270,29 @@ describe('safe current release acceptance report', () => {
         completedAt: '2026-07-29T19:59:59.000Z',
       }),
     ).toThrow('CURRENT_RELEASE_REPORT_TIME_INVALID')
+  })
+
+  it('accepts only a realistic Vercel deployment identifier', () => {
+    expect(() =>
+      createCurrentReleaseReport({
+        ...validInput(),
+        deploymentId: 'dpl_ZyXwVu987654',
+      }),
+    ).not.toThrow()
+
+    for (const deploymentId of [
+      'deploy_ZyXwVu987654',
+      'dpl_short',
+      'dpl_ZyXw-Vu987654',
+      'dpl_ZyXwVu987654/path',
+    ]) {
+      expect(() =>
+        createCurrentReleaseReport({
+          ...validInput(),
+          deploymentId,
+        }),
+      ).toThrow()
+    }
   })
 
   it('keeps model identifiers bounded, safe and unique', () => {

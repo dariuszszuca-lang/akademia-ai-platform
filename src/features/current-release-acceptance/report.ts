@@ -34,7 +34,10 @@ const safeModelIdSchema = z
   .trim()
   .min(1)
   .max(240)
-  .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/)
+  .regex(
+    /^(?:claude-[a-z0-9]+(?:-[a-z0-9]+)*|eu\.anthropic\.claude-[a-z0-9]+(?:-[a-z0-9]+)*(?::[0-9]+)?)$/,
+    'CURRENT_RELEASE_MODEL_ID_INVALID',
+  )
 
 function exactCostSchema(maxUsd: number) {
   return z
@@ -77,9 +80,10 @@ export const currentReleaseReportSchema = z
     commitSha: z.string().regex(/^[a-f0-9]{40}$/i),
     deploymentId: z
       .string()
-      .min(6)
-      .max(128)
-      .regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/),
+      .regex(
+        /^dpl_[A-Za-z0-9]{12,64}$/,
+        'CURRENT_RELEASE_DEPLOYMENT_ID_INVALID',
+      ),
     startedAt: z.string().datetime(),
     completedAt: z.string().datetime(),
     scenarios: currentReleaseScenarioResultsSchema,
@@ -285,6 +289,7 @@ const forbiddenReportFields = new Set([
 const forbiddenSecretValuePatterns = [
   /sk_live_[A-Za-z0-9_-]{4,}/i,
   /sk-ant-[A-Za-z0-9_-]{4,}/i,
+  /pcsk_[A-Za-z0-9_-]{4,}/i,
   /AKIA[A-Z0-9]{16}/,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
 ]
