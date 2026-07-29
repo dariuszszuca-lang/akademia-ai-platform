@@ -7,6 +7,8 @@ import {
   assertLegalPositiveSummary,
   calculateEphemeralStateExpiresAt,
   collectObservableModelId,
+  isCanonicalProductionPost,
+  markAgentRequestEphemeralState,
   summarizeAgentBody,
   type Task8BrowserHandoff,
 } from '../ui-helpers'
@@ -142,11 +144,13 @@ export async function runAgentScenarios(
     throw new Error('CURRENT_RELEASE_TASK8_USAGE_INVALID')
   }
   runtime.networkLedger.reconcile(usage)
-  runtime.ephemeralStateExpiresAt =
+  runtime.ephemeralStateExpiresAt = Math.max(
+    runtime.ephemeralStateExpiresAt,
     calculateEphemeralStateExpiresAt(
       Date.now(),
       legalReplayExpiresAt,
-    )
+    ),
+  )
 }
 
 async function callAgent(
@@ -162,10 +166,15 @@ async function callAgent(
   body: string
   headers: Record<string, string>
 }> {
+  markAgentRequestEphemeralState(runtime)
   const networkResponse = runtime.pageA.waitForResponse(
     (response) =>
-      response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/agents/run',
+      isCanonicalProductionPost({
+        url: response.url(),
+        method: response.request().method(),
+        pathname: '/api/agents/run',
+        baseUrl: runtime.fixtures.baseUrl,
+      }),
   )
   const browserResult = runtime.pageA.evaluate(
     async ({ requestData, requestHeaders }) => {

@@ -17,6 +17,7 @@ import {
   safeModelIdSchema,
 } from '../../src/lib/model-id'
 import { LEGAL_NO_SOURCE_MESSAGE } from '../../src/lib/legal/fallback'
+import { CURRENT_RELEASE_LEGAL_PROBE_MAX_TTL_SECONDS } from '../../src/features/current-release-acceptance/legal-probe'
 
 const cognitoSubjectSchema = z
   .string()
@@ -518,6 +519,49 @@ export function calculateEphemeralStateExpiresAt(
     Math.max(rateWindowExpiresAt, replayExpiresAtEpochSeconds) +
     CLEANUP_SETTLE_MARGIN_SECONDS
   )
+}
+
+export function markAgentRequestEphemeralState(
+  target: { ephemeralStateExpiresAt: number },
+  observedAtMs: number = Date.now(),
+): number {
+  const replayExpiresAtEpochSeconds =
+    Math.floor(observedAtMs / 1000) +
+    CURRENT_RELEASE_LEGAL_PROBE_MAX_TTL_SECONDS
+  const expiresAt = calculateEphemeralStateExpiresAt(
+    observedAtMs,
+    replayExpiresAtEpochSeconds,
+  )
+  target.ephemeralStateExpiresAt = Math.max(
+    target.ephemeralStateExpiresAt,
+    expiresAt,
+  )
+  return target.ephemeralStateExpiresAt
+}
+
+export function isCanonicalProductionPost(input: {
+  url: string
+  method: string
+  pathname: string
+  baseUrl: string
+}): boolean {
+  if (
+    input.baseUrl !== PRODUCTION_ORIGIN ||
+    input.method !== 'POST'
+  ) {
+    return false
+  }
+  try {
+    const url = new URL(input.url)
+    return (
+      url.origin === PRODUCTION_ORIGIN &&
+      url.pathname === input.pathname &&
+      url.search === '' &&
+      url.hash === ''
+    )
+  } catch {
+    return false
+  }
 }
 
 function normalizeDuration(durationMs: number): number {

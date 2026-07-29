@@ -9,6 +9,8 @@ import {
   createTask8NetworkLedger,
   createScenarioRunner,
   expectedTask8ModelCallSequence,
+  isCanonicalProductionPost,
+  markAgentRequestEphemeralState,
   summarizeAgentBody,
   syntheticAnswer,
   task8BrowserScenarios,
@@ -355,6 +357,72 @@ describe('current release UI helpers', () => {
     ).toBe(
       Math.floor(Date.UTC(2026, 6, 29, 22, 1, 10) / 1000),
     )
+  })
+
+  it('advances the ephemeral deadline before every slow agent call, including a failed fifth call', () => {
+    const target = { ephemeralStateExpiresAt: 1 }
+    const callTimes = [
+      Date.UTC(2026, 6, 29, 22, 0, 1),
+      Date.UTC(2026, 6, 29, 22, 1, 11),
+      Date.UTC(2026, 6, 29, 22, 2, 21),
+      Date.UTC(2026, 6, 29, 22, 3, 31),
+      Date.UTC(2026, 6, 29, 22, 4, 41),
+    ]
+
+    expect(() => {
+      for (const [index, now] of callTimes.entries()) {
+        markAgentRequestEphemeralState(target, now)
+        if (index === 4) throw new Error('fifth call failed')
+      }
+    }).toThrow('fifth call failed')
+
+    const fifth = callTimes[4]!
+    expect(target.ephemeralStateExpiresAt).toBe(
+      calculateEphemeralStateExpiresAt(
+        fifth,
+        Math.floor(fifth / 1000) + 60,
+      ),
+    )
+  })
+
+  it('matches only the exact canonical production agent response', () => {
+    const input = {
+      method: 'POST',
+      pathname: '/api/agents/run',
+      baseUrl: 'https://akademia-ai-platform.vercel.app',
+    } as const
+
+    expect(
+      isCanonicalProductionPost({
+        ...input,
+        url: 'https://akademia-ai-platform.vercel.app/api/agents/run',
+      }),
+    ).toBe(true)
+    expect(
+      isCanonicalProductionPost({
+        ...input,
+        url: 'https://parallel.example/api/agents/run',
+      }),
+    ).toBe(false)
+    expect(
+      isCanonicalProductionPost({
+        ...input,
+        url: 'https://akademia-ai-platform.vercel.app.evil.example/api/agents/run',
+      }),
+    ).toBe(false)
+    expect(
+      isCanonicalProductionPost({
+        ...input,
+        method: 'GET',
+        url: 'https://akademia-ai-platform.vercel.app/api/agents/run',
+      }),
+    ).toBe(false)
+    expect(
+      isCanonicalProductionPost({
+        ...input,
+        url: 'https://akademia-ai-platform.vercel.app/api/agents/run?parallel=1',
+      }),
+    ).toBe(false)
   })
 
   it('returns the persistent A/B runtime as the Task 9 handoff', () => {
