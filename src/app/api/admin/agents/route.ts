@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { findAgent } from '@/data/agents'
 import { isAuthenticated } from '@/lib/admin-auth'
 import {
   getEffectiveAgents,
@@ -36,6 +37,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json(
       { error: 'Missing id or enabled' },
       { status: 400 },
+    )
+  }
+
+  if (!findAgent(id)) {
+    return NextResponse.json(
+      { error: 'Agent not found' },
+      { status: 404 },
     )
   }
 

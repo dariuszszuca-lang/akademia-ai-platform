@@ -1,5 +1,19 @@
 import { getLegalIndex, type LegalChunk } from './pinecone'
 
+export const DEFAULT_LEGAL_MIN_SCORE = 0.7
+
+export function legalMinScore(): number {
+  const raw = process.env.LEGAL_RAG_MIN_SCORE
+  if (!raw?.trim()) return DEFAULT_LEGAL_MIN_SCORE
+
+  const configured = Number(raw)
+  return Number.isFinite(configured) &&
+    configured >= 0 &&
+    configured <= 1
+    ? configured
+    : DEFAULT_LEGAL_MIN_SCORE
+}
+
 /**
  * Search top K relevant legal chunks for a query.
  * Pinecone embeds query automatically (multilingual-e5-large).
@@ -30,16 +44,23 @@ export async function searchLegal(query: string, topK: number = 5): Promise<Lega
 
     const hits = results?.result?.hits ?? []
 
-    return hits.map(h => ({
-      id: h._id,
-      text: h.fields.text ?? '',
-      ustawa: h.fields.ustawa ?? '',
-      art_number: h.fields.art_number ?? '',
-      ksiega: h.fields.ksiega,
-      tytul: h.fields.tytul,
-      url: h.fields.url,
-      score: h._score,
-    }))
+    const minimumScore = legalMinScore()
+    return hits
+      .filter(
+        (hit) =>
+          Number.isFinite(hit._score) &&
+          hit._score >= minimumScore,
+      )
+      .map((hit) => ({
+        id: hit._id,
+        text: hit.fields.text ?? '',
+        ustawa: hit.fields.ustawa ?? '',
+        art_number: hit.fields.art_number ?? '',
+        ksiega: hit.fields.ksiega,
+        tytul: hit.fields.tytul,
+        url: hit.fields.url,
+        score: hit._score,
+      }))
   } catch (err) {
     console.error('[legal-search]', err)
     return []

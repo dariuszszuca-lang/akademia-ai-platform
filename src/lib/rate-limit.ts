@@ -36,6 +36,7 @@ export async function rateLimit(
  * Predefiniowane limity dla rożnych endpointów.
  */
 export const LIMITS = {
+  ADMIN_AUTH: { limit: 5, windowMinutes: 15 },
   AGENT_RUN: { limit: 30, windowMinutes: 1 }, // 30 wywołań agenta na minutę
   PROFIL_GENERATE: { limit: 5, windowMinutes: 1 }, // 5 generowań na minutę (drogi LLM call)
   PERSONA_GENERATE: { limit: 5, windowMinutes: 1 },
