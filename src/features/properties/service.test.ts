@@ -113,6 +113,36 @@ describe('PropertyService', () => {
     expect(exported.audit.map((event) => event.action)).toContain('fact.created')
   })
 
+  it('rolls back a memory fact when its audit write fails', async () => {
+    const project = await createApartment(service)
+    vi.spyOn(repository, 'appendAudit').mockRejectedValueOnce(
+      new Error('AUDIT_WRITE_FAILED'),
+    )
+
+    await expect(
+      service.createFact('user-a', project.id, {
+        key: 'area.usable',
+        label: 'Powierzchnia użytkowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: 52.4,
+        unit: 'm²',
+        status: 'declared',
+        visibility: 'client',
+        sourceIds: [],
+      }),
+    ).rejects.toThrow('AUDIT_WRITE_FAILED')
+
+    await expect(repository.listFacts('user-a', project.id)).resolves.toEqual(
+      [],
+    )
+    expect(
+      (await repository.listAudit('user-a', project.id)).map(
+        (event) => event.action,
+      ),
+    ).toEqual(['property.created'])
+  })
+
   it('uses the authenticated user as the fact confirmer', async () => {
     const project = await createApartment(service)
 

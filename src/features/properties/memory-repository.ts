@@ -128,6 +128,40 @@ export class MemoryPropertyRepository implements PropertyRepository {
     return clone(fact)
   }
 
+  async createFactWithAudit(
+    userId: string,
+    projectId: string,
+    input: CreatePropertyFactInput,
+  ) {
+    const project = await this.getProject(userId, projectId)
+    if (!project) return null
+    const factsBefore = clone(this.facts)
+    const auditBefore = clone(this.audit)
+
+    try {
+      const fact = await this.createFact(userId, projectId, input)
+      if (!fact) return null
+
+      await this.appendAudit({
+        organizationId: project.organizationId,
+        propertyProjectId: projectId,
+        actorType: 'user',
+        actorId: userId,
+        action: 'fact.created',
+        entityType: 'property_fact',
+        entityId: fact.id,
+        before: null,
+        after: fact,
+      })
+
+      return fact
+    } catch (error) {
+      this.facts = factsBefore
+      this.audit = auditBefore
+      throw error
+    }
+  }
+
   async updateFact(
     userId: string,
     projectId: string,
@@ -162,6 +196,48 @@ export class MemoryPropertyRepository implements PropertyRepository {
     }
 
     return clone(fact)
+  }
+
+  async updateFactWithAudit(
+    userId: string,
+    projectId: string,
+    factId: string,
+    input: UpdatePropertyFactInput,
+  ) {
+    const project = await this.getProject(userId, projectId)
+    if (!project) return null
+    const before = await this.getFact(userId, projectId, factId)
+    if (!before) return null
+    const factsBefore = clone(this.facts)
+    const auditBefore = clone(this.audit)
+
+    try {
+      const updated = await this.updateFact(
+        userId,
+        projectId,
+        factId,
+        input,
+      )
+      if (!updated) return null
+
+      await this.appendAudit({
+        organizationId: project.organizationId,
+        propertyProjectId: projectId,
+        actorType: 'user',
+        actorId: userId,
+        action: 'fact.updated',
+        entityType: 'property_fact',
+        entityId: factId,
+        before,
+        after: updated,
+      })
+
+      return updated
+    } catch (error) {
+      this.facts = factsBefore
+      this.audit = auditBefore
+      throw error
+    }
   }
 
   private assertSemanticKeyAvailable(

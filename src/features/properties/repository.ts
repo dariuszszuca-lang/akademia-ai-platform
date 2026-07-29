@@ -46,7 +46,18 @@ export interface PropertyRepository {
     projectId: string,
     input: CreatePropertyFactInput,
   ): Promise<PropertyFact | null>
+  createFactWithAudit(
+    userId: string,
+    projectId: string,
+    input: CreatePropertyFactInput,
+  ): Promise<PropertyFact | null>
   updateFact(
+    userId: string,
+    projectId: string,
+    factId: string,
+    input: UpdatePropertyFactInput,
+  ): Promise<PropertyFact | null>
+  updateFactWithAudit(
     userId: string,
     projectId: string,
     factId: string,

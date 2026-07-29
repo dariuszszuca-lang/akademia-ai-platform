@@ -151,23 +151,16 @@ export class PropertyService {
 
     let fact
     try {
-      fact = await this.repository.createFact(userId, projectId, input)
+      fact = await this.repository.createFactWithAudit(
+        userId,
+        projectId,
+        input,
+      )
     } catch (error) {
       throw mapPropertyFactWriteError(error)
     }
     if (!fact) throw new Error('PROPERTY_NOT_FOUND')
 
-    await this.repository.appendAudit({
-      organizationId: project.organizationId,
-      propertyProjectId: projectId,
-      actorType: 'user',
-      actorId: userId,
-      action: 'fact.created',
-      entityType: 'property_fact',
-      entityId: fact.id,
-      before: null,
-      after: fact,
-    })
     await this.recordStudioEvent({
       organizationId: project.organizationId,
       userId,
@@ -201,7 +194,7 @@ export class PropertyService {
 
     let updated
     try {
-      updated = await this.repository.updateFact(
+      updated = await this.repository.updateFactWithAudit(
         userId,
         projectId,
         factId,
@@ -212,17 +205,6 @@ export class PropertyService {
     }
     if (!updated) throw new Error('FACT_NOT_FOUND')
 
-    await this.repository.appendAudit({
-      organizationId: project.organizationId,
-      propertyProjectId: projectId,
-      actorType: 'user',
-      actorId: userId,
-      action: 'fact.updated',
-      entityType: 'property_fact',
-      entityId: factId,
-      before,
-      after: updated,
-    })
     await this.recordStudioEvent({
       organizationId: project.organizationId,
       userId,

@@ -1,7 +1,9 @@
 import { PGlite } from '@electric-sql/pglite'
+import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { propertyErrorResponse } from './http'
 import { PostgresPropertyRepository } from './postgres-repository'
 import { propertyFacts } from './schema'
 import { PropertyService } from './service'
@@ -69,6 +71,90 @@ describe('PostgresPropertyRepository', () => {
       'property.created',
       'fact.created',
       'fact.updated',
+    ])
+  })
+
+  it('rolls back a created fact when its audit insert fails', async () => {
+    const project = await createApartment(service, 'user-a')
+    await rejectFactMutationAudits(client)
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await Promise.allSettled([
+      service.createFact('user-a', project.id, {
+        key: 'area.usable',
+        label: 'Powierzchnia użytkowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: 52,
+        unit: 'm²',
+        status: 'declared',
+        visibility: 'client',
+        sourceIds: [],
+      }),
+    ])
+
+    expect(result[0].status).toBe('rejected')
+    const response = propertyErrorResponse(
+      result[0].status === 'rejected' ? result[0].reason : null,
+    )
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      error: 'internal_error',
+    })
+    await expect(repository.listFacts('user-a', project.id)).resolves.toEqual(
+      [],
+    )
+    await expect(repository.listAudit('user-a', project.id)).resolves.toEqual([
+      expect.objectContaining({ action: 'property.created' }),
+    ])
+    errorLog.mockRestore()
+  })
+
+  it('rolls back a legacy update and canonicalization when its audit insert fails', async () => {
+    const project = await createApartment(service, 'user-a')
+    const database = drizzle(client)
+    const [legacyBefore] = await database
+      .insert(propertyFacts)
+      .values({
+        propertyProjectId: project.id,
+        key: 'powierzchniaUzytkowa',
+        semanticKey: null,
+        label: 'Powierzchnia użytkowa',
+        category: 'areas',
+        valueType: 'number',
+        value: 52,
+        unit: 'm2',
+        status: 'declared',
+        visibility: 'client',
+        sourceIds: [],
+        createdByType: 'user',
+        createdById: 'user-a',
+      })
+      .returning()
+    await rejectFactMutationAudits(client)
+
+    await expect(
+      service.updateFact('user-a', project.id, legacyBefore.id, {
+        value: 53,
+        status: 'confirmed',
+      }),
+    ).rejects.toThrow()
+
+    const [legacyAfter] = await database
+      .select()
+      .from(propertyFacts)
+      .where(eq(propertyFacts.id, legacyBefore.id))
+      .limit(1)
+    expect(legacyAfter).toEqual(legacyBefore)
+    expect(legacyAfter).toMatchObject({
+      key: 'powierzchniaUzytkowa',
+      semanticKey: null,
+      value: 52,
+      status: 'declared',
+      version: 1,
+    })
+    await expect(repository.listAudit('user-a', project.id)).resolves.toEqual([
+      expect.objectContaining({ action: 'property.created' }),
     ])
   })
 
@@ -354,4 +440,12 @@ function createApartment(service: PropertyService, userId: string) {
     city: 'Poznań',
     addressMode: 'hidden',
   })
+}
+
+function rejectFactMutationAudits(client: PGlite) {
+  return client.exec(`
+    ALTER TABLE property_audit_events
+    ADD CONSTRAINT property_audit_reject_fact_mutations
+    CHECK (action NOT IN ('fact.created', 'fact.updated'))
+  `)
 }

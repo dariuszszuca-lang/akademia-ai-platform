@@ -216,6 +216,35 @@ export class PostgresPropertyRepository<
     return fact ? mapFact(fact) : null
   }
 
+  async createFactWithAudit(
+    userId: string,
+    projectId: string,
+    input: CreatePropertyFactInput,
+  ) {
+    return this.database.transaction(async (transaction) => {
+      const repository = new PostgresPropertyRepository(transaction)
+      const project = await repository.getProject(userId, projectId)
+      if (!project) return null
+
+      const fact = await repository.createFact(userId, projectId, input)
+      if (!fact) return null
+
+      await repository.appendAudit({
+        organizationId: project.organizationId,
+        propertyProjectId: projectId,
+        actorType: 'user',
+        actorId: userId,
+        action: 'fact.created',
+        entityType: 'property_fact',
+        entityId: fact.id,
+        before: null,
+        after: fact,
+      })
+
+      return fact
+    })
+  }
+
   async updateFact(
     userId: string,
     projectId: string,
@@ -271,6 +300,43 @@ export class PostgresPropertyRepository<
     }
 
     return updated ? mapFact(updated) : null
+  }
+
+  async updateFactWithAudit(
+    userId: string,
+    projectId: string,
+    factId: string,
+    input: UpdatePropertyFactInput,
+  ) {
+    return this.database.transaction(async (transaction) => {
+      const repository = new PostgresPropertyRepository(transaction)
+      const project = await repository.getProject(userId, projectId)
+      if (!project) return null
+      const before = await repository.getFact(userId, projectId, factId)
+      if (!before) return null
+
+      const updated = await repository.updateFact(
+        userId,
+        projectId,
+        factId,
+        input,
+      )
+      if (!updated) return null
+
+      await repository.appendAudit({
+        organizationId: project.organizationId,
+        propertyProjectId: projectId,
+        actorType: 'user',
+        actorId: userId,
+        action: 'fact.updated',
+        entityType: 'property_fact',
+        entityId: factId,
+        before,
+        after: updated,
+      })
+
+      return updated
+    })
   }
 
   async appendAudit(record: Omit<AuditRecord, 'id' | 'createdAt'>) {
