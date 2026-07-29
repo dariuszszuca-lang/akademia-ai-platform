@@ -9,6 +9,7 @@ import type {
   UpdatePropertyInput,
 } from './domain'
 import { propertyFactValueTypeSchema } from './domain'
+import { createPropertyFactSemanticKey } from './fact-identity'
 import type { AuditRecord, PropertyRepository } from './repository'
 import {
   organizationMemberships,
@@ -201,6 +202,7 @@ export class PostgresPropertyRepository<
         .values({
           ...input,
           propertyProjectId: projectId,
+          semanticKey: createPropertyFactSemanticKey(input),
           createdByType: 'user',
           createdById: userId,
           confirmedAt: input.status === 'confirmed' ? new Date() : null,
@@ -225,6 +227,13 @@ export class PostgresPropertyRepository<
 
     const { actorType: _actorType, ...changes } = input
     void _actorType
+    const semanticKey = createPropertyFactSemanticKey({
+      ...current,
+      ...changes,
+    })
+    const unitChanges = Object.prototype.hasOwnProperty.call(changes, 'unit')
+      ? { unit: changes.unit ?? null }
+      : {}
     const confirmationChanges =
       changes.status === 'confirmed'
         ? {
@@ -243,6 +252,8 @@ export class PostgresPropertyRepository<
         .update(propertyFacts)
         .set({
           ...changes,
+          ...unitChanges,
+          semanticKey,
           ...confirmationChanges,
           version: sql`${propertyFacts.version} + 1`,
           updatedAt: new Date(),
@@ -339,8 +350,11 @@ function mapProject(row: PropertyProjectRow): PropertyProject {
 }
 
 function mapFact(row: PropertyFactRow): PropertyFact {
+  const { semanticKey: _semanticKey, ...fact } = row
+  void _semanticKey
+
   return {
-    ...row,
+    ...fact,
     valueType: propertyFactValueTypeSchema.parse(row.valueType),
     value: row.value,
     unit: row.unit ?? undefined,

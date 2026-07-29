@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryPropertyRepository } from '../properties/memory-repository'
+import { PropertyFactConflictError } from '../properties/errors'
 import { PropertyService } from '../properties/service'
 import {
   createPropertySourceHttpHandlers,
@@ -493,6 +494,19 @@ describe('property source HTTP handlers', () => {
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toEqual({
       error: 'proposal_already_decided',
+    })
+  })
+
+  it('returns the stable fact conflict policy for proposal fact races', async () => {
+    const response = propertySourceErrorResponse(
+      new PropertyFactConflictError(),
+    )
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'fact_conflict',
+      code: 'PROPERTY_FACT_SEMANTIC_CONFLICT',
+      policy: 'preserve_existing_fact',
     })
   })
 

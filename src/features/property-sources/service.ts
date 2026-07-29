@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { z } from 'zod'
 import type { PropertyRepository } from '../properties/repository'
+import { propertyFactsShareSemanticIdentity } from '../properties/fact-identity'
 import {
   noopStudioEventSink,
   type StudioEventInput,
@@ -186,16 +187,23 @@ export class PropertySourceService {
           throw new Error(`UNKNOWN_FACT_KEY:${proposal.factKey}`)
         }
 
-        const currentFact = currentFacts.find(
-          (fact) => fact.key === proposal.factKey,
+        const canonicalProposal = {
+          ...proposal,
+          factKey: definition.key,
+          label: definition.label,
+        }
+        const currentFact = currentFacts.find((fact) =>
+          propertyFactsShareSemanticIdentity(fact, {
+            key: definition.key,
+            label: definition.label,
+          }),
         )
         const conflict =
           currentFact &&
           !propertyFactValuesEqual(currentFact.value, proposal.value)
 
         return {
-          ...proposal,
-          label: definition.label,
+          ...canonicalProposal,
           category: definition.category,
           valueType: definition.valueType,
           unit: definition.unit,

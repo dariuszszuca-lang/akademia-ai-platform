@@ -50,6 +50,13 @@
       "when": 1785262435289,
       "tag": "0006_studio_product_events",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785360435987,
+      "tag": "0007_property_fact_semantic_key",
+      "breakpoints": true
     }
   ]
 }

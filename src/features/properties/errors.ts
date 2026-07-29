@@ -19,7 +19,10 @@ export function mapPropertyFactWriteError(error: unknown): unknown {
   for (let depth = 0; depth < 4 && isRecord(candidate); depth += 1) {
     if (
       candidate.code === '23505' &&
-      candidate.constraint === 'property_facts_project_key_idx'
+      [
+        'property_facts_project_key_idx',
+        'property_facts_project_semantic_key_idx',
+      ].includes(String(candidate.constraint))
     ) {
       return new PropertyFactConflictError()
     }

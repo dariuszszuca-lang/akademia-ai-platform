@@ -4,6 +4,7 @@ import { migrate } from 'drizzle-orm/pglite/migrator'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PostgresPropertyRepository } from '../properties/postgres-repository'
 import { PropertyService } from '../properties/service'
+import { propertyFacts } from '../properties/schema'
 import type { PropertyFactProposal } from './domain'
 import { PostgresPropertySourceRepository } from './postgres-repository'
 import { PropertySourceService } from './service'
@@ -233,6 +234,39 @@ describe('PostgresPropertySourceRepository', () => {
     })
     expect(correctedResult.proposal.status).toBe('corrected')
     expect(correctedResult.fact?.value).toBe(82.9)
+  })
+
+  it('canonicalizes and updates a legacy fact when accepting its proposal', async () => {
+    const context = await createContext({ legacyExistingValue: 80 })
+
+    expect(context.proposal).toMatchObject({
+      status: 'conflict',
+      conflictsWithFactId: context.currentFact?.id,
+    })
+
+    const result = await sourceService.decideProposal(
+      'user-a',
+      context.project.id,
+      context.proposal.id,
+      { action: 'accept_new' },
+    )
+    const facts = await propertyRepository.listFacts(
+      'user-a',
+      context.project.id,
+    )
+
+    expect(result.proposal.status).toBe('accepted')
+    expect(result.fact).toMatchObject({
+      id: context.currentFact?.id,
+      key: 'area.usable',
+      label: 'Powierzchnia użytkowa',
+      category: 'Powierzchnia',
+      value: 83.4,
+      unit: 'm²',
+      version: 2,
+    })
+    expect(facts).toHaveLength(1)
+    expect(facts[0]).toEqual(result.fact)
   })
 
   it('rejects a pending proposal without writing a fact', async () => {
@@ -487,7 +521,11 @@ describe('PostgresPropertySourceRepository', () => {
   })
 
   async function createContext(
-    options: { existingValue?: number; userId?: string } = {},
+    options: {
+      existingValue?: number
+      legacyExistingValue?: number
+      userId?: string
+    } = {},
   ) {
     const userId = options.userId ?? 'user-a'
     const project = await propertyService.createProject(userId, {
@@ -510,9 +548,15 @@ describe('PostgresPropertySourceRepository', () => {
       modelId: 'test-model',
     })
     const currentFact =
-      options.existingValue === undefined
-        ? null
-        : await propertyService.createFact(userId, project.id, {
+      options.legacyExistingValue !== undefined
+        ? await createLegacyFactWithoutSemanticKey(
+            project.id,
+            userId,
+            options.legacyExistingValue,
+          )
+        : options.existingValue === undefined
+          ? null
+          : await propertyService.createFact(userId, project.id, {
             key: 'area.usable',
             label: 'Powierzchnia użytkowa',
             category: 'Powierzchnia',
@@ -530,6 +574,36 @@ describe('PostgresPropertySourceRepository', () => {
     })) as [PropertyFactProposal]
 
     return { project, source, job, currentFact, proposal }
+  }
+
+  async function createLegacyFactWithoutSemanticKey(
+    projectId: string,
+    userId: string,
+    value: number,
+  ) {
+    const database = drizzle(client)
+    await database.insert(propertyFacts).values({
+      propertyProjectId: projectId,
+      key: 'powierzchniaUzytkowa',
+      label: 'Powierzchnia użytkowa',
+      category: 'areas',
+      valueType: 'number',
+      value,
+      unit: 'm2',
+      status: 'confirmed',
+      visibility: 'client',
+      sourceIds: ['owner-declaration'],
+      createdByType: 'user',
+      createdById: userId,
+      confirmedByUserId: userId,
+      confirmedAt: new Date(),
+    })
+
+    const fact = (
+      await propertyRepository.listFacts(userId, projectId)
+    ).find((candidate) => candidate.key === 'powierzchniaUzytkowa')
+    if (!fact) throw new Error('FACT_SETUP_FAILED')
+    return fact
   }
 })
 

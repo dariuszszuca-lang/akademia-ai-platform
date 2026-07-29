@@ -1,7 +1,16 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import type { PropertyFact } from '../properties/domain'
 import { propertyFactValueTypeSchema } from '../properties/domain'
+import {
+  mapPropertyFactWriteError,
+  PropertyFactConflictError,
+} from '../properties/errors'
+import { createPropertyFactSemanticKey } from '../properties/fact-identity'
+import {
+  resolveFactDefinitionByKey,
+  toLegacyFactKey,
+} from './catalog-data'
 import {
   organizationMemberships,
   propertyAuditEvents,
@@ -401,8 +410,10 @@ export class PostgresPropertySourceRepository<
   }
 
   async decideProposal(command: DecideProposalCommand) {
-    const outcome = await this.database.transaction<TransactionOutcome>(
-      async (transaction) => {
+    let outcome: TransactionOutcome
+    try {
+      outcome = await this.database.transaction<TransactionOutcome>(
+        async (transaction) => {
         const [membership] = await transaction
           .select({ userId: organizationMemberships.userId })
           .from(organizationMemberships)
@@ -456,7 +467,18 @@ export class PostgresPropertySourceRepository<
           throw new Error('PROPOSAL_ALREADY_DECIDED')
         }
 
-        const [currentFact] = await transaction
+        const proposalDefinition = resolveFactDefinitionByKey(proposal.factKey)
+        const matchingFactKeys = proposalDefinition
+          ? [
+              proposalDefinition.key,
+              toLegacyFactKey(proposalDefinition.label),
+            ]
+          : [proposal.factKey]
+        const proposalSemanticKey = createPropertyFactSemanticKey({
+          key: proposal.factKey,
+          label: proposal.label,
+        })
+        const matchingFacts = await transaction
           .select()
           .from(propertyFacts)
           .where(
@@ -465,10 +487,17 @@ export class PostgresPropertySourceRepository<
                 propertyFacts.propertyProjectId,
                 command.propertyProjectId,
               ),
-              eq(propertyFacts.key, proposal.factKey),
+              or(
+                eq(propertyFacts.semanticKey, proposalSemanticKey),
+                inArray(propertyFacts.key, matchingFactKeys),
+              ),
             ),
           )
-          .limit(1)
+          .for('update')
+        if (matchingFacts.length > 1) {
+          throw new PropertyFactConflictError()
+        }
+        const currentFact = matchingFacts[0]
 
         if (
           proposal.status === 'pending' &&
@@ -520,6 +549,8 @@ export class PostgresPropertySourceRepository<
               ;[fact] = await transaction
                 .update(propertyFacts)
                 .set({
+                  key: proposalDefinition?.key ?? proposal.factKey,
+                  semanticKey: proposalSemanticKey,
                   label: proposal.label,
                   category: proposal.category,
                   valueType: proposal.valueType,
@@ -548,7 +579,8 @@ export class PostgresPropertySourceRepository<
                 .insert(propertyFacts)
                 .values({
                   propertyProjectId: command.propertyProjectId,
-                  key: proposal.factKey,
+                  key: proposalDefinition?.key ?? proposal.factKey,
+                  semanticKey: proposalSemanticKey,
                   label: proposal.label,
                   category: proposal.category,
                   valueType: proposal.valueType,
@@ -585,6 +617,12 @@ export class PostgresPropertySourceRepository<
             ;[fact] = await transaction
               .update(propertyFacts)
               .set({
+                key: proposalDefinition?.key ?? proposal.factKey,
+                semanticKey: proposalSemanticKey,
+                label: proposal.label,
+                category: proposal.category,
+                valueType: proposal.valueType,
+                unit: proposal.unit,
                 status: 'conflicting',
                 sourceIds,
                 confirmedByUserId: null,
@@ -659,8 +697,11 @@ export class PostgresPropertySourceRepository<
             decisionCreated: true,
           },
         }
-      },
-    )
+        },
+      )
+    } catch (error) {
+      throw mapPropertyFactWriteError(error)
+    }
 
     if (outcome.kind === 'conflict_changed') {
       throw new Error('PROPOSAL_CONFLICT_CHANGED')
@@ -773,8 +814,11 @@ function mapProposal(row: ProposalRow): PropertyFactProposal {
 }
 
 function mapFact(row: FactRow): PropertyFact {
+  const { semanticKey: _semanticKey, ...fact } = row
+  void _semanticKey
+
   return {
-    ...row,
+    ...fact,
     valueType: propertyFactValueTypeSchema.parse(row.valueType),
     value: row.value,
     unit: row.unit ?? undefined,

@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PostgresPropertyRepository } from './postgres-repository'
+import { propertyFacts } from './schema'
 import { PropertyService } from './service'
 
 describe('PostgresPropertyRepository', () => {
@@ -69,6 +70,130 @@ describe('PostgresPropertyRepository', () => {
       'fact.created',
       'fact.updated',
     ])
+  })
+
+  it.each([
+    {
+      field: 'value',
+      patch: { value: 53 },
+      expectedValue: 53,
+      expectedStatus: 'declared',
+    },
+    {
+      field: 'status',
+      patch: { status: 'confirmed' as const },
+      expectedValue: 52,
+      expectedStatus: 'confirmed',
+    },
+  ])(
+    'canonicalizes a legacy fact on its first $field-only update',
+    async ({ patch, expectedValue, expectedStatus }) => {
+      const project = await createApartment(service, 'user-a')
+      const legacy = await repository.createFact('user-a', project.id, {
+        key: 'powierzchniaUzytkowa',
+        label: 'Powierzchnia użytkowa',
+        category: 'areas',
+        valueType: 'number',
+        value: 52,
+        unit: 'm2',
+        status: 'declared',
+        visibility: 'client',
+        sourceIds: ['owner-declaration'],
+      })
+      if (!legacy) throw new Error('FACT_SETUP_FAILED')
+
+      const updated = await service.updateFact(
+        'user-a',
+        project.id,
+        legacy.id,
+        patch,
+      )
+
+      expect(updated).toMatchObject({
+        id: legacy.id,
+        key: 'area.usable',
+        label: 'Powierzchnia użytkowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: expectedValue,
+        unit: 'm²',
+        status: expectedStatus,
+        version: 2,
+      })
+      await expect(
+        repository.listFacts('user-a', project.id),
+      ).resolves.toEqual([updated])
+      expect(
+        await repository.listAudit('user-a', project.id),
+      ).toContainEqual(
+        expect.objectContaining({
+          action: 'fact.updated',
+          entityId: legacy.id,
+          before: expect.objectContaining({
+            id: legacy.id,
+            key: 'powierzchniaUzytkowa',
+            value: 52,
+          }),
+          after: expect.objectContaining({
+            id: legacy.id,
+            key: 'area.usable',
+            value: expectedValue,
+          }),
+        }),
+      )
+    },
+  )
+
+  it('preserves pre-existing canonical and legacy facts when canonicalization conflicts', async () => {
+    const project = await createApartment(service, 'user-a')
+    const database = drizzle(client)
+    await database.insert(propertyFacts).values([
+      {
+        propertyProjectId: project.id,
+        key: 'powierzchniaUzytkowa',
+        label: 'Powierzchnia użytkowa',
+        category: 'areas',
+        valueType: 'number',
+        value: 52,
+        unit: 'm2',
+        status: 'declared',
+        visibility: 'client',
+        sourceIds: [],
+        createdByType: 'user',
+        createdById: 'user-a',
+      },
+      {
+        propertyProjectId: project.id,
+        key: 'area.usable',
+        label: 'Powierzchnia użytkowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: 53,
+        unit: 'm²',
+        status: 'confirmed',
+        visibility: 'client',
+        sourceIds: ['owner-declaration'],
+        createdByType: 'user',
+        createdById: 'user-a',
+      },
+    ])
+    const before = await repository.listFacts('user-a', project.id)
+    const legacy = before.find(
+      (fact) => fact.key === 'powierzchniaUzytkowa',
+    )
+    if (!legacy) throw new Error('FACT_SETUP_FAILED')
+
+    await expect(
+      service.updateFact('user-a', project.id, legacy.id, {
+        status: 'confirmed',
+      }),
+    ).rejects.toMatchObject({
+      code: 'PROPERTY_FACT_SEMANTIC_CONFLICT',
+      policy: 'preserve_existing_fact',
+    })
+    await expect(repository.listFacts('user-a', project.id)).resolves.toEqual(
+      before,
+    )
   })
 
   it('returns the same personal organization for concurrent requests', async () => {
@@ -176,6 +301,48 @@ describe('PostgresPropertyRepository', () => {
     await expect(
       repository.getFact('user-a', project.id, second.id),
     ).resolves.toEqual(second)
+  })
+
+  it('allows one winner for concurrent custom labels with different raw keys', async () => {
+    const project = await createApartment(service, 'user-a')
+    const baseInput = {
+      category: 'technical',
+      valueType: 'text' as const,
+      value: 'wartość',
+      status: 'declared' as const,
+      visibility: 'internal' as const,
+      sourceIds: [],
+    }
+
+    const results = await Promise.allSettled([
+      repository.createFact('user-a', project.id, {
+        ...baseInput,
+        key: 'customTechnicalOne',
+        label: 'Zażółć gęślą',
+      }),
+      repository.createFact('user-a', project.id, {
+        ...baseInput,
+        key: 'customTechnicalTwo',
+        label: 'Zażółć-gęślą.',
+      }),
+    ])
+
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1)
+    expect(
+      results.filter((result) => result.status === 'rejected'),
+    ).toEqual([
+      expect.objectContaining({
+        reason: expect.objectContaining({
+          code: 'PROPERTY_FACT_SEMANTIC_CONFLICT',
+          policy: 'preserve_existing_fact',
+        }),
+      }),
+    ])
+    await expect(repository.listFacts('user-a', project.id)).resolves.toHaveLength(
+      1,
+    )
   })
 })
 

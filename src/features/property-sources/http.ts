@@ -3,6 +3,7 @@ import { z, ZodError } from 'zod'
 import type { PropertySourceService } from './service'
 import type { PropertySourceUploadService } from './upload-service'
 import { factProposalStatuses } from './domain'
+import { PropertyFactConflictError } from '../properties/errors'
 
 type PropertyContext = {
   params: Promise<{
@@ -161,6 +162,17 @@ export function propertySourceErrorResponse(error: unknown) {
     return NextResponse.json(
       { error: 'validation_error', issues: error.issues },
       { status: 400 },
+    )
+  }
+
+  if (error instanceof PropertyFactConflictError) {
+    return NextResponse.json(
+      {
+        error: 'fact_conflict',
+        code: error.code,
+        policy: error.policy,
+      },
+      { status: 409 },
     )
   }
 

@@ -8,6 +8,8 @@ import type {
   UpdatePropertyInput,
 } from './domain'
 import type { AuditRecord, PropertyRepository } from './repository'
+import { PropertyFactConflictError } from './errors'
+import { createPropertyFactSemanticKey } from './fact-identity'
 
 export class MemoryPropertyRepository implements PropertyRepository {
   private organizations = new Map<string, string>()
@@ -107,6 +109,7 @@ export class MemoryPropertyRepository implements PropertyRepository {
     input: CreatePropertyFactInput,
   ) {
     if (!(await this.getProject(userId, projectId))) return null
+    this.assertSemanticKeyAvailable(projectId, input)
 
     const now = new Date()
     const fact: PropertyFact = {
@@ -141,6 +144,11 @@ export class MemoryPropertyRepository implements PropertyRepository {
 
     const { actorType: _actorType, ...changes } = input
     void _actorType
+    this.assertSemanticKeyAvailable(
+      projectId,
+      { ...fact, ...changes },
+      fact.id,
+    )
     Object.assign(fact, changes, {
       version: fact.version + 1,
       updatedAt: new Date(),
@@ -154,6 +162,23 @@ export class MemoryPropertyRepository implements PropertyRepository {
     }
 
     return clone(fact)
+  }
+
+  private assertSemanticKeyAvailable(
+    projectId: string,
+    input: { key: string; label: string },
+    excludedFactId?: string,
+  ) {
+    const semanticKey = createPropertyFactSemanticKey(input)
+    const duplicate = this.facts.some(
+      (fact) =>
+        fact.propertyProjectId === projectId &&
+        fact.id !== excludedFactId &&
+        (fact.key === input.key ||
+          createPropertyFactSemanticKey(fact) === semanticKey),
+    )
+
+    if (duplicate) throw new PropertyFactConflictError()
   }
 
   async appendAudit(record: Omit<AuditRecord, 'id' | 'createdAt'>) {

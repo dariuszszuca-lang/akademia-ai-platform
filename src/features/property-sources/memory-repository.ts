@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import type { PropertyFact } from '../properties/domain'
 import type { PropertyRepository } from '../properties/repository'
+import { propertyFactsShareSemanticIdentity } from '../properties/fact-identity'
 import type {
   DecideProposalCommand,
   ClaimCallbackNonceCommand,
@@ -308,7 +309,12 @@ export class MemoryPropertySourceRepository
       command.userId,
       command.propertyProjectId,
     )
-    const currentFact = facts.find((fact) => fact.key === proposal.factKey)
+    const currentFact = facts.find((fact) =>
+      propertyFactsShareSemanticIdentity(fact, {
+        key: proposal.factKey,
+        label: proposal.label,
+      }),
+    )
     const before = clone(proposal)
     const sourceIds = Array.from(
       new Set([...(currentFact?.sourceIds ?? []), proposal.sourceId]),
@@ -353,6 +359,7 @@ export class MemoryPropertySourceRepository
               command.propertyProjectId,
               currentFact.id,
               {
+                key: proposal.factKey,
                 label: proposal.label,
                 category: proposal.category,
                 valueType: proposal.valueType,

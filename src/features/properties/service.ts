@@ -13,11 +13,10 @@ import {
 } from './errors'
 import type { PropertyRepository } from './repository'
 import {
-  normalizeFactLabel,
   resolveFactDefinitionByKey,
-  resolveFactDefinitionByLabel,
   validateCatalogFactMetadata,
 } from '../property-sources/catalog'
+import { createPropertyFactSemanticKey } from './fact-identity'
 import {
   noopStudioEventSink,
   type StudioEventInput,
@@ -194,7 +193,9 @@ export class PropertyService {
     const input = updatePropertyFactSchema.parse(
       normalizeUpdateFactInput(rawInput, userId),
     )
-    const merged = { ...before, ...input }
+    const canonicalization = legacyFactCanonicalization(before)
+    const update = { ...canonicalization, ...input }
+    const merged = { ...before, ...update }
     assertValidCatalogFact(merged, project.propertyType)
     await this.assertNoFactConflict(userId, projectId, merged, factId)
 
@@ -204,7 +205,7 @@ export class PropertyService {
         userId,
         projectId,
         factId,
-        input,
+        update,
       )
     } catch (error) {
       throw mapPropertyFactWriteError(error)
@@ -248,19 +249,13 @@ export class PropertyService {
     candidate: CatalogFactCandidate,
     excludedFactId?: string,
   ) {
-    const candidateDefinitions = resolveSemanticDefinitionKeys(candidate)
-    const normalizedCandidateLabel = normalizeFactLabel(candidate.label)
+    const candidateSemanticKey = createPropertyFactSemanticKey(candidate)
     const facts = await this.repository.listFacts(userId, projectId)
     const duplicate = facts.find((fact) => {
       if (fact.id === excludedFactId) return false
       if (fact.key === candidate.key) return true
-      if (normalizeFactLabel(fact.label) === normalizedCandidateLabel) {
-        return true
-      }
-
-      const factDefinitions = resolveSemanticDefinitionKeys(fact)
-      return [...candidateDefinitions].some((key) =>
-        factDefinitions.has(key),
+      return (
+        createPropertyFactSemanticKey(fact) === candidateSemanticKey
       )
     })
 
@@ -291,19 +286,24 @@ function assertValidCatalogFact(
   )
 }
 
-function resolveSemanticDefinitionKeys(
-  input: Pick<CreatePropertyFactInput, 'key' | 'label'>,
-) {
-  const definitions = [
-    resolveFactDefinitionByKey(input.key),
-    resolveFactDefinitionByLabel(input.label),
-  ]
+function legacyFactCanonicalization(
+  fact: Pick<CreatePropertyFactInput, 'key'>,
+): Partial<
+  Pick<
+    CreatePropertyFactInput,
+    'key' | 'label' | 'category' | 'valueType' | 'unit'
+  >
+> {
+  const definition = resolveFactDefinitionByKey(fact.key)
+  if (!definition || fact.key === definition.key) return {}
 
-  return new Set(
-    definitions.flatMap((definition) =>
-      definition ? [definition.key] : [],
-    ),
-  )
+  return {
+    key: definition.key,
+    label: definition.label,
+    category: definition.category,
+    valueType: definition.valueType,
+    unit: definition.unit,
+  }
 }
 
 function propertyMetadata(project: {

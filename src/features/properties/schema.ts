@@ -121,6 +121,7 @@ export const propertyFacts = pgTable(
       .notNull()
       .references(() => propertyProjects.id, { onDelete: 'cascade' }),
     key: text('key').notNull(),
+    semanticKey: text('semantic_key'),
     label: text('label').notNull(),
     category: text('category').notNull(),
     valueType: text('value_type').notNull(),
@@ -145,6 +146,10 @@ export const propertyFacts = pgTable(
     uniqueIndex('property_facts_project_key_idx').on(
       table.propertyProjectId,
       table.key,
+    ),
+    uniqueIndex('property_facts_project_semantic_key_idx').on(
+      table.propertyProjectId,
+      table.semanticKey,
     ),
     index('property_facts_project_status_idx').on(
       table.propertyProjectId,
