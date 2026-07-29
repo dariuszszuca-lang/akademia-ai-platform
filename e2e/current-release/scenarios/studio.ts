@@ -391,6 +391,9 @@ export async function runStudioScenarios(
       )
       const candidates = readProposalCandidates(payload)
       const selected = selectTargetProposals(candidates)
+      if (selected.area.sourceId !== createdSourceId) {
+        throw new Error('STUDIO_PROPOSAL_SCOPE_INVALID')
+      }
       selectedProposals = selected
 
       await runtime.pageA.goto(
@@ -426,6 +429,8 @@ export async function runStudioScenarios(
         {
           acceptedId: areaResult.id,
           rejectedId: priceResult.id,
+          sourceId: createdSourceId,
+          jobId: selected.area.jobId,
         },
       )
       areaDecision = readback.accepted
@@ -561,6 +566,7 @@ export async function runStudioScenarios(
     projectId: createdProjectId,
     factId: createdFactId,
     sourceId: createdSourceId,
+    jobId: finalSelected.area.jobId,
     storageKey: createdStorageKey,
     subjectA: userASubject,
     subjectB: requireValue<string>(
@@ -685,9 +691,12 @@ async function decideProposalFromUi<
   })
   await expect(item).toHaveCount(1)
   await expect(
-    item.getByText(String(input.proposal.value), {
-      exact: false,
-    }),
+    item.getByText(
+      input.proposal.factKey === 'area.usable'
+        ? '83.4'
+        : '750000',
+      { exact: false },
+    ),
   ).toBeVisible()
   await expect(
     item.getByText('Strona 1', { exact: false }),
@@ -747,6 +756,11 @@ function readProposalCandidates(
       typeof value.id !== 'string' ||
       !uuidPattern.test(value.id) ||
       typeof value.factKey !== 'string' ||
+      typeof value.sourceId !== 'string' ||
+      !uuidPattern.test(value.sourceId) ||
+      typeof value.jobId !== 'string' ||
+      !uuidPattern.test(value.jobId) ||
+      typeof value.valueType !== 'string' ||
       typeof value.status !== 'string' ||
       !proposalStatuses.has(
         value.status as Task9ProposalCandidate['status'],
@@ -761,6 +775,9 @@ function readProposalCandidates(
     candidates.push({
       id: value.id,
       factKey: value.factKey,
+      sourceId: value.sourceId,
+      jobId: value.jobId,
+      valueType: value.valueType,
       status: value.status as Task9ProposalCandidate['status'],
       label: value.label,
       value: value.value,

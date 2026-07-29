@@ -82,14 +82,13 @@ export async function runAdminAccountMobileScenarios(
 
       const summary = summarizeAccountExport(payload, {
         subjectA: studio.subjectA,
-        currentResourceIds: [
-          studio.projectId,
-          studio.factId,
-          studio.sourceId,
-          studio.proposals.area.id,
-          studio.proposals.price.id,
-        ],
+        organizationId: studio.organizationId,
+        projectId: studio.projectId,
+        factId: studio.factId,
         sourceId: studio.sourceId,
+        sourceJobId: studio.jobId,
+        acceptedProposalId: studio.proposals.area.id,
+        rejectedProposalId: studio.proposals.price.id,
         forbiddenBIdentifiers: [
           studio.subjectB,
           runtime.fixtures.userB,

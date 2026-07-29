@@ -55,6 +55,9 @@ export type Task9Runtime = {
 export type Task9ProposalCandidate = {
   id: string
   factKey: string
+  sourceId: string
+  jobId: string
+  valueType: string
   status:
     | 'pending'
     | 'conflict'
@@ -83,6 +86,7 @@ export type Task9StudioState = {
   projectId: string
   factId: string
   sourceId: string
+  jobId: string
   storageKey: string
   subjectA: string
   subjectB: string
@@ -113,10 +117,34 @@ export function selectTargetProposals(
   if (area.status !== 'conflict') {
     throw new Error('STUDIO_AREA_CONFLICT_MISSING')
   }
+  if (
+    area.valueType !== 'number' ||
+    typeof area.value !== 'number' ||
+    !Number.isFinite(area.value) ||
+    area.value !== 83.4
+  ) {
+    throw new Error('STUDIO_AREA_VALUE_INVALID')
+  }
 
   const price = priceCandidates[0]!
   if (price.status !== 'pending') {
     throw new Error('STUDIO_PRICE_PENDING_MISSING')
+  }
+  if (
+    price.valueType !== 'number' ||
+    typeof price.value !== 'number' ||
+    !Number.isSafeInteger(price.value) ||
+    price.value !== 750_000
+  ) {
+    throw new Error('STUDIO_PRICE_VALUE_INVALID')
+  }
+  if (
+    area.sourceId.length === 0 ||
+    area.jobId.length === 0 ||
+    area.sourceId !== price.sourceId ||
+    area.jobId !== price.jobId
+  ) {
+    throw new Error('STUDIO_PROPOSAL_SCOPE_INVALID')
   }
 
   return {
@@ -151,6 +179,8 @@ export function parseProposalDecisionReadback(
   expected: {
     acceptedId: string
     rejectedId: string
+    sourceId: string
+    jobId: string
   },
 ): Task9ProposalDecisionReadback {
   if (
@@ -161,23 +191,36 @@ export function parseProposalDecisionReadback(
     throw new Error('STUDIO_PROPOSAL_READBACK_INVALID')
   }
 
-  const accepted = payload.proposals.filter(
+  const scopedProposals = payload.proposals.filter(
     (proposal) =>
       isRecord(proposal) &&
-      proposal.id === expected.acceptedId,
+      proposal.sourceId === expected.sourceId &&
+      proposal.jobId === expected.jobId,
   )
-  const rejected = payload.proposals.filter(
+  const terminalProposals = scopedProposals.filter(
     (proposal) =>
-      isRecord(proposal) &&
-      proposal.id === expected.rejectedId,
+      ['accepted', 'corrected', 'rejected'].includes(
+        String(proposal.status),
+      ),
+  )
+  const accepted = terminalProposals.filter(
+    (proposal) => proposal.status === 'accepted',
+  )
+  const rejected = terminalProposals.filter(
+    (proposal) => proposal.status === 'rejected',
   )
   if (
+    terminalProposals.length !== 2 ||
     accepted.length !== 1 ||
+    accepted[0]!.id !== expected.acceptedId ||
     accepted[0]!.factKey !== 'area.usable' ||
-    accepted[0]!.status !== 'accepted' ||
+    accepted[0]!.valueType !== 'number' ||
+    accepted[0]!.value !== 83.4 ||
     rejected.length !== 1 ||
+    rejected[0]!.id !== expected.rejectedId ||
     rejected[0]!.factKey !== 'price.asking' ||
-    rejected[0]!.status !== 'rejected'
+    rejected[0]!.valueType !== 'number' ||
+    rejected[0]!.value !== 750_000
   ) {
     throw new Error('STUDIO_PROPOSAL_READBACK_INVALID')
   }
@@ -565,6 +608,9 @@ export type AccountExportSummary = {
   subscriptionStatePresent: boolean
   pilotAccessModeConfirmed: boolean
   currentResourcesPresent: boolean
+  currentSourceJobPresent: boolean
+  auditEvidencePresent: boolean
+  studioEventsPresent: boolean
   accountExportedEventPresent: boolean
   forbiddenBIdentifiersAbsent: boolean
   forbiddenCredentialKeysAbsent: boolean
@@ -572,15 +618,22 @@ export type AccountExportSummary = {
   modelIds: string[]
 }
 
+type AccountExportExpected = {
+  subjectA: string
+  organizationId: string
+  projectId: string
+  factId: string
+  sourceId: string
+  sourceJobId: string
+  acceptedProposalId: string
+  rejectedProposalId: string
+  forbiddenBIdentifiers: readonly string[]
+  pilotAccessModeConfirmed: boolean
+}
+
 export function summarizeAccountExport(
   payload: unknown,
-  expected: {
-    subjectA: string
-    currentResourceIds: readonly string[]
-    sourceId: string
-    forbiddenBIdentifiers: readonly string[]
-    pilotAccessModeConfirmed: boolean
-  },
+  expected: AccountExportExpected,
 ): AccountExportSummary {
   const root = isRecord(payload) ? payload : {}
   const studio = isRecord(root.propertyStudio)
@@ -597,6 +650,32 @@ export function summarizeAccountExport(
     sourceJobs,
     expected.sourceId,
   )
+  const projects = readCollection(studio, 'projects')
+  const facts = readCollection(studio, 'facts')
+  const sources = readCollection(studio, 'sources')
+  const proposals = readCollection(studio, 'factProposals')
+  const jobs = readCollection(studio, 'sourceJobs')
+  const audit = readCollection(studio, 'audit')
+  const productEvents = readCollection(studio, 'productEvents')
+  const currentResourcesPresent =
+    hasExactProject(projects, expected) &&
+    hasExactFact(facts, expected) &&
+    hasExactSource(sources, expected) &&
+    hasExactProposalCollection(proposals, expected)
+  const currentSourceJobPresent = hasExactSourceJob(
+    jobs,
+    expected,
+  )
+  const auditEvidencePresent = hasExpectedAuditEvidence(
+    audit,
+    expected,
+  )
+  const studioEventsPresent = hasExpectedStudioEvents(
+    productEvents,
+    expected,
+  )
+  const accountExportedEventPresent =
+    hasAccountExportedEvent(productEvents)
 
   return {
     userMatches: root.userId === expected.subjectA,
@@ -610,13 +689,11 @@ export function summarizeAccountExport(
     ),
     pilotAccessModeConfirmed:
       expected.pilotAccessModeConfirmed === true,
-    currentResourcesPresent: expected.currentResourceIds.every(
-      (identifier) => containsExactScalar(studio, identifier),
-    ),
-    accountExportedEventPresent: containsExactScalar(
-      studio.productEvents,
-      'account.exported',
-    ),
+    currentResourcesPresent,
+    currentSourceJobPresent,
+    auditEvidencePresent,
+    studioEventsPresent,
+    accountExportedEventPresent,
     forbiddenBIdentifiersAbsent:
       expected.forbiddenBIdentifiers
         .filter((identifier) => identifier.length > 0)
@@ -642,6 +719,9 @@ export function assertAccountExportSummary(
     !summary.subscriptionStatePresent ||
     !summary.pilotAccessModeConfirmed ||
     !summary.currentResourcesPresent ||
+    !summary.currentSourceJobPresent ||
+    !summary.auditEvidencePresent ||
+    !summary.studioEventsPresent ||
     !summary.accountExportedEventPresent ||
     !summary.forbiddenBIdentifiersAbsent ||
     !summary.forbiddenCredentialKeysAbsent
@@ -701,6 +781,166 @@ function readSourceJobCost(
   }
 }
 
+function readCollection(
+  studio: Record<string, unknown>,
+  key: string,
+): unknown[] | null {
+  return Array.isArray(studio[key]) ? studio[key] : null
+}
+
+function hasExactProject(
+  projects: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  return (
+    projects?.length === 1 &&
+    isRecord(projects[0]) &&
+    projects[0].id === expected.projectId &&
+    projects[0].organizationId === expected.organizationId
+  )
+}
+
+function hasExactFact(
+  facts: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  return (
+    facts?.length === 1 &&
+    isRecord(facts[0]) &&
+    facts[0].id === expected.factId &&
+    facts[0].propertyProjectId === expected.projectId &&
+    facts[0].key === 'area.usable'
+  )
+}
+
+function hasExactSource(
+  sources: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  return (
+    sources?.length === 1 &&
+    isRecord(sources[0]) &&
+    sources[0].id === expected.sourceId &&
+    sources[0].organizationId === expected.organizationId &&
+    sources[0].propertyProjectId === expected.projectId
+  )
+}
+
+function hasExactProposalCollection(
+  proposals: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  if (proposals?.length !== 2) return false
+  try {
+    parseProposalDecisionReadback(
+      { proposals },
+      {
+        acceptedId: expected.acceptedProposalId,
+        rejectedId: expected.rejectedProposalId,
+        sourceId: expected.sourceId,
+        jobId: expected.sourceJobId,
+      },
+    )
+    return proposals.every(
+      (proposal) =>
+        isRecord(proposal) &&
+        proposal.propertyProjectId === expected.projectId,
+    )
+  } catch {
+    return false
+  }
+}
+
+function hasExactSourceJob(
+  jobs: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  return (
+    jobs?.length === 1 &&
+    isRecord(jobs[0]) &&
+    jobs[0].id === expected.sourceJobId &&
+    jobs[0].organizationId === expected.organizationId &&
+    jobs[0].propertyProjectId === expected.projectId &&
+    jobs[0].sourceId === expected.sourceId &&
+    jobs[0].status === 'succeeded'
+  )
+}
+
+const expectedAuditEvidence = [
+  ['property.created', 'projectId'],
+  ['fact.created', 'factId'],
+  ['fact.updated', 'factId'],
+  ['source.registered', 'sourceId'],
+  ['proposal.decided', 'acceptedProposalId'],
+  ['proposal.decided', 'rejectedProposalId'],
+] as const
+
+function hasExpectedAuditEvidence(
+  audit: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  return (
+    audit !== null &&
+    audit.length > 0 &&
+    expectedAuditEvidence.every(([action, idKey]) =>
+      audit.some(
+        (entry) =>
+          isRecord(entry) &&
+          entry.propertyProjectId === expected.projectId &&
+          entry.action === action &&
+          entry.entityId === expected[idKey],
+      ),
+    )
+  )
+}
+
+const expectedProjectEventNames = [
+  'property.created',
+  'fact.created',
+  'fact.updated',
+  'source.registered',
+  'source.review_ready',
+] as const
+
+function hasExpectedStudioEvents(
+  events: unknown[] | null,
+  expected: AccountExportExpected,
+): boolean {
+  if (events === null || events.length === 0) return false
+  const hasProjectEvents = expectedProjectEventNames.every(
+    (name) =>
+      events.some(
+        (event) =>
+          isRecord(event) &&
+          event.name === name &&
+          event.propertyProjectId === expected.projectId,
+      ),
+  )
+  const proposalDecisionCount = events.filter(
+    (event) =>
+      isRecord(event) &&
+      event.name === 'proposal.decided' &&
+      event.propertyProjectId === expected.projectId,
+  ).length
+  return (
+    hasProjectEvents &&
+    proposalDecisionCount >= 2 &&
+    hasAccountExportedEvent(events)
+  )
+}
+
+function hasAccountExportedEvent(
+  events: unknown[] | null,
+): boolean {
+  return (
+    events !== null &&
+    events.some(
+      (event) =>
+        isRecord(event) && event.name === 'account.exported',
+    )
+  )
+}
+
 const forbiddenCredentialKeys = new Set([
   'signedurl',
   'accesstoken',
@@ -733,24 +973,6 @@ function containsForbiddenCredentialKey(
       containsForbiddenCredentialKey(child, seen)
     )
   })
-}
-
-function containsExactScalar(
-  value: unknown,
-  expected: string,
-  seen = new WeakSet<object>(),
-): boolean {
-  if (value === expected) return true
-  if (!value || typeof value !== 'object') return false
-  if (seen.has(value)) return false
-  seen.add(value)
-  return Array.isArray(value)
-    ? value.some((item) =>
-        containsExactScalar(item, expected, seen),
-      )
-    : Object.values(value).some((item) =>
-        containsExactScalar(item, expected, seen),
-      )
 }
 
 function containsStringFragment(

@@ -29,6 +29,8 @@ import {
 const sourceId = '33333333-3333-4333-8333-333333333333'
 const projectId = '22222222-2222-4222-8222-222222222222'
 const factId = '55555555-5555-4555-8555-555555555555'
+const organizationId = '11111111-1111-4111-8111-111111111111'
+const jobId = '77777777-7777-4777-8777-777777777777'
 
 describe('Task 9 proposal selection', () => {
   it('selects the same targets when proposals are reversed', () => {
@@ -92,6 +94,21 @@ describe('Task 9 proposal selection', () => {
     ).toThrow('STUDIO_PRICE_PENDING_MISSING')
   })
 
+  it('requires exact normalized numeric values extracted from the synthetic PDF', () => {
+    expect(() =>
+      selectTargetProposals([
+        proposal('area', 'area.usable', 'conflict', '83.4'),
+        proposal('price', 'price.asking', 'pending'),
+      ]),
+    ).toThrow('STUDIO_AREA_VALUE_INVALID')
+    expect(() =>
+      selectTargetProposals([
+        proposal('area', 'area.usable', 'conflict'),
+        proposal('price', 'price.asking', 'pending', 750_001),
+      ]),
+    ).toThrow('STUDIO_PRICE_VALUE_INVALID')
+  })
+
   it('reads back one accepted area and one rejected price by exact IDs and keys', () => {
     const summary = parseProposalDecisionReadback(
       {
@@ -100,17 +117,27 @@ describe('Task 9 proposal selection', () => {
             id: 'price',
             factKey: 'price.asking',
             status: 'rejected',
+            valueType: 'number',
+            value: 750_000,
+            sourceId,
+            jobId,
           },
           {
             id: 'area',
             factKey: 'area.usable',
             status: 'accepted',
+            valueType: 'number',
+            value: 83.4,
+            sourceId,
+            jobId,
           },
         ],
       },
       {
         acceptedId: 'area',
         rejectedId: 'price',
+        sourceId,
+        jobId,
       },
     )
 
@@ -134,17 +161,71 @@ describe('Task 9 proposal selection', () => {
               id: 'area',
               factKey: 'area.usable',
               status: 'needs_review',
+              valueType: 'number',
+              value: 83.4,
+              sourceId,
+              jobId,
             },
             {
               id: 'price',
               factKey: 'price.asking',
               status: 'rejected',
+              valueType: 'number',
+              value: 750_000,
+              sourceId,
+              jobId,
             },
           ],
         },
         {
           acceptedId: 'area',
           rejectedId: 'price',
+          sourceId,
+          jobId,
+        },
+      ),
+    ).toThrow('STUDIO_PROPOSAL_READBACK_INVALID')
+  })
+
+  it('rejects any extra terminal proposal in the current source job set', () => {
+    expect(() =>
+      parseProposalDecisionReadback(
+        {
+          proposals: [
+            {
+              id: 'area',
+              factKey: 'area.usable',
+              status: 'accepted',
+              valueType: 'number',
+              value: 83.4,
+              sourceId,
+              jobId,
+            },
+            {
+              id: 'price',
+              factKey: 'price.asking',
+              status: 'rejected',
+              valueType: 'number',
+              value: 750_000,
+              sourceId,
+              jobId,
+            },
+            {
+              id: 'extra',
+              factKey: 'rooms.count',
+              status: 'rejected',
+              valueType: 'number',
+              value: 3,
+              sourceId,
+              jobId,
+            },
+          ],
+        },
+        {
+          acceptedId: 'area',
+          rejectedId: 'price',
+          sourceId,
+          jobId,
         },
       ),
     ).toThrow('STUDIO_PROPOSAL_READBACK_INVALID')
@@ -488,52 +569,8 @@ describe('Task 9 safe summaries', () => {
 
   it('summarizes current export resources and matching source jobs in memory', () => {
     const summary = summarizeAccountExport(
-      {
-        userId: 'subject-a',
-        profil: { markdown: 'profil' },
-        personaBuyer: { markdown: 'buyer' },
-        personaSeller: { markdown: 'seller' },
-        onboarding: {
-          currentStep: 'deep',
-          expressAnswers: { q1: 'synthetic-answer' },
-        },
-        subscription: {
-          plan: 'trial',
-          status: 'trialing',
-        },
-        propertyStudio: {
-          projects: [{ id: 'project-a' }],
-          facts: [{ id: 'fact-a' }],
-          sources: [{ id: sourceId }],
-          factProposals: [{ id: 'area' }, { id: 'price' }],
-          sourceJobs: [
-            {
-              sourceId,
-              providerCostMicrounits: 250_000,
-              modelId: 'model-current',
-            },
-            {
-              sourceId: 'source-b',
-              providerCostMicrounits: 900_000,
-              modelId: 'model-b',
-            },
-          ],
-          productEvents: [{ name: 'account.exported' }],
-        },
-      },
-      {
-        subjectA: 'subject-a',
-        currentResourceIds: [
-          'project-a',
-          'fact-a',
-          sourceId,
-          'area',
-          'price',
-        ],
-        sourceId,
-        forbiddenBIdentifiers: ['subject-b', 'marker-b'],
-        pilotAccessModeConfirmed: true,
-      },
+      validAccountExport(),
+      accountExportExpectation(true),
     )
 
     expect(summary).toEqual({
@@ -544,6 +581,9 @@ describe('Task 9 safe summaries', () => {
       subscriptionStatePresent: true,
       pilotAccessModeConfirmed: true,
       currentResourcesPresent: true,
+      currentSourceJobPresent: true,
+      auditEvidencePresent: true,
+      studioEventsPresent: true,
       accountExportedEventPresent: true,
       forbiddenBIdentifiersAbsent: true,
       forbiddenCredentialKeysAbsent: true,
@@ -554,43 +594,13 @@ describe('Task 9 safe summaries', () => {
   })
 
   it('detects forbidden credential keys recursively without returning values', () => {
+    const payload = {
+      ...validAccountExport(),
+      nested: { password: 'must-never-be-returned' },
+    }
     const summary = summarizeAccountExport(
-      {
-        userId: 'subject-a',
-        profil: { markdown: 'profil' },
-        personaBuyer: { markdown: 'buyer' },
-        personaSeller: { markdown: 'seller' },
-        onboarding: {
-          currentStep: 'deep',
-          expressAnswers: { q1: 'synthetic-answer' },
-        },
-        subscription: {
-          plan: 'trial',
-          status: 'trialing',
-        },
-        propertyStudio: {
-          projects: [{ id: 'project-a' }],
-          facts: [{ id: 'fact-a' }],
-          sources: [{ id: sourceId }],
-          factProposals: [{ id: 'area' }, { id: 'price' }],
-          sourceJobs: [],
-          productEvents: [{ name: 'account.exported' }],
-        },
-        nested: { password: 'must-never-be-returned' },
-      },
-      {
-        subjectA: 'subject-a',
-        currentResourceIds: [
-          'project-a',
-          'fact-a',
-          sourceId,
-          'area',
-          'price',
-        ],
-        sourceId,
-        forbiddenBIdentifiers: ['subject-b'],
-        pilotAccessModeConfirmed: true,
-      },
+      payload,
+      accountExportExpectation(true),
     )
 
     expect(summary.forbiddenCredentialKeysAbsent).toBe(false)
@@ -603,40 +613,69 @@ describe('Task 9 safe summaries', () => {
   })
 
   it('fails closed without onboarding, subscription state, or explicit pilot access mode', () => {
+    const {
+      onboarding: _onboarding,
+      subscription: _subscription,
+      ...payload
+    } = validAccountExport()
+    void _onboarding
+    void _subscription
     const summary = summarizeAccountExport(
-      {
-        userId: 'subject-a',
-        profil: { markdown: 'profil' },
-        personaBuyer: { markdown: 'buyer' },
-        personaSeller: { markdown: 'seller' },
-        propertyStudio: {
-          projects: [{ id: 'project-a' }],
-          facts: [{ id: 'fact-a' }],
-          sources: [{ id: sourceId }],
-          factProposals: [{ id: 'area' }, { id: 'price' }],
-          sourceJobs: [],
-          productEvents: [{ name: 'account.exported' }],
-        },
-      },
-      {
-        subjectA: 'subject-a',
-        currentResourceIds: [
-          'project-a',
-          'fact-a',
-          sourceId,
-          'area',
-          'price',
-        ],
-        sourceId,
-        forbiddenBIdentifiers: ['subject-b'],
-        pilotAccessModeConfirmed: false,
-      },
+      payload,
+      accountExportExpectation(false),
     )
 
     expect(summary).toMatchObject({
       onboardingPresent: false,
       subscriptionStatePresent: false,
       pilotAccessModeConfirmed: false,
+    })
+    expect(() => assertAccountExportSummary(summary)).toThrow(
+      'ACCOUNT_EXPORT_INVALID',
+    )
+  })
+
+  it('rejects empty Studio collections even when every ID exists in recursive noise', () => {
+    const payload = {
+      ...validAccountExport(),
+      propertyStudio: {
+        projects: [],
+        facts: [],
+        sources: [],
+        factProposals: [],
+        sourceJobs: [],
+        audit: [],
+        productEvents: [],
+        noise: {
+          projectId,
+          factId,
+          sourceId,
+          jobId,
+          acceptedProposalId: 'area',
+          rejectedProposalId: 'price',
+          events: [
+            'property.created',
+            'fact.created',
+            'fact.updated',
+            'source.registered',
+            'source.review_ready',
+            'proposal.decided',
+            'account.exported',
+          ],
+        },
+      },
+    }
+    const summary = summarizeAccountExport(
+      payload,
+      accountExportExpectation(true),
+    )
+
+    expect(summary).toMatchObject({
+      currentResourcesPresent: false,
+      currentSourceJobPresent: false,
+      auditEvidencePresent: false,
+      studioEventsPresent: false,
+      accountExportedEventPresent: false,
     })
     expect(() => assertAccountExportSummary(summary)).toThrow(
       'ACCOUNT_EXPORT_INVALID',
@@ -714,11 +753,143 @@ function proposal(
     id,
     factKey,
     status,
+    sourceId,
+    jobId,
+    valueType: 'number',
     label:
       factKey === 'area.usable'
         ? 'Powierzchnia użytkowa'
         : 'Cena ofertowa',
     value,
+  }
+}
+
+function validAccountExport() {
+  return {
+    userId: 'subject-a',
+    profil: { markdown: 'profil' },
+    personaBuyer: { markdown: 'buyer' },
+    personaSeller: { markdown: 'seller' },
+    onboarding: {
+      currentStep: 'deep',
+      expressAnswers: { q1: 'synthetic-answer' },
+    },
+    subscription: {
+      plan: 'trial',
+      status: 'trialing',
+    },
+    propertyStudio: {
+      projects: [{ id: projectId, organizationId }],
+      facts: [
+        {
+          id: factId,
+          propertyProjectId: projectId,
+          key: 'area.usable',
+        },
+      ],
+      sources: [
+        {
+          id: sourceId,
+          organizationId,
+          propertyProjectId: projectId,
+        },
+      ],
+      factProposals: [
+        {
+          id: 'area',
+          propertyProjectId: projectId,
+          sourceId,
+          jobId,
+          factKey: 'area.usable',
+          status: 'accepted',
+          valueType: 'number',
+          value: 83.4,
+        },
+        {
+          id: 'price',
+          propertyProjectId: projectId,
+          sourceId,
+          jobId,
+          factKey: 'price.asking',
+          status: 'rejected',
+          valueType: 'number',
+          value: 750_000,
+        },
+      ],
+      sourceJobs: [
+        {
+          id: jobId,
+          organizationId,
+          propertyProjectId: projectId,
+          sourceId,
+          status: 'succeeded',
+          providerCostMicrounits: 250_000,
+          modelId: 'model-current',
+        },
+      ],
+      audit: [
+        {
+          propertyProjectId: projectId,
+          action: 'property.created',
+          entityId: projectId,
+        },
+        {
+          propertyProjectId: projectId,
+          action: 'fact.created',
+          entityId: factId,
+        },
+        {
+          propertyProjectId: projectId,
+          action: 'fact.updated',
+          entityId: factId,
+        },
+        {
+          propertyProjectId: projectId,
+          action: 'source.registered',
+          entityId: sourceId,
+        },
+        {
+          propertyProjectId: projectId,
+          action: 'proposal.decided',
+          entityId: 'area',
+        },
+        {
+          propertyProjectId: projectId,
+          action: 'proposal.decided',
+          entityId: 'price',
+        },
+      ],
+      productEvents: [
+        { name: 'property.created', propertyProjectId: projectId },
+        { name: 'fact.created', propertyProjectId: projectId },
+        { name: 'fact.updated', propertyProjectId: projectId },
+        { name: 'source.registered', propertyProjectId: projectId },
+        {
+          name: 'source.review_ready',
+          propertyProjectId: projectId,
+        },
+        { name: 'proposal.decided', propertyProjectId: projectId },
+        { name: 'proposal.decided', propertyProjectId: projectId },
+        { name: 'account.exported', propertyProjectId: null },
+      ],
+    },
+  }
+}
+
+function accountExportExpectation(
+  pilotAccessModeConfirmed: boolean,
+) {
+  return {
+    subjectA: 'subject-a',
+    organizationId,
+    projectId,
+    factId,
+    sourceId,
+    sourceJobId: jobId,
+    acceptedProposalId: 'area',
+    rejectedProposalId: 'price',
+    forbiddenBIdentifiers: ['subject-b', 'marker-b'],
+    pilotAccessModeConfirmed,
   }
 }
 
