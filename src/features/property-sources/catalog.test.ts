@@ -4,6 +4,9 @@ import {
   propertyFactCatalog,
   resolveFactDefinition,
   resolveFactDefinitionByLabel,
+  resolveFactDefinitionByKey,
+  toLegacyFactKey,
+  validateCatalogFactMetadata,
 } from './catalog'
 
 describe('property extraction fact catalog', () => {
@@ -103,5 +106,68 @@ describe('property extraction fact catalog', () => {
     )
 
     expect(new Set(normalizedLabels).size).toBe(normalizedLabels.length)
+  })
+
+  it('resolves deterministic legacy aliases for every catalog definition', () => {
+    expect(toLegacyFactKey('Powierzchnia użytkowa')).toBe(
+      'powierzchniaUzytkowa',
+    )
+
+    for (const definition of propertyFactCatalog) {
+      expect(
+        resolveFactDefinitionByKey(toLegacyFactKey(definition.label))?.key,
+      ).toBe(definition.key)
+    }
+  })
+
+  it('rejects a catalog label paired with a custom key', () => {
+    expect(
+      validateCatalogFactMetadata(
+        {
+          key: 'customArea',
+          label: 'Powierzchnia użytkowa',
+          category: 'Powierzchnia',
+          valueType: 'number',
+          unit: 'm²',
+        },
+        'apartment',
+      ),
+    ).toContainEqual({
+      path: 'key',
+      message: 'CATALOG_FACT_KEY_INVALID',
+    })
+  })
+
+  it('rejects a canonical key paired with another catalog label', () => {
+    expect(
+      validateCatalogFactMetadata(
+        {
+          key: 'area.usable',
+          label: 'Cena ofertowa',
+          category: 'Powierzchnia',
+          valueType: 'number',
+          unit: 'm²',
+        },
+        'apartment',
+      ),
+    ).toContainEqual({
+      path: 'label',
+      message: 'CATALOG_FACT_LABEL_INVALID',
+    })
+  })
+
+  it('accepts a normalized label variant for its canonical key', () => {
+    expect(
+      validateCatalogFactMetadata(
+        {
+          key: 'area.usable',
+          label: 'POWIERZCHNIA-UŻYTKOWA.',
+          category: 'Powierzchnia',
+          valueType: 'number',
+          unit: 'm²',
+        },
+        'apartment',
+      ),
+    ).toEqual([])
   })
 })

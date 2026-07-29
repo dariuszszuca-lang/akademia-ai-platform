@@ -17,6 +17,7 @@ import {
   propertyFacts,
   propertyProjects,
 } from './schema'
+import { mapPropertyFactWriteError } from './errors'
 
 type PropertyProjectRow = typeof propertyProjects.$inferSelect
 type PropertyFactRow = typeof propertyFacts.$inferSelect
@@ -193,18 +194,24 @@ export class PostgresPropertyRepository<
   ) {
     if (!(await this.getProject(userId, projectId))) return null
 
-    const [fact] = await this.database
-      .insert(propertyFacts)
-      .values({
-        ...input,
-        propertyProjectId: projectId,
-        createdByType: 'user',
-        createdById: userId,
-        confirmedAt: input.status === 'confirmed' ? new Date() : null,
-      })
-      .returning()
+    let fact: PropertyFactRow | undefined
+    try {
+      const rows = await this.database
+        .insert(propertyFacts)
+        .values({
+          ...input,
+          propertyProjectId: projectId,
+          createdByType: 'user',
+          createdById: userId,
+          confirmedAt: input.status === 'confirmed' ? new Date() : null,
+        })
+        .returning()
+      fact = rows[0]
+    } catch (error) {
+      throw mapPropertyFactWriteError(error)
+    }
 
-    return mapFact(fact)
+    return fact ? mapFact(fact) : null
   }
 
   async updateFact(
@@ -230,21 +237,27 @@ export class PostgresPropertyRepository<
             }
           : {}
 
-    const [updated] = await this.database
-      .update(propertyFacts)
-      .set({
-        ...changes,
-        ...confirmationChanges,
-        version: sql`${propertyFacts.version} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(propertyFacts.id, factId),
-          eq(propertyFacts.propertyProjectId, projectId),
-        ),
-      )
-      .returning()
+    let updated: PropertyFactRow | undefined
+    try {
+      const rows = await this.database
+        .update(propertyFacts)
+        .set({
+          ...changes,
+          ...confirmationChanges,
+          version: sql`${propertyFacts.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(propertyFacts.id, factId),
+            eq(propertyFacts.propertyProjectId, projectId),
+          ),
+        )
+        .returning()
+      updated = rows[0]
+    } catch (error) {
+      throw mapPropertyFactWriteError(error)
+    }
 
     return updated ? mapFact(updated) : null
   }

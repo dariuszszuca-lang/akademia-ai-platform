@@ -212,11 +212,41 @@ export function resolveFactDefinitionByLabel(
   return definition ?? null
 }
 
+export function toLegacyFactKey(label: string): string {
+  const words = label
+    .trim()
+    .replace(/[łŁ]/g, (character) => (character === 'ł' ? 'l' : 'L'))
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (words.length === 0) return 'fact'
+
+  const [first, ...rest] = words
+  const key =
+    first.toLowerCase() +
+    rest
+      .map(
+        (word) =>
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+      )
+      .join('')
+
+  return /^[a-z]/.test(key) ? key : `fact${key}`
+}
+
 export function resolveFactDefinitionByKey(
   key: string,
 ): FactDefinition | null {
   return (
-    propertyFactCatalog.find((candidate) => candidate.key === key) ?? null
+    propertyFactCatalog.find(
+      (candidate) =>
+        candidate.key === key ||
+        toLegacyFactKey(candidate.label) === key,
+    ) ?? null
   )
 }
 

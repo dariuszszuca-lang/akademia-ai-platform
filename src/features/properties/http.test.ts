@@ -11,7 +11,7 @@ function setup(userId: string | null = 'user-a') {
     getUserId: async () => userId,
   })
 
-  return { handlers, service }
+  return { handlers, repository, service }
 }
 
 function jsonRequest(method: string, body: unknown) {
@@ -111,12 +111,12 @@ describe('property HTTP handlers', () => {
     const context = { params: Promise.resolve({ propertyId: project.id }) }
     const createdResponse = await handlers.createFact(
       jsonRequest('POST', {
-        key: 'plotArea',
+        key: 'plot.area',
         label: 'Powierzchnia działki',
-        category: 'areas',
+        category: 'Działka',
         valueType: 'number',
         value: 920,
-        unit: 'm2',
+        unit: 'm²',
         status: 'declared',
         visibility: 'public',
         sourceIds: ['owner-declaration'],
@@ -224,4 +224,265 @@ describe('property HTTP handlers', () => {
     ])
     await expect(service.listFacts('user-a', project.id)).resolves.toEqual([])
   })
+
+  it.each([
+    [
+      {
+        key: 'customArea',
+        label: 'Powierzchnia użytkowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: 52.4,
+        unit: 'm²',
+        status: 'declared',
+        visibility: 'internal',
+        sourceIds: [],
+      },
+      'CATALOG_FACT_KEY_INVALID',
+    ],
+    [
+      {
+        key: 'area.usable',
+        label: 'Cena ofertowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: 52.4,
+        unit: 'm²',
+        status: 'declared',
+        visibility: 'internal',
+        sourceIds: [],
+      },
+      'CATALOG_FACT_LABEL_INVALID',
+    ],
+  ] as const)(
+    'rejects an inconsistent catalog label and key before writing',
+    async (input, errorCode) => {
+      const { handlers, service } = setup()
+      const project = await createApartment(service)
+
+      const response = await handlers.createFact(
+        jsonRequest('POST', input),
+        { params: Promise.resolve({ propertyId: project.id }) },
+      )
+      const body = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(body.error).toBe('validation_error')
+      expect(body.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: errorCode }),
+        ]),
+      )
+      await expect(service.listFacts('user-a', project.id)).resolves.toEqual([])
+    },
+  )
+
+  it.each([
+    'Powierzchnia użytkowa',
+    'Powierzchnia-użytkowa.',
+    'Powierzchnia użytkowa'.normalize('NFD'),
+  ])(
+    'returns a stable conflict for duplicate catalog label %s',
+    async (label) => {
+      const { handlers, service } = setup()
+      const project = await createApartment(service)
+      const existing = await service.createFact(
+        'user-a',
+        project.id,
+        canonicalAreaInput(),
+      )
+
+      const response = await handlers.createFact(
+        jsonRequest('POST', canonicalAreaInput(label)),
+        { params: Promise.resolve({ propertyId: project.id }) },
+      )
+
+      expect(response.status).toBe(409)
+      await expect(response.json()).resolves.toEqual({
+        error: 'fact_conflict',
+        code: 'PROPERTY_FACT_SEMANTIC_CONFLICT',
+        policy: 'preserve_existing_fact',
+      })
+      await expect(service.listFacts('user-a', project.id)).resolves.toEqual([
+        existing,
+      ])
+    },
+  )
+
+  it('preserves a legacy-only fact and rejects its canonical duplicate', async () => {
+    const { handlers, repository, service } = setup()
+    const project = await createApartment(service)
+    const legacy = await repository.createFact('user-a', project.id, {
+      ...canonicalAreaInput(),
+      key: 'powierzchniaUzytkowa',
+      category: 'areas',
+      unit: 'm2',
+    })
+    expect(legacy).not.toBeNull()
+
+    const response = await handlers.createFact(
+      jsonRequest('POST', canonicalAreaInput()),
+      { params: Promise.resolve({ propertyId: project.id }) },
+    )
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'fact_conflict',
+      code: 'PROPERTY_FACT_SEMANTIC_CONFLICT',
+      policy: 'preserve_existing_fact',
+    })
+    await expect(service.listFacts('user-a', project.id)).resolves.toEqual([
+      legacy,
+    ])
+  })
+
+  it('rejects an update that collides with an existing canonical fact', async () => {
+    const { handlers, service } = setup()
+    const project = await createApartment(service)
+    const existing = await service.createFact(
+      'user-a',
+      project.id,
+      canonicalAreaInput(),
+    )
+    const custom = await service.createFact('user-a', project.id, {
+      key: 'technicalNote',
+      label: 'Notatka techniczna',
+      category: 'technical',
+      valueType: 'text',
+      value: 'Do sprawdzenia',
+      status: 'declared',
+      visibility: 'internal',
+      sourceIds: [],
+    })
+
+    const response = await handlers.updateFact(
+      jsonRequest('PATCH', {
+        ...canonicalAreaInput('Powierzchnia-użytkowa.'),
+        value: 53,
+      }),
+      {
+        params: Promise.resolve({
+          propertyId: project.id,
+          factId: custom.id,
+        }),
+      },
+    )
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'fact_conflict',
+      code: 'PROPERTY_FACT_SEMANTIC_CONFLICT',
+      policy: 'preserve_existing_fact',
+    })
+    await expect(service.listFacts('user-a', project.id)).resolves.toEqual([
+      existing,
+      custom,
+    ])
+  })
+
+  it.each([
+    [
+      'key',
+      { key: 'customArea' },
+      'CATALOG_FACT_KEY_INVALID',
+    ],
+    [
+      'category',
+      { category: 'areas' },
+      'CATALOG_FACT_METADATA_INVALID',
+    ],
+    [
+      'valueType',
+      { valueType: 'text' },
+      'CATALOG_FACT_METADATA_INVALID',
+    ],
+    [
+      'unit',
+      { unit: 'cm' },
+      'CATALOG_FACT_METADATA_INVALID',
+    ],
+    [
+      'propertyType',
+      {
+        key: 'plot.area',
+        label: 'Powierzchnia działki',
+        category: 'Działka',
+        valueType: 'number',
+        unit: 'm²',
+      },
+      'CATALOG_FACT_PROPERTY_TYPE_UNSUPPORTED',
+    ],
+  ] as const)(
+    'rejects a PATCH bypass through %s before writing',
+    async (_field, patch, errorCode) => {
+      const { handlers, service } = setup()
+      const project = await service.createProject('user-a', {
+        title: 'Mieszkanie Jeżyce',
+        propertyType: 'apartment',
+        transactionType: 'sale',
+        city: 'Poznań',
+        addressMode: 'hidden',
+      })
+      const fact = await service.createFact('user-a', project.id, {
+        key: 'area.usable',
+        label: 'Powierzchnia użytkowa',
+        category: 'Powierzchnia',
+        valueType: 'number',
+        value: 52.4,
+        unit: 'm²',
+        status: 'declared',
+        visibility: 'internal',
+        sourceIds: [],
+      })
+
+      const response = await handlers.updateFact(
+        jsonRequest('PATCH', patch),
+        {
+          params: Promise.resolve({
+            propertyId: project.id,
+            factId: fact.id,
+          }),
+        },
+      )
+      const body = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(body.error).toBe('validation_error')
+      expect(body.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ message: errorCode }),
+        ]),
+      )
+      await expect(
+        service.getProject('user-a', project.id),
+      ).resolves.toBeDefined()
+      await expect(
+        service.listFacts('user-a', project.id),
+      ).resolves.toEqual([fact])
+    },
+  )
 })
+
+function createApartment(service: PropertyService) {
+  return service.createProject('user-a', {
+    title: 'Mieszkanie Jeżyce',
+    propertyType: 'apartment',
+    transactionType: 'sale',
+    city: 'Poznań',
+    addressMode: 'hidden',
+  })
+}
+
+function canonicalAreaInput(label = 'Powierzchnia użytkowa') {
+  return {
+    key: 'area.usable',
+    label,
+    category: 'Powierzchnia',
+    valueType: 'number' as const,
+    value: 52.4,
+    unit: 'm²',
+    status: 'declared' as const,
+    visibility: 'internal' as const,
+    sourceIds: [],
+  }
+}

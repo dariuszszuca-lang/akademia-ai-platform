@@ -98,12 +98,12 @@ describe('PropertyService', () => {
     const project = await createApartment(service)
 
     await service.createFact('user-a', project.id, {
-      key: 'usableArea',
+      key: 'area.usable',
       label: 'Powierzchnia użytkowa',
-      category: 'areas',
+      category: 'Powierzchnia',
       valueType: 'number',
       value: 52.4,
-      unit: 'm2',
+      unit: 'm²',
       status: 'confirmed',
       visibility: 'public',
       sourceIds: [],
@@ -117,9 +117,9 @@ describe('PropertyService', () => {
     const project = await createApartment(service)
 
     const fact = await service.createFact('user-a', project.id, {
-      key: 'rooms',
+      key: 'rooms.count',
       label: 'Liczba pokoi',
-      category: 'layout',
+      category: 'Układ',
       valueType: 'number',
       value: 3,
       status: 'confirmed',
@@ -184,9 +184,9 @@ describe('PropertyService', () => {
   it('keeps distinct before and after values in the audit trail', async () => {
     const project = await createApartment(service)
     const fact = await service.createFact('user-a', project.id, {
-      key: 'askingPrice',
+      key: 'price.asking',
       label: 'Cena ofertowa',
-      category: 'price',
+      category: 'Cena',
       valueType: 'money',
       value: 700000,
       unit: 'PLN',

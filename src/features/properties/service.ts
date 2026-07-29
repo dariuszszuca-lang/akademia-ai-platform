@@ -1,12 +1,23 @@
 import {
   createPropertyFactSchema,
   createPropertySchema,
+  type CreatePropertyFactInput,
+  type PropertyProject,
   updatePropertyFactSchema,
   updatePropertySchema,
 } from './domain'
 import { ZodError } from 'zod'
+import {
+  mapPropertyFactWriteError,
+  PropertyFactConflictError,
+} from './errors'
 import type { PropertyRepository } from './repository'
-import { validateCatalogFactMetadata } from '../property-sources/catalog'
+import {
+  normalizeFactLabel,
+  resolveFactDefinitionByKey,
+  resolveFactDefinitionByLabel,
+  validateCatalogFactMetadata,
+} from '../property-sources/catalog'
 import {
   noopStudioEventSink,
   type StudioEventInput,
@@ -136,21 +147,15 @@ export class PropertyService {
     const input = createPropertyFactSchema.parse(
       normalizeCreateFactInput(rawInput, userId),
     )
-    const catalogIssues = validateCatalogFactMetadata(
-      input,
-      project.propertyType,
-    )
-    if (catalogIssues.length > 0) {
-      throw new ZodError(
-        catalogIssues.map((issue) => ({
-          code: 'custom',
-          path: [issue.path],
-          message: issue.message,
-        })),
-      )
-    }
+    assertValidCatalogFact(input, project.propertyType)
+    await this.assertNoFactConflict(userId, projectId, input)
 
-    const fact = await this.repository.createFact(userId, projectId, input)
+    let fact
+    try {
+      fact = await this.repository.createFact(userId, projectId, input)
+    } catch (error) {
+      throw mapPropertyFactWriteError(error)
+    }
     if (!fact) throw new Error('PROPERTY_NOT_FOUND')
 
     await this.repository.appendAudit({
@@ -189,12 +194,21 @@ export class PropertyService {
     const input = updatePropertyFactSchema.parse(
       normalizeUpdateFactInput(rawInput, userId),
     )
-    const updated = await this.repository.updateFact(
-      userId,
-      projectId,
-      factId,
-      input,
-    )
+    const merged = { ...before, ...input }
+    assertValidCatalogFact(merged, project.propertyType)
+    await this.assertNoFactConflict(userId, projectId, merged, factId)
+
+    let updated
+    try {
+      updated = await this.repository.updateFact(
+        userId,
+        projectId,
+        factId,
+        input,
+      )
+    } catch (error) {
+      throw mapPropertyFactWriteError(error)
+    }
     if (!updated) throw new Error('FACT_NOT_FOUND')
 
     await this.repository.appendAudit({
@@ -227,6 +241,69 @@ export class PropertyService {
       console.error('studio_event_write_failed')
     }
   }
+
+  private async assertNoFactConflict(
+    userId: string,
+    projectId: string,
+    candidate: CatalogFactCandidate,
+    excludedFactId?: string,
+  ) {
+    const candidateDefinitions = resolveSemanticDefinitionKeys(candidate)
+    const normalizedCandidateLabel = normalizeFactLabel(candidate.label)
+    const facts = await this.repository.listFacts(userId, projectId)
+    const duplicate = facts.find((fact) => {
+      if (fact.id === excludedFactId) return false
+      if (fact.key === candidate.key) return true
+      if (normalizeFactLabel(fact.label) === normalizedCandidateLabel) {
+        return true
+      }
+
+      const factDefinitions = resolveSemanticDefinitionKeys(fact)
+      return [...candidateDefinitions].some((key) =>
+        factDefinitions.has(key),
+      )
+    })
+
+    if (duplicate) {
+      throw new PropertyFactConflictError()
+    }
+  }
+}
+
+type CatalogFactCandidate = Pick<
+  CreatePropertyFactInput,
+  'key' | 'label' | 'category' | 'valueType' | 'unit'
+>
+
+function assertValidCatalogFact(
+  input: CatalogFactCandidate,
+  propertyType: PropertyProject['propertyType'],
+) {
+  const catalogIssues = validateCatalogFactMetadata(input, propertyType)
+  if (catalogIssues.length === 0) return
+
+  throw new ZodError(
+    catalogIssues.map((issue) => ({
+      code: 'custom',
+      path: [issue.path],
+      message: issue.message,
+    })),
+  )
+}
+
+function resolveSemanticDefinitionKeys(
+  input: Pick<CreatePropertyFactInput, 'key' | 'label'>,
+) {
+  const definitions = [
+    resolveFactDefinitionByKey(input.key),
+    resolveFactDefinitionByLabel(input.label),
+  ]
+
+  return new Set(
+    definitions.flatMap((definition) =>
+      definition ? [definition.key] : [],
+    ),
+  )
 }
 
 function propertyMetadata(project: {
