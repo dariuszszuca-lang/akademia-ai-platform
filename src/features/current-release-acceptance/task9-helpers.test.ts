@@ -10,6 +10,7 @@ import {
   assertAccountExportSummary,
   assertDownloadedPdfSummary,
   assertIsolationSummary,
+  assertMobileFocusBorderEvidence,
   assertRejectedAdminLogin,
   assertUiIsolationSummary,
   calculateObservedPipelineUsage,
@@ -921,6 +922,39 @@ describe('Task 9 safe summaries', () => {
         description: 'Płatności są aktywne.',
       }),
     ).toBe(false)
+  })
+
+  it('clears an autofocus baseline before proving a password border focus indicator', async () => {
+    let focused = true
+    const events: string[] = []
+    await assertMobileFocusBorderEvidence({
+      blur: async () => {
+        events.push('blur')
+        focused = false
+      },
+      focus: async () => {
+        events.push('focus')
+        focused = true
+      },
+      isFocused: async () => {
+        events.push(`is-focused:${focused}`)
+        return focused
+      },
+      readBorderColor: async () => {
+        const color = focused ? 'rgb(189, 147, 96)' : 'rgb(60, 60, 60)'
+        events.push(`border:${color}`)
+        return color
+      },
+    })
+
+    expect(events).toEqual([
+      'blur',
+      'is-focused:false',
+      'border:rgb(60, 60, 60)',
+      'focus',
+      'is-focused:true',
+      'border:rgb(189, 147, 96)',
+    ])
   })
 
   it('fails closed without onboarding, subscription state, or explicit pilot access mode', () => {

@@ -878,6 +878,33 @@ export function summarizePilotAccessEvidence(input: {
   )
 }
 
+export async function assertMobileFocusBorderEvidence(input: {
+  blur(): Promise<void>
+  focus(): Promise<void>
+  isFocused(): Promise<boolean>
+  readBorderColor(): Promise<string>
+}): Promise<void> {
+  await input.blur()
+  if (await input.isFocused()) {
+    throw new Error('UI_MOBILE_ADMIN_FOCUS_INVALID')
+  }
+  const unfocusedBorder = await input.readBorderColor()
+
+  await input.focus()
+  if (!(await input.isFocused())) {
+    throw new Error('UI_MOBILE_ADMIN_FOCUS_INVALID')
+  }
+  const focusedBorder = await input.readBorderColor()
+
+  if (
+    unfocusedBorder.trim().length === 0 ||
+    focusedBorder.trim().length === 0 ||
+    focusedBorder === unfocusedBorder
+  ) {
+    throw new Error('UI_MOBILE_ADMIN_FOCUS_INVALID')
+  }
+}
+
 export async function runAdminFinallyProtocol(input: {
   hadSuccessfulLogin: boolean
   primaryError: unknown | null

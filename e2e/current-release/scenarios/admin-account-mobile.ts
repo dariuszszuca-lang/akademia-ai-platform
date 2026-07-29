@@ -7,6 +7,7 @@ import {
 import { getUserSubject } from '../operator'
 import {
   assertAccountExportSummary,
+  assertMobileFocusBorderEvidence,
   assertRejectedAdminLogin,
   parseAdminAgentState,
   parseSafeDeletionResponse,
@@ -508,26 +509,19 @@ async function runMobileAdminCheck(
     await assertMobilePageHealth(pageA)
 
     const password = pageA.locator('input[type="password"]')
-    const unfocusedBorder = await password.evaluate(
-      (element) => window.getComputedStyle(element).borderColor,
-    )
-    await password.focus()
-    await expect(password).toBeFocused()
-    const focusedStyle = await password.evaluate((element) => {
-      const style = window.getComputedStyle(element)
-      return {
-        borderColor: style.borderColor,
-        boxShadow: style.boxShadow,
-        outlineStyle: style.outlineStyle,
-      }
+    await assertMobileFocusBorderEvidence({
+      blur: () => password.blur(),
+      focus: () => password.focus(),
+      isFocused: () =>
+        password.evaluate(
+          (element) => document.activeElement === element,
+        ),
+      readBorderColor: () =>
+        password.evaluate(
+          (element) =>
+            window.getComputedStyle(element).borderColor,
+        ),
     })
-    if (
-      focusedStyle.borderColor === unfocusedBorder &&
-      focusedStyle.boxShadow === 'none' &&
-      focusedStyle.outlineStyle === 'none'
-    ) {
-      throw new Error('UI_MOBILE_ADMIN_FOCUS_INVALID')
-    }
 
     await successfulAdminLogin(
       pageA,
