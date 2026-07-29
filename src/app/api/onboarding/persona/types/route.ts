@@ -5,6 +5,7 @@ import { getProfilMd } from '@/lib/onboarding/state'
 import { getEffectivePlan } from '@/lib/billing/state'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
 import { resolveApiUser } from '@/lib/request-auth'
+import { observableModelHeaders } from '@/lib/model-id'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -56,7 +57,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'invalid AI response', raw: text }, { status: 500 })
     }
     const json = JSON.parse(text.slice(start, end + 1))
-    return NextResponse.json(json)
+    return NextResponse.json(json, {
+      headers: observableModelHeaders(DEFAULT_MODEL),
+    })
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'unknown' },

@@ -3,6 +3,7 @@ import { buildExtendProfilWithDeepPrompt } from '@/lib/onboarding/prompts'
 import { getOnboardingState, getProfilMd, saveExtendedProfilMd } from '@/lib/onboarding/state'
 import { deepQuestions } from '@/data/onboarding/deep'
 import { resolveApiUser } from '@/lib/request-auth'
+import { observableModelHeaders } from '@/lib/model-id'
 
 export const runtime = 'nodejs'
 export const maxDuration = 90
@@ -63,6 +64,9 @@ export async function POST() {
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      ...observableModelHeaders(DEFAULT_MODEL),
+    },
   })
 }

@@ -3,6 +3,7 @@ import { buildGenerateProfilPrompt } from '@/lib/onboarding/prompts'
 import { getOnboardingState, saveProfilMd } from '@/lib/onboarding/state'
 import { expressQuestions } from '@/data/onboarding/express'
 import { resolveApiUser } from '@/lib/request-auth'
+import { observableModelHeaders } from '@/lib/model-id'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -59,6 +60,9 @@ export async function POST() {
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      ...observableModelHeaders(DEFAULT_MODEL),
+    },
   })
 }

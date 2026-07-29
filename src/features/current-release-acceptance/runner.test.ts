@@ -6,17 +6,22 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildPlaywrightChildEnvironment,
   createDefaultBrowserExecutor,
+  CURRENT_RELEASE_COST_RESERVATIONS,
   CURRENT_RELEASE_PRODUCTION_URL,
   runCurrentReleaseAcceptance,
+  validateBrowserUsage,
   type CurrentReleaseRunnerDependencies,
   type CurrentReleaseRunnerOptions,
 } from './runner'
 import { getCurrentReleasePaths } from '../../../e2e/current-release/journal'
 import { createSyntheticCleanupRegistry } from '../synthetic-acceptance/cleanup-registry'
 import {
-  currentReleaseScenarios,
   type ScenarioResult,
 } from './domain'
+import {
+  currentReleaseBrowserScenarios,
+  type BrowserExecutionResult,
+} from './browser-result'
 
 const runId = 'syn-20260729T220000Z-deadbeef'
 const adminPassword = 'Synthetic-admin-password-123!'
@@ -37,7 +42,7 @@ function validOptions(
 }
 
 function passingScenarios(): ScenarioResult[] {
-  return currentReleaseScenarios.map((name) => ({
+  return currentReleaseBrowserScenarios.map((name) => ({
     name,
     status: 'passed' as const,
     durationMs: 10,
@@ -73,8 +78,9 @@ function validDependencies(
       scenarios: passingScenarios(),
       modelIds: ['claude-sonnet-4-6'],
       usage: {
-        onboardingGenerationCalls: 7,
+        onboardingGenerationCalls: 9,
         agentCalls: 8,
+        sourcePipelineCalls: 1 as const,
         observedPipelineCostUsd: 0.11,
       },
     })),
@@ -239,29 +245,47 @@ describe('current release execution boundary', () => {
     expect(serializedReport).not.toContain(
       'Synthetic-user-A-password-123!',
     )
-    expect(report.estimatedAnthropicCostUsd).toBe(1.06)
+    expect(report.scenarios).toHaveLength(20)
+    expect(report.scenarios.at(-1)).toEqual({
+      name: 'cleanup.complete',
+      status: 'passed',
+      durationMs: 0,
+    })
+    expect(report.estimatedAnthropicCostUsd).toBe(1.18)
     expect(report.observedPipelineCostUsd).toBe(0.11)
-    expect(report.providerCostUsd).toBe(1.17)
+    expect(report.providerCostUsd).toBe(1.29)
+    expect(CURRENT_RELEASE_COST_RESERVATIONS).toMatchObject({
+      onboardingGenerationCalls: 9,
+      agentCalls: 8,
+    })
   })
 
   it('passes the actual per-run maximum to the child and validates actual usage', async () => {
+    const scenarios = passingScenarios()
+    scenarios[0] = {
+      ...scenarios[0]!,
+      status: 'failed',
+      errorCode: 'AUTH_REGISTRATION_FAILED',
+    }
     const dependencies = validDependencies({
       executeBrowser: vi.fn(async () => ({
-        scenarios: passingScenarios(),
+        scenarios,
         modelIds: ['claude-sonnet-4-6'],
         usage: {
           onboardingGenerationCalls: 0,
           agentCalls: 3,
-          sourcePipelineCalls: 1,
+          sourcePipelineCalls: 1 as const,
           observedPipelineCostUsd: 0.1,
         },
       })),
     })
 
-    const report = await runCurrentReleaseAcceptance(
-      validOptions({ maxCostUsd: 0.5 }),
-      dependencies,
-    )
+    await expect(
+      runCurrentReleaseAcceptance(
+        validOptions({ maxCostUsd: 0.5 }),
+        dependencies,
+      ),
+    ).rejects.toThrow('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
 
     const childInput = vi.mocked(dependencies.executeBrowser).mock
       .calls[0]![0]
@@ -276,6 +300,7 @@ describe('current release execution boundary', () => {
         },
       },
     )
+    const report = vi.mocked(dependencies.writeReport).mock.calls[0]![0]
     expect(report.estimatedAnthropicCostUsd).toBe(0.24)
     expect(report.providerCostUsd).toBe(0.34)
   })
@@ -286,9 +311,9 @@ describe('current release execution boundary', () => {
         scenarios: passingScenarios(),
         modelIds: ['claude-sonnet-4-6'],
         usage: {
-          onboardingGenerationCalls: 7,
+          onboardingGenerationCalls: 9,
           agentCalls: 8,
-          sourcePipelineCalls: 1,
+          sourcePipelineCalls: 1 as const,
           observedPipelineCostUsd: 0.3,
         },
       })),
@@ -299,9 +324,9 @@ describe('current release execution boundary', () => {
       dependencies,
     )
 
-    expect(report.estimatedAnthropicCostUsd).toBe(1.06)
+    expect(report.estimatedAnthropicCostUsd).toBe(1.18)
     expect(report.observedPipelineCostUsd).toBe(0.3)
-    expect(report.providerCostUsd).toBe(1.36)
+    expect(report.providerCostUsd).toBe(1.48)
   })
 
   it('fails closed when the observed replacement makes the real total exceed max', async () => {
@@ -310,9 +335,9 @@ describe('current release execution boundary', () => {
         scenarios: passingScenarios(),
         modelIds: ['claude-sonnet-4-6'],
         usage: {
-          onboardingGenerationCalls: 7,
+          onboardingGenerationCalls: 9,
           agentCalls: 8,
-          sourcePipelineCalls: 1,
+          sourcePipelineCalls: 1 as const,
           observedPipelineCostUsd: 1,
         },
       })),
@@ -320,7 +345,7 @@ describe('current release execution boundary', () => {
 
     await expect(
       runCurrentReleaseAcceptance(validOptions(), dependencies),
-    ).rejects.toThrow('CURRENT_RELEASE_COST_MAX')
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_USAGE_INVALID')
     expect(dependencies.cleanup).toHaveBeenCalledTimes(1)
     expect(dependencies.writeReport).not.toHaveBeenCalled()
   })
@@ -385,7 +410,7 @@ describe('current release execution boundary', () => {
               usage: {
                 onboardingGenerationCalls: 0,
                 agentCalls: 0,
-                sourcePipelineCalls: 0,
+                sourcePipelineCalls: 0 as const,
                 observedPipelineCostUsd: 0,
               },
             }),
@@ -404,7 +429,7 @@ describe('current release execution boundary', () => {
       },
       costReservations: {
         onboardingGenerationUsd: 0.06,
-        onboardingGenerationCalls: 7,
+        onboardingGenerationCalls: 9,
         agentCallUsd: 0.08,
         agentCalls: 8,
         sourcePipelineUsd: 0.25,
@@ -421,6 +446,59 @@ describe('current release execution boundary', () => {
       CURRENT_RELEASE_RUN_ID: runId,
       CURRENT_RELEASE_BASE_URL: CURRENT_RELEASE_PRODUCTION_URL,
     })
+  })
+
+  it('reads a safe failed-scenario result even when Playwright exits nonzero', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'release-browser-result-'),
+    )
+    const paths = getCurrentReleasePaths(workspaceRoot, runId)
+    const registry = createSyntheticCleanupRegistry({
+      runId,
+      startedAt: '2026-07-29T22:00:00.000Z',
+    })
+    const scenarios = passingScenarios()
+    scenarios[0] = {
+      ...scenarios[0]!,
+      status: 'failed',
+      errorCode: 'AUTH_REGISTRATION_FAILED',
+    }
+    const executeBrowser = createDefaultBrowserExecutor(
+      workspaceRoot,
+      {
+        executeFile: () => {
+          writeFileSync(
+            paths.resultPath,
+            JSON.stringify({
+              scenarios,
+              modelIds: [],
+              usage: {
+                onboardingGenerationCalls: 0,
+                agentCalls: 0,
+                sourcePipelineCalls: 0 as const,
+                observedPipelineCostUsd: 0,
+              },
+            }),
+          )
+          throw new Error('synthetic playwright failure')
+        },
+      },
+    )
+
+    await expect(
+      executeBrowser({
+        runId,
+        baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+        childEnv: {
+          CURRENT_RELEASE_RUN_ID: runId,
+        },
+        costReservations: CURRENT_RELEASE_COST_RESERVATIONS,
+        resultPath: paths.resultPath,
+        registryPath: paths.registryPath,
+        paths,
+        registry,
+      }),
+    ).resolves.toMatchObject({ scenarios })
   })
 
   it('removes a secret-bearing invalid result and guard marker on every exit', async () => {
@@ -458,7 +536,7 @@ describe('current release execution boundary', () => {
         },
         costReservations: {
           onboardingGenerationUsd: 0.06,
-          onboardingGenerationCalls: 7,
+          onboardingGenerationCalls: 9,
           agentCallUsd: 0.08,
           agentCalls: 8,
           sourcePipelineUsd: 0.25,
@@ -546,8 +624,9 @@ describe('current release execution boundary', () => {
         scenarios: passingScenarios(),
         modelIds: ['claude-sonnet-4-6'],
         usage: {
-          onboardingGenerationCalls: 7,
+          onboardingGenerationCalls: 9,
           agentCalls: 8,
+          sourcePipelineCalls: 1 as const,
           observedPipelineCostUsd: 0.11,
         },
         registryUpdate: {
@@ -609,6 +688,12 @@ describe('current release execution boundary', () => {
     ).rejects.toThrow('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
     const report = vi.mocked(dependencies.writeReport).mock.calls[0]![0]
     expect(report.accepted).toBe(false)
+    expect(report.scenarios.at(-1)).toEqual({
+      name: 'cleanup.complete',
+      status: 'failed',
+      durationMs: 0,
+      errorCode: 'CURRENT_RELEASE_CLEANUP_INCOMPLETE',
+    })
     expect(dependencies.removeRegistry).not.toHaveBeenCalled()
   })
 
@@ -631,7 +716,7 @@ describe('current release execution boundary', () => {
     )
   })
 
-  it('writes a rejected report and preserves recovery registry when any scenario fails', async () => {
+  it('writes a rejected report and removes the registry after verified complete cleanup', async () => {
     const scenarios = passingScenarios()
     scenarios[0] = {
       ...scenarios[0]!,
@@ -643,8 +728,9 @@ describe('current release execution boundary', () => {
         scenarios,
         modelIds: ['claude-sonnet-4-6'],
         usage: {
-          onboardingGenerationCalls: 7,
+          onboardingGenerationCalls: 9,
           agentCalls: 8,
+          sourcePipelineCalls: 1 as const,
           observedPipelineCostUsd: 0.11,
         },
       })),
@@ -655,7 +741,7 @@ describe('current release execution boundary', () => {
     ).rejects.toThrow('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
     const report = vi.mocked(dependencies.writeReport).mock.calls[0]![0]
     expect(report.accepted).toBe(false)
-    expect(dependencies.removeRegistry).not.toHaveBeenCalled()
+    expect(dependencies.removeRegistry).toHaveBeenCalledWith(runId)
   })
 
   it('reports a stable combined failure when browser and cleanup both fail', async () => {
@@ -683,8 +769,9 @@ describe('current release execution boundary', () => {
         scenarios: passingScenarios(),
         modelIds: ['claude-sonnet-4-6'],
         usage: {
-          onboardingGenerationCalls: 8,
+          onboardingGenerationCalls: 10,
           agentCalls: 8,
+          sourcePipelineCalls: 1 as const,
           observedPipelineCostUsd: 0.11,
         },
       })),
@@ -695,5 +782,86 @@ describe('current release execution boundary', () => {
     ).rejects.toThrow('CURRENT_RELEASE_BROWSER_USAGE_INVALID')
     expect(dependencies.cleanup).toHaveBeenCalledTimes(1)
     expect(dependencies.removeRegistry).not.toHaveBeenCalled()
+  })
+
+  it('rejects successful browser scenarios unless usage is exactly 9/8/1', () => {
+    const result: BrowserExecutionResult = {
+      scenarios: passingScenarios(),
+      modelIds: ['claude-sonnet-4-6'],
+      usage: {
+        onboardingGenerationCalls: 8,
+        agentCalls: 8,
+        sourcePipelineCalls: 1 as const,
+        observedPipelineCostUsd: 0.1,
+      },
+    }
+
+    expect(() => validateBrowserUsage(result, 2)).toThrow(
+      'CURRENT_RELEASE_BROWSER_USAGE_INVALID',
+    )
+  })
+
+  it('allows bounded truthful partial usage after a browser scenario failure', () => {
+    const scenarios = passingScenarios()
+    scenarios[0] = {
+      ...scenarios[0]!,
+      status: 'failed',
+      errorCode: 'AUTH_REGISTRATION_FAILED',
+    }
+    const result: BrowserExecutionResult = {
+      scenarios,
+      modelIds: [],
+      usage: {
+        onboardingGenerationCalls: 2,
+        agentCalls: 1,
+        sourcePipelineCalls: 0 as const,
+        observedPipelineCostUsd: 0,
+      },
+    }
+
+    expect(() => validateBrowserUsage(result, 0.5)).not.toThrow()
+  })
+
+  it.each([
+    {
+      onboardingGenerationCalls: -1,
+      agentCalls: 0,
+      sourcePipelineCalls: 0,
+      observedPipelineCostUsd: 0,
+    },
+    {
+      onboardingGenerationCalls: 9,
+      agentCalls: 9,
+      sourcePipelineCalls: 1,
+      observedPipelineCostUsd: 0,
+    },
+    {
+      onboardingGenerationCalls: 9,
+      agentCalls: 8,
+      sourcePipelineCalls: 0,
+      observedPipelineCostUsd: 0.01,
+    },
+    {
+      onboardingGenerationCalls: 9,
+      agentCalls: 8,
+      sourcePipelineCalls: 1,
+      observedPipelineCostUsd: 1,
+    },
+  ])('rejects invalid or over-contract browser usage %o', (usage) => {
+    const scenarios = passingScenarios()
+    scenarios[0] = {
+      ...scenarios[0]!,
+      status: 'failed',
+      errorCode: 'AUTH_REGISTRATION_FAILED',
+    }
+    const result = {
+      scenarios,
+      modelIds: [],
+      usage,
+    } as BrowserExecutionResult
+
+    expect(() => validateBrowserUsage(result, 2)).toThrow(
+      'CURRENT_RELEASE_BROWSER_USAGE_INVALID',
+    )
   })
 })

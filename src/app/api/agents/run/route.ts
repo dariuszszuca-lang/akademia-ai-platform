@@ -8,6 +8,9 @@ import { getEffectivePlan } from '@/lib/billing/state'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
 import { rateLimit, LIMITS } from '@/lib/rate-limit'
 import { resolveApiUser } from '@/lib/request-auth'
+import { observableModelHeaders } from '@/lib/model-id'
+import { verifyLegalNoHitProbe } from '@/features/current-release-acceptance/legal-probe'
+import { LEGAL_NO_SOURCE_MESSAGE } from '@/lib/legal/fallback'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -18,6 +21,33 @@ export async function POST(req: Request) {
   const userId = auth.userId
 
   const { agentId, toolId, context, goal } = await req.json()
+  const hasRunIdHeader = req.headers.has(
+    'x-current-release-run-id',
+  )
+  const hasNoHitHeader = req.headers.has(
+    'x-current-release-legal-no-hit',
+  )
+  const legalNoHitProbeRequested =
+    hasRunIdHeader || hasNoHitHeader
+  const legalNoHitProbeValid =
+    legalNoHitProbeRequested &&
+    agentId === 'prawny' &&
+    hasRunIdHeader &&
+    hasNoHitHeader &&
+    verifyLegalNoHitProbe({
+      adminPassword: process.env.ADMIN_PASSWORD,
+      runId:
+        req.headers.get('x-current-release-run-id') ?? '',
+      userId,
+      signature:
+        req.headers.get('x-current-release-legal-no-hit') ?? '',
+    })
+  if (legalNoHitProbeRequested && !legalNoHitProbeValid) {
+    return Response.json(
+      { error: 'CURRENT_RELEASE_LEGAL_PROBE_FORBIDDEN' },
+      { status: 403 },
+    )
+  }
 
   const agent = findAgent(agentId)
   const tool = findTool(agentId, toolId)
@@ -62,7 +92,11 @@ export async function POST(req: Request) {
 
   // RAG dla agenta Prawnego: tylko jeśli plan ma ragLegal (Pro+/Trial/Agency)
   let legalChunks: LegalChunk[] = []
-  if (agent.id === 'prawny' && features.ragLegal) {
+  if (
+    agent.id === 'prawny' &&
+    features.ragLegal &&
+    !legalNoHitProbeValid
+  ) {
     const ragQuery = `${tool.title}\n${context ?? ''}\n${goal ?? ''}`.trim()
     legalChunks = await searchLegal(ragQuery, 5)
   }
@@ -85,6 +119,12 @@ export async function POST(req: Request) {
           }))
           const meta = `[[META]]${JSON.stringify({ sources })}[[/META]]\n`
           controller.enqueue(new TextEncoder().encode(meta))
+        } else if (agent.id === 'prawny') {
+          controller.enqueue(
+            new TextEncoder().encode(
+              `${LEGAL_NO_SOURCE_MESSAGE}\n\n`,
+            ),
+          )
         }
 
         // max_tokens: 6000 zostawia margines dla dlugich dokumentow (agent
@@ -115,6 +155,9 @@ export async function POST(req: Request) {
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      ...observableModelHeaders(DEFAULT_MODEL),
+    },
   })
 }

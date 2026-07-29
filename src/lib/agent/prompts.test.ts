@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { findAgent } from '@/data/agents'
 import { buildAgentSystemPrompt } from './prompts'
 import type { UserContext } from './user-context'
+import { LEGAL_NO_SOURCE_MESSAGE } from '@/lib/legal/fallback'
 
 const emptyContext: UserContext = {
   profil: null,
@@ -30,6 +31,7 @@ describe('legal agent system prompt', () => {
     expect(prompt).toContain(
       'Poinformuj o braku źródeł i poproś o dokument lub dodatkowy kontekst.',
     )
+    expect(prompt).toContain(LEGAL_NO_SOURCE_MESSAGE)
   })
 
   it('does not add the legal retrieval block to other agents', () => {

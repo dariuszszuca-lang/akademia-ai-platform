@@ -3,6 +3,7 @@ import { buildGeneratePersonaPrompt } from '@/lib/onboarding/persona-prompts'
 import { getOnboardingState, getProfilMd, savePersonaMd } from '@/lib/onboarding/state'
 import { getPersonaQuestions } from '@/data/onboarding/persona-questions'
 import { resolveApiUser } from '@/lib/request-auth'
+import { observableModelHeaders } from '@/lib/model-id'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -75,6 +76,9 @@ export async function POST(req: Request) {
   })
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      ...observableModelHeaders(DEFAULT_MODEL),
+    },
   })
 }

@@ -16,6 +16,7 @@ import {
   parseSyntheticCleanupRegistry,
   type SyntheticCleanupRegistry,
 } from '../../src/features/synthetic-acceptance/cleanup-registry'
+import { parseBrowserExecutionResult } from '../../src/features/current-release-acceptance/browser-result'
 import { currentReleaseRunIdSchema } from '../../src/features/current-release-acceptance/domain'
 
 export type CurrentReleasePaths = {
@@ -189,6 +190,37 @@ export async function readCurrentReleaseResult(
     throw new Error('CURRENT_RELEASE_PATH_INVALID')
   }
   return readFile(paths.resultPath, 'utf8')
+}
+
+export async function writeCurrentReleaseResult(
+  paths: CurrentReleasePaths,
+  runId: string,
+  value: unknown,
+): Promise<void> {
+  const expected = getCurrentReleasePaths(paths.workspaceRoot, runId)
+  assertPathsEqual(paths, expected)
+  const result = parseBrowserExecutionResult(value)
+  await ensureSafeDirectory(
+    paths.workspaceRoot,
+    paths.browserDirectory,
+  )
+  await rejectUnsafeExistingFile(paths.resultPath)
+  const temporaryPath = resolve(
+    paths.browserDirectory,
+    `result.${process.pid}.${Date.now()}.tmp`,
+  )
+  assertContained(paths.browserDirectory, temporaryPath)
+  try {
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(result, null, 2)}\n`,
+      { mode: 0o600, flag: 'wx' },
+    )
+    await rejectUnsafeExistingFile(paths.resultPath)
+    await rename(temporaryPath, paths.resultPath)
+  } finally {
+    await rm(temporaryPath, { force: true })
+  }
 }
 
 export async function removeCurrentReleaseEphemeralArtifacts(

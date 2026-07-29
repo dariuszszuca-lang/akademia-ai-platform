@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { deepQuestions } from '@/data/onboarding/deep'
+import { expressQuestions } from '@/data/onboarding/express'
+import { getPersonaQuestions } from '@/data/onboarding/persona-questions'
+import { AI_MODEL_ID_HEADER } from '@/lib/model-id'
 
 const mocks = vi.hoisted(() => ({
   resolveApiUser: vi.fn(),
@@ -52,7 +56,7 @@ vi.mock('@/lib/anthropic', () => ({
       stream: mocks.anthropicStream,
     },
   },
-  DEFAULT_MODEL: 'test-model',
+  DEFAULT_MODEL: 'claude-test-model',
 }))
 
 type RouteModule = {
@@ -206,6 +210,120 @@ describe('onboarding API authentication', () => {
       for (const [, dependency] of downstream) {
         expect(dependency).not.toHaveBeenCalled()
       }
+    },
+  )
+})
+
+describe('onboarding model observability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.resolveApiUser.mockResolvedValue({
+      ok: true,
+      userId: 'synthetic-user',
+    })
+    mocks.getProfilMd.mockResolvedValue('# synthetic profile')
+    mocks.getEffectivePlan.mockResolvedValue({
+      plan: 'pro',
+      active: true,
+    })
+    mocks.getOnboardingState.mockResolvedValue({
+      expressAnswers: Object.fromEntries(
+        expressQuestions.map((question) => [
+          question.id,
+          'synthetic answer',
+        ]),
+      ),
+      deepAnswers: Object.fromEntries(
+        deepQuestions.map((question) => [
+          question.id,
+          'synthetic answer',
+        ]),
+      ),
+      personaBuyer: {
+        answers: Object.fromEntries(
+          getPersonaQuestions('buyer').map((question) => [
+            question.id,
+            'synthetic answer',
+          ]),
+        ),
+      },
+      personaSeller: { answers: {} },
+    })
+    mocks.anthropicCreate.mockResolvedValue({
+      content: [
+        {
+          type: 'text',
+          text: '{"types":[]}',
+        },
+      ],
+    })
+    mocks.anthropicStream.mockReturnValue(
+      (async function* () {
+        yield {
+          type: 'content_block_delta',
+          delta: { type: 'text_delta', text: 'synthetic output' },
+        }
+      })(),
+    )
+  })
+
+  it.each([
+    {
+      name: 'generate-profil',
+      load: () => import('./generate-profil/route'),
+      body: {},
+    },
+    {
+      name: 'generate-deep',
+      load: () => import('./generate-deep/route'),
+      body: {},
+    },
+    {
+      name: 'persona/types',
+      load: () => import('./persona/types/route'),
+      body: { type: 'buyer' },
+    },
+    {
+      name: 'persona/expand',
+      load: () => import('./persona/expand/route'),
+      body: {
+        type: 'buyer',
+        chosenIndex: 1,
+        chosenType: {
+          name: 'Synthetic buyer',
+          who: 'Synthetic audience',
+          problem: 'Synthetic problem',
+          match: 'Synthetic match',
+        },
+      },
+    },
+    {
+      name: 'persona/generate',
+      load: () => import('./persona/generate/route'),
+      body: { type: 'buyer' },
+    },
+  ])(
+    'exposes the configured safe model on successful $name responses',
+    async ({ load, body }) => {
+      const route = await load()
+      const request = new Request(
+        'https://example.test/api/onboarding',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+      )
+
+      const response = await route.POST(
+        request as never,
+      )
+      await response.text()
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get(AI_MODEL_ID_HEADER)).toBe(
+        'claude-test-model',
+      )
     },
   )
 })

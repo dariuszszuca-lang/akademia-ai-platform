@@ -1,6 +1,5 @@
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { z } from 'zod'
 import {
   getCurrentReleasePaths,
   prepareCurrentReleaseResultPath,
@@ -21,11 +20,16 @@ import {
 } from '../synthetic-acceptance/cleanup-registry'
 import {
   createAcceptanceCostGuard,
+  CURRENT_RELEASE_COST_STOP_USD,
   CURRENT_RELEASE_MAX_COST_USD,
   currentReleaseRunIdSchema,
-  currentReleaseScenarioResultsSchema,
-  type ScenarioResult,
 } from './domain'
+import {
+  browserRegistryUpdateSchema,
+  parseBrowserExecutionResult,
+  type BrowserExecutionResult,
+  type BrowserRegistryUpdate,
+} from './browser-result'
 import {
   createCurrentReleaseReport,
   renderCurrentReleaseReportMarkdown,
@@ -43,7 +47,7 @@ export const CURRENT_RELEASE_AWS_CALLER_ARN =
 
 export const CURRENT_RELEASE_COST_RESERVATIONS = {
   onboardingGenerationUsd: 0.06,
-  onboardingGenerationCalls: 7,
+  onboardingGenerationCalls: 9,
   agentCallUsd: 0.08,
   agentCalls: 8,
   sourcePipelineUsd: 0.25,
@@ -67,29 +71,6 @@ export type CurrentReleaseCleanup = {
   adminStateRestored: boolean
   dlqMessagesVisible: number
   alarmsNotOk: number
-}
-
-export type BrowserExecutionResult = {
-  scenarios: ScenarioResult[]
-  modelIds: string[]
-  usage: {
-    onboardingGenerationCalls: number
-    agentCalls: number
-    sourcePipelineCalls?: number
-    observedPipelineCostUsd: number
-  }
-  registryUpdate?: BrowserRegistryUpdate
-}
-
-export type BrowserRegistryUpdate = {
-  releaseUsers: SyntheticCleanupRegistry['releaseUsers']
-  organizationId: string | null
-  organizationPrefix: string | null
-  projectIds: string[]
-  sourceIds: string[]
-  storageKeys: string[]
-  kvKeys: string[]
-  adminAgentState: SyntheticCleanupRegistry['adminAgentState']
 }
 
 export type BrowserExecutionInput = {
@@ -137,66 +118,6 @@ export type CurrentReleaseRunnerDependencies = {
   getDeploymentId: () => Promise<string>
   writeReport: (report: CurrentReleaseReport) => Promise<void>
 }
-
-const uuidSchema = z.string().uuid()
-const cognitoSubjectSchema = z
-  .string()
-  .regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-  )
-
-const browserRegistryUpdateSchema = z
-  .object({
-    releaseUsers: z
-      .array(
-        z
-          .object({
-            role: z.enum(['a', 'b']),
-            username: z.string().max(180),
-            cognitoSub: cognitoSubjectSchema.nullable(),
-          })
-          .strict(),
-      )
-      .length(2),
-    organizationId: uuidSchema.nullable(),
-    organizationPrefix: z.string().max(240).nullable(),
-    projectIds: z.array(uuidSchema).max(20),
-    sourceIds: z.array(uuidSchema).max(20),
-    storageKeys: z.array(z.string().min(1).max(1024)).max(40),
-    kvKeys: z.array(z.string().min(1).max(512)).max(20),
-    adminAgentState: z
-      .object({
-        agentId: z
-          .string()
-          .regex(/^[a-z][a-z0-9-]*$/)
-          .max(80),
-        enabled: z.boolean(),
-      })
-      .strict()
-      .nullable(),
-  })
-  .strict()
-
-const browserExecutionResultSchema = z
-  .object({
-    scenarios: currentReleaseScenarioResultsSchema,
-    modelIds: z.array(z.string().min(1).max(240)).max(20),
-    usage: z
-      .object({
-        onboardingGenerationCalls: z.number().int().nonnegative(),
-        agentCalls: z.number().int().nonnegative(),
-        sourcePipelineCalls: z
-          .number()
-          .int()
-          .min(0)
-          .max(1)
-          .default(1),
-        observedPipelineCostUsd: z.number().nonnegative(),
-      })
-      .strict(),
-    registryUpdate: browserRegistryUpdateSchema.optional(),
-  })
-  .strict()
 
 export async function runCurrentReleaseAcceptance(
   options: CurrentReleaseRunnerOptions,
@@ -295,13 +216,13 @@ export async function runCurrentReleaseAcceptance(
       runId,
       activeRegistry,
     )
-    const parsedCandidate =
-      browserExecutionResultSchema.safeParse(candidate)
-    if (!parsedCandidate.success) {
+    try {
+      browserResult = parseBrowserExecutionResult(candidate)
+    } catch {
       executionErrorCode =
         'CURRENT_RELEASE_BROWSER_RESULT_INVALID'
-    } else {
-      browserResult = parsedCandidate.data
+    }
+    if (browserResult) {
       if (browserResult.registryUpdate) {
         applyBrowserRegistryUpdate(
           activeRegistry,
@@ -347,20 +268,20 @@ export async function runCurrentReleaseAcceptance(
     throw new Error('CURRENT_RELEASE_CLEANUP_FAILED')
   }
 
-  const parsedBrowser = browserExecutionResultSchema.safeParse(
-    browserResult,
-  )
-  if (!parsedBrowser.success) {
+  let parsedBrowser: BrowserExecutionResult
+  try {
+    parsedBrowser = parseBrowserExecutionResult(browserResult)
+  } catch {
     throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
   }
-  validateBrowserUsage(parsedBrowser.data)
+  validateBrowserUsage(parsedBrowser, childBudget.maxUsd)
   const costGuard = createAcceptanceCostGuard({
     stopBeforeUsd: childBudget.stopBeforeUsd,
     maxUsd: childBudget.maxUsd,
   })
   for (
     let index = 0;
-    index < parsedBrowser.data.usage.onboardingGenerationCalls;
+    index < parsedBrowser.usage.onboardingGenerationCalls;
     index += 1
   ) {
     costGuard.reserve(
@@ -370,7 +291,7 @@ export async function runCurrentReleaseAcceptance(
   }
   for (
     let index = 0;
-    index < parsedBrowser.data.usage.agentCalls;
+    index < parsedBrowser.usage.agentCalls;
     index += 1
   ) {
     costGuard.reserve(
@@ -378,20 +299,20 @@ export async function runCurrentReleaseAcceptance(
       CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd,
     )
   }
-  if (parsedBrowser.data.usage.sourcePipelineCalls === 1) {
+  if (parsedBrowser.usage.sourcePipelineCalls === 1) {
     costGuard.reserve(
       'pipeline',
       CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd,
     )
     costGuard.recordObservedPipelineCost(
-      parsedBrowser.data.usage.observedPipelineCostUsd,
+      parsedBrowser.usage.observedPipelineCostUsd,
     )
   }
   const estimatedAnthropicCostUsd =
     CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd *
-      parsedBrowser.data.usage.onboardingGenerationCalls +
+      parsedBrowser.usage.onboardingGenerationCalls +
     CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd *
-      parsedBrowser.data.usage.agentCalls
+      parsedBrowser.usage.agentCalls
   const observedPipelineCostUsd =
     costGuard.observedPipelineCostUsd()
   const providerCostUsd = roundUsd(
@@ -406,8 +327,23 @@ export async function runCurrentReleaseAcceptance(
     deploymentId: await dependencies.getDeploymentId(),
     startedAt: startedAt.toISOString(),
     completedAt: dependencies.now().toISOString(),
-    scenarios: parsedBrowser.data.scenarios,
-    modelIds: parsedBrowser.data.modelIds,
+    scenarios: [
+      ...parsedBrowser.scenarios,
+      cleanupPassed
+        ? {
+            name: 'cleanup.complete' as const,
+            status: 'passed' as const,
+            durationMs: 0,
+          }
+        : {
+            name: 'cleanup.complete' as const,
+            status: 'failed' as const,
+            durationMs: 0,
+            errorCode:
+              'CURRENT_RELEASE_CLEANUP_INCOMPLETE' as const,
+          },
+    ],
+    modelIds: parsedBrowser.modelIds,
     estimatedAnthropicCostUsd: roundUsd(
       estimatedAnthropicCostUsd,
     ),
@@ -416,7 +352,7 @@ export async function runCurrentReleaseAcceptance(
     cleanup,
     accepted:
       cleanupPassed &&
-      parsedBrowser.data.scenarios.every(
+      parsedBrowser.scenarios.every(
         (scenario) => scenario.status === 'passed',
       ),
   })
@@ -426,9 +362,10 @@ export async function runCurrentReleaseAcceptance(
   } catch {
     throw new Error('CURRENT_RELEASE_REPORT_WRITE_FAILED')
   }
-  if (report.accepted) {
+  if (cleanupPassed) {
     await dependencies.removeRegistry(runId)
-  } else {
+  }
+  if (!report.accepted) {
     throw new Error('CURRENT_RELEASE_ACCEPTANCE_REJECTED')
   }
   return report
@@ -496,7 +433,8 @@ export function createDefaultBrowserExecutor(
           },
         )
       } catch {
-        throw new Error('CURRENT_RELEASE_BROWSER_FAILED')
+        // A failing scenario makes Playwright exit nonzero, but afterAll
+        // still persists the safe, partial result. Read it below.
       }
 
       let raw: string
@@ -509,7 +447,7 @@ export function createDefaultBrowserExecutor(
         throw new Error('CURRENT_RELEASE_BROWSER_RESULT_MISSING')
       }
       try {
-        return browserExecutionResultSchema.parse(JSON.parse(raw))
+        return parseBrowserExecutionResult(JSON.parse(raw))
       } catch {
         throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
       }
@@ -702,15 +640,66 @@ function validateGeneratedPassword(password: string): void {
   }
 }
 
-function validateBrowserUsage(result: BrowserExecutionResult): void {
+export function validateBrowserUsage(
+  result: BrowserExecutionResult,
+  maxCostUsd: number,
+): void {
+  const {
+    onboardingGenerationCalls,
+    agentCalls,
+    sourcePipelineCalls,
+    observedPipelineCostUsd,
+  } = result.usage
+  const counts = [
+    onboardingGenerationCalls,
+    agentCalls,
+    sourcePipelineCalls,
+  ]
+  const reservedUsd = roundUsd(
+    onboardingGenerationCalls *
+      CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd +
+      agentCalls *
+        CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd +
+      sourcePipelineCalls *
+        CURRENT_RELEASE_COST_RESERVATIONS.sourcePipelineUsd,
+  )
+  const observedTotalUsd = roundUsd(
+    onboardingGenerationCalls *
+      CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd +
+      agentCalls *
+        CURRENT_RELEASE_COST_RESERVATIONS.agentCallUsd +
+      observedPipelineCostUsd,
+  )
+  const allScenariosPassed = result.scenarios.every(
+    (scenario) => scenario.status === 'passed',
+  )
   if (
-    result.usage.onboardingGenerationCalls >
+    !Number.isFinite(maxCostUsd) ||
+    maxCostUsd <= 0 ||
+    maxCostUsd > CURRENT_RELEASE_MAX_COST_USD ||
+    counts.some(
+      (count) =>
+        !Number.isInteger(count) ||
+        !Number.isFinite(count) ||
+        count < 0,
+    ) ||
+    onboardingGenerationCalls >
       CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationCalls ||
-    result.usage.agentCalls >
+    agentCalls >
       CURRENT_RELEASE_COST_RESERVATIONS.agentCalls ||
-    (result.usage.sourcePipelineCalls === 0 &&
-      result.usage.observedPipelineCostUsd !== 0) ||
-    result.usage.observedPipelineCostUsd < 0
+    ![0, 1].includes(sourcePipelineCalls) ||
+    !Number.isFinite(observedPipelineCostUsd) ||
+    observedPipelineCostUsd < 0 ||
+    (sourcePipelineCalls === 0 &&
+      observedPipelineCostUsd !== 0) ||
+    reservedUsd > Math.min(CURRENT_RELEASE_COST_STOP_USD, maxCostUsd) ||
+    observedTotalUsd > maxCostUsd ||
+    (allScenariosPassed &&
+      (onboardingGenerationCalls !==
+        CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationCalls ||
+        agentCalls !==
+          CURRENT_RELEASE_COST_RESERVATIONS.agentCalls ||
+        sourcePipelineCalls !== 1))
   ) {
     throw new Error('CURRENT_RELEASE_BROWSER_USAGE_INVALID')
   }

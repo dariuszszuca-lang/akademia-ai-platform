@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { safeModelIdSchema } from '../../lib/model-id'
 import { assertSyntheticDataPolicy } from '../synthetic-acceptance/domain'
 import {
   CURRENT_RELEASE_COST_STOP_USD,
@@ -28,16 +29,6 @@ const safeBaseUrlSchema = z
       })
     }
   })
-
-const safeModelIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(240)
-  .regex(
-    /^(?:claude-[a-z0-9]+(?:-[a-z0-9]+)*|eu\.anthropic\.claude-[a-z0-9]+(?:-[a-z0-9]+)*(?::[0-9]+)?)$/,
-    'CURRENT_RELEASE_MODEL_ID_INVALID',
-  )
 
 function exactCostSchema(maxUsd: number) {
   return z

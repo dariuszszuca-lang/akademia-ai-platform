@@ -3,6 +3,7 @@ import { userContextAsBlock, type UserContext } from './user-context'
 import type { LegalChunk } from '@/lib/legal/pinecone'
 import { formatChunksForPrompt } from '@/lib/legal/search'
 import { PRODUCT_NAME } from '@/lib/product'
+import { LEGAL_NO_SOURCE_MESSAGE } from '@/lib/legal/fallback'
 
 /**
  * Buduje system prompt dla agenta na bazie:
@@ -25,7 +26,7 @@ ${formatChunksForPrompt(legalChunks ?? [])}
 
 ZASADY DLA AGENTA PRAWNEGO:
 - Cytuj DOKŁADNIE numer artykułu z powyższych fragmentów (np. "art. 158 KC stanowi że...")
-- Jeśli fragment nie odpowiada na pytanie, powiedz wprost: "W bazie nie znalazłem przepisu wprost odnoszącego się do tego pytania" zamiast halucynować
+- Jeśli fragment nie odpowiada na pytanie, powiedz wprost: "${LEGAL_NO_SOURCE_MESSAGE}" zamiast halucynować
 - Bez relewantnych źródeł nie cytuj ani nie oznaczaj przepisów jako pewnych.
 - Poinformuj o braku źródeł i poproś o dokument lub dodatkowy kontekst.
 - Zawsze przypominaj: "To wymaga konsultacji z prawnikiem przed decyzją" gdy pytanie wymaga oceny indywidualnej
