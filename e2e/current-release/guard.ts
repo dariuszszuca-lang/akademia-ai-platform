@@ -74,7 +74,9 @@ export function assertPlaywrightLaunchAllowed(
   let productionHost = false
   try {
     productionHost =
-      new URL(baseUrl ?? '').hostname.toLowerCase() ===
+      new URL(baseUrl ?? '')
+        .hostname.toLowerCase()
+        .replace(/\.+$/, '') ===
       'akademia-ai-platform.vercel.app'
   } catch {
     productionHost = (baseUrl ?? '')

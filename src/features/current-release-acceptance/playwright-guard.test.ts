@@ -45,6 +45,9 @@ describe('direct Playwright production guard', () => {
     `https://user:pass@akademia-ai-platform.vercel.app`,
     `https://AKADEMIA-AI-PLATFORM.VERCEL.APP`,
     `http://akademia-ai-platform.vercel.app`,
+    `https://akademia-ai-platform.vercel.app./`,
+    `https://akademia-ai-platform.vercel.app.:443/`,
+    `https://AKADEMIA-AI-PLATFORM.VERCEL.APP.../`,
   ])('rejects every non-canonical production URL: %s', (baseUrl) => {
     expect(() =>
       assertPlaywrightLaunchAllowed({
