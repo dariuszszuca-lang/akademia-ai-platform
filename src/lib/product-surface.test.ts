@@ -79,4 +79,14 @@ describe('public product surfaces', () => {
 
     expect(source).not.toContain('demo-user')
   })
+
+  it.each([
+    'src/lib/onboarding/state.ts',
+    'src/lib/billing/state.ts',
+  ])('%s uses the redirecting server-render user boundary', (file) => {
+    const source = readFileSync(resolve(process.cwd(), file), 'utf8')
+
+    expect(source).toContain('requireServerUserIdOrRedirect')
+    expect(source).not.toMatch(/\brequireServerUserId\b/)
+  })
 })

@@ -1,5 +1,5 @@
 import { storeGet, storeSet } from '@/lib/store'
-import { requireServerUserId } from '@/lib/session'
+import { requireServerUserIdOrRedirect } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { emptyState, type OnboardingState } from './types'
 
@@ -24,7 +24,7 @@ function revalidateOnboardingViews(): void {
  * Czyta httpOnly cookie z user.sub.
  */
 async function getUserId(): Promise<string> {
-  return requireServerUserId()
+  return requireServerUserIdOrRedirect()
 }
 
 function stateKey(userId: string): string {

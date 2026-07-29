@@ -1,5 +1,5 @@
 import { storeGet, storeSet } from '@/lib/store'
-import { requireServerUserId } from '@/lib/session'
+import { requireServerUserIdOrRedirect } from '@/lib/session'
 import {
   newTrialSubscription,
   isPlanActive,
@@ -16,7 +16,7 @@ function subKey(userId: string): string {
  * Jeśli pierwszy raz, zwraca + zapisuje nowy trial (14 dni).
  */
 export async function getUserSubscription(): Promise<UserSubscription> {
-  const userId = await requireServerUserId()
+  const userId = await requireServerUserIdOrRedirect()
   const existing = await storeGet<UserSubscription>(subKey(userId))
   if (existing) return existing
 
@@ -27,7 +27,7 @@ export async function getUserSubscription(): Promise<UserSubscription> {
 }
 
 export async function setUserSubscription(sub: UserSubscription): Promise<void> {
-  const userId = await requireServerUserId()
+  const userId = await requireServerUserIdOrRedirect()
   await storeSet(subKey(userId), sub)
 }
 

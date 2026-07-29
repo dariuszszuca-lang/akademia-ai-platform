@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import crypto from 'crypto'
 
 const COOKIE_NAME = 'px-session'
@@ -65,6 +66,16 @@ export async function getServerUserId(): Promise<string | null> {
 export async function requireServerUserId(): Promise<string> {
   const sub = await getServerUserId()
   if (!sub) throw new Error('UNAUTHORIZED')
+  return sub
+}
+
+/**
+ * Server-only: wymaga podpisanej sesji podczas renderowania RSC.
+ * Brak sesji konczy render przekierowaniem, zamiast ogolnym bledem.
+ */
+export async function requireServerUserIdOrRedirect(): Promise<string> {
+  const sub = await getServerUserId()
+  if (!sub) redirect('/login')
   return sub
 }
 
