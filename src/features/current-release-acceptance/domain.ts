@@ -8,7 +8,7 @@ export const CURRENT_RELEASE_MAX_COST_USD = 2
 export const CURRENT_RELEASE_COST_STOP_USD = 1.5
 export const CURRENT_RELEASE_PIPELINE_RESERVATION_LABEL = 'pipeline'
 
-export const currentReleaseScenarios = [
+export const currentReleaseBrowserScenarios = [
   'auth.registration',
   'auth.session',
   'onboarding.express',
@@ -28,6 +28,10 @@ export const currentReleaseScenarios = [
   'account.export',
   'account.delete',
   'ui.mobile',
+] as const
+
+export const currentReleaseScenarios = [
+  ...currentReleaseBrowserScenarios,
   'cleanup.complete',
 ] as const
 

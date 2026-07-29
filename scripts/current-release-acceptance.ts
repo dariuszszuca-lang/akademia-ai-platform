@@ -9,8 +9,17 @@ import {
   deleteUser,
   getUserSubject,
   resolveOperatorContext,
+  verifyRunS3Empty,
   type OperatorBaseContext,
 } from '../e2e/current-release/operator'
+import {
+  deleteSyntheticAccountByContract,
+  restoreAdminAgentByContract,
+} from '../e2e/current-release/http-cleanup'
+import {
+  cleanupCurrentRelease,
+  waitForEphemeralStateExpiry,
+} from '../src/features/current-release-acceptance/cleanup'
 import {
   createCurrentReleasePassword,
   createCurrentReleaseGuardNonce,
@@ -108,47 +117,42 @@ export function createDefaultCurrentReleaseDependencies(
     createGuardNonce: createCurrentReleaseGuardNonce,
     prepareGuard: prepareCurrentReleaseGuard,
     executeBrowser: createDefaultBrowserExecutor(workspaceRoot),
-    cleanup: async (registry) => {
+    cleanup: async (input) => {
       const context = await resolveOperatorContext(
         {
-          runId: registry.runId,
+          runId: input.registry.runId,
           profile: CURRENT_RELEASE_AWS_PROFILE,
           region: CURRENT_RELEASE_AWS_REGION,
           accountId: CURRENT_RELEASE_AWS_ACCOUNT,
         },
         executor,
       )
-      for (const user of registry.releaseUsers) {
-        await deleteUser(context, user.username, executor)
-      }
-      const remainingSubjects = await Promise.all(
-        registry.releaseUsers.map((user) =>
-          getUserSubject(context, user.username, executor),
-        ),
-      )
-      const cognitoUsersAbsent = remainingSubjects.every(
-        (subject) => subject === null,
-      )
-
-      return {
-        // Tasks 8-9 replace these conservative placeholders with
-        // browser/API cleanup evidence. They intentionally cannot accept a
-        // production run on their own.
-        databaseEmpty: false,
-        cognitoUsersAbsent,
-        kvKeysAbsent: registry.kvKeys.length === 0,
-        s3VersionsRemaining:
-          registry.storageKeys.length === 0 ? 0 : 1,
-        adminStateRestored: registry.adminAgentState === null,
-        dlqMessagesVisible: await checkDlq(
-          context,
-          executor,
-        ),
-        alarmsNotOk: await checkAlarms(
-          context,
-          executor,
-        ),
-      }
+      return cleanupCurrentRelease(input, {
+        assertIdentity: () =>
+          assertCallerIdentity(context, executor).then(
+            () => undefined,
+          ),
+        getUserSubject: (username) =>
+          getUserSubject(context, username, executor),
+        deleteAccount: ({ baseUrl, username, password }) =>
+          deleteSyntheticAccountByContract({
+            baseUrl,
+            username,
+            password,
+          }),
+        deleteIdentity: (username) =>
+          deleteUser(context, username, executor),
+        persistRegistry: (registry) =>
+          saveCurrentReleaseRegistry(workspaceRoot, registry),
+        restoreAdmin: (restoreInput) =>
+          restoreAdminAgentByContract(restoreInput),
+        verifyS3Empty: (s3Input) =>
+          verifyRunS3Empty(context, s3Input, executor),
+        checkDlq: () => checkDlq(context, executor),
+        checkAlarms: () => checkAlarms(context, executor),
+        waitUntilEpochSeconds:
+          waitForEphemeralStateExpiry,
+      })
     },
     getCommitSha: async () =>
       runProgramText('git', ['rev-parse', 'HEAD'], workspaceRoot).trim(),

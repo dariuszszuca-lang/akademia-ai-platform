@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createAcceptanceCostGuard,
+  currentReleaseBrowserScenarios,
   currentReleaseScenarioResultsSchema,
   currentReleaseScenarios,
   type ScenarioResult,
@@ -39,6 +40,17 @@ function passingScenarios(): ScenarioResult[] {
 }
 
 describe('current release scenario contract', () => {
+  it('keeps runner-owned cleanup outside the exact browser catalog', () => {
+    expect(currentReleaseBrowserScenarios).toHaveLength(19)
+    expect(currentReleaseBrowserScenarios).not.toContain(
+      'cleanup.complete',
+    )
+    expect(currentReleaseScenarios).toEqual([
+      ...currentReleaseBrowserScenarios,
+      'cleanup.complete',
+    ])
+  })
+
   it('publishes the exact required scenario catalog', () => {
     expect(currentReleaseScenarios).toEqual(requiredScenarios)
     expect(

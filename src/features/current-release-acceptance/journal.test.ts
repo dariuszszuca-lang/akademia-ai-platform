@@ -66,6 +66,32 @@ describe('atomic current release journal', () => {
     await journal.recordUserSubject('a', subject)
     await journal.recordKvKey(`user:${subject}:profil`)
     await journal.recordAdminPreviousState('publikacja', true)
+    await journal.recordResources({
+      organizationId: '22222222-2222-4222-8222-222222222222',
+      projectId: '33333333-3333-4333-8333-333333333333',
+      factId: '44444444-4444-4444-8444-444444444444',
+      sourceId: '55555555-5555-4555-8555-555555555555',
+      sourceJobId: '66666666-6666-4666-8666-666666666666',
+      proposalId: '77777777-7777-4777-8777-777777777777',
+      storageKey:
+        'originals/organizations/22222222-2222-4222-8222-222222222222/properties/33333333-3333-4333-8333-333333333333/sources/55555555-5555-4555-8555-555555555555/original',
+    })
+    await journal.recordFactId(
+      '44444444-4444-4444-8444-444444444444',
+    )
+    await journal.recordDeletionReceipt('a', {
+      ok: true,
+      sourceObjects: 2,
+      propertyStudio: 1,
+      accountKeys: 5,
+    })
+    await journal.recordDeletionReceipt('a', {
+      ok: true,
+      sourceObjects: 2,
+      propertyStudio: 1,
+      accountKeys: 5,
+    })
+    await journal.recordEphemeralStateExpiresAt(1_785_362_465)
 
     const saved = await readCurrentReleaseJournal(paths, runId)
     expect(saved.releaseUsers[0]?.cognitoSub).toBe(subject)
@@ -74,6 +100,61 @@ describe('atomic current release journal', () => {
       agentId: 'publikacja',
       enabled: true,
     })
+    expect(saved.factIds).toEqual([
+      '44444444-4444-4444-8444-444444444444',
+    ])
+    expect(saved.sourceJobIds).toEqual([
+      '66666666-6666-4666-8666-666666666666',
+    ])
+    expect(saved.proposalIds).toEqual([
+      '77777777-7777-4777-8777-777777777777',
+    ])
+    expect(saved.accountDeletionReceipts).toEqual([
+      {
+        role: 'a',
+        ok: true,
+        sourceObjects: 2,
+        propertyStudio: 1,
+        accountKeys: 5,
+      },
+    ])
+    expect(saved.ephemeralStateExpiresAt).toBe(1_785_362_465)
+  })
+
+  it('rejects invalid facts and conflicting recovery evidence before disk write', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'release-journal-'))
+    const paths = getCurrentReleasePaths(workspace, runId)
+    await writeCurrentReleaseJournal(paths, registry())
+    const journal = createCurrentReleaseJournal(paths, runId)
+
+    await expect(journal.recordFactId('not-a-uuid')).rejects.toThrow()
+    await journal.recordDeletionReceipt('a', {
+      ok: true,
+      sourceObjects: 0,
+      propertyStudio: 1,
+      accountKeys: 5,
+    })
+    await expect(
+      journal.recordDeletionReceipt('a', {
+        ok: true,
+        sourceObjects: 1,
+        propertyStudio: 1,
+        accountKeys: 5,
+      }),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_DELETION_RECEIPT_CONFLICT',
+    )
+    await journal.recordAdminPreviousState('publikacja', true)
+    await expect(
+      journal.recordAdminPreviousState('publikacja', false),
+    ).rejects.toThrow('CURRENT_RELEASE_ADMIN_STATE_CONFLICT')
+
+    const saved = await readCurrentReleaseJournal(paths, runId)
+    expect(saved.factIds).toEqual([])
+    expect(saved.accountDeletionReceipts).toHaveLength(1)
+    expect(JSON.stringify(saved)).not.toMatch(
+      /password|token|cookie|nonce|signedUrl/i,
+    )
   })
 
   it('rejects a symlinked journal target and paths outside the exact run directories', async () => {

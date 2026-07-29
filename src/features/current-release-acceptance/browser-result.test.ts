@@ -122,6 +122,56 @@ describe('browser execution result contract', () => {
       }),
     ).toThrow('CURRENT_RELEASE_BROWSER_RESULT_SECRET_VALUE')
   })
+
+  it('preserves only strict fact, deletion and ephemeral cleanup evidence', () => {
+    const result = validBrowserResult()
+    result.registryUpdate = {
+      releaseUsers: [
+        {
+          role: 'a',
+          username: `synthetic-release-${runId}-a@example.invalid`,
+          cognitoSub: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        },
+        {
+          role: 'b',
+          username: `synthetic-release-${runId}-b@example.invalid`,
+          cognitoSub: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        },
+      ],
+      organizationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      organizationPrefix:
+        'originals/organizations/cccccccc-cccc-4ccc-8ccc-cccccccccccc/',
+      projectIds: ['dddddddd-dddd-4ddd-8ddd-dddddddddddd'],
+      factIds: ['eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'],
+      sourceJobIds: ['11111111-1111-4111-8111-111111111111'],
+      proposalIds: ['22222222-2222-4222-8222-222222222222'],
+      sourceIds: ['ffffffff-ffff-4fff-8fff-ffffffffffff'],
+      storageKeys: [
+        'originals/organizations/cccccccc-cccc-4ccc-8ccc-cccccccccccc/source.pdf',
+      ],
+      kvKeys: [],
+      adminAgentState: null,
+      accountDeletionReceipts: [
+        {
+          role: 'a',
+          ok: true,
+          sourceObjects: 2,
+          propertyStudio: 1,
+          accountKeys: 5,
+        },
+      ],
+      ephemeralStateExpiresAt: 1_785_362_465,
+    }
+
+    expect(
+      parseBrowserExecutionResult(result).registryUpdate,
+    ).toEqual(result.registryUpdate)
+
+    result.registryUpdate.factIds!.push(
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    )
+    expect(() => parseBrowserExecutionResult(result)).toThrow()
+  })
 })
 
 describe('current release scenario recorder', () => {

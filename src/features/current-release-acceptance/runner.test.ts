@@ -602,7 +602,23 @@ describe('current release execution boundary', () => {
     expect(dependencies.removeRegistry).not.toHaveBeenCalled()
     expect(dependencies.writeReport).not.toHaveBeenCalled()
     const cleanupInput = vi.mocked(dependencies.cleanup).mock.calls[0]![0]
-    expect(JSON.stringify(cleanupInput)).not.toContain(secret)
+    expect(cleanupInput).toMatchObject({
+      baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+      adminPassword,
+      credentials: [
+        {
+          role: 'a',
+          username: `synthetic-release-${runId}-a@example.invalid`,
+          password: secret,
+        },
+        {
+          role: 'b',
+          username: `synthetic-release-${runId}-b@example.invalid`,
+          password: 'Synthetic-user-B-password-456!',
+        },
+      ],
+    })
+    expect(cleanupInput.registry.runId).toBe(runId)
   })
 
   it('reloads the atomic child journal before cleanup after browser failure', async () => {
@@ -635,7 +651,7 @@ describe('current release execution boundary', () => {
     ).rejects.toThrow('CURRENT_RELEASE_BROWSER_FAILED')
 
     const cleanupRegistry = vi.mocked(dependencies.cleanup).mock
-      .calls[0]![0]
+      .calls[0]![0].registry
     expect(cleanupRegistry.releaseUsers[0]?.cognitoSub).toBe(subject)
     expect(cleanupRegistry.kvKeys).toEqual([
       `user:${subject}:profil`,
@@ -676,6 +692,11 @@ describe('current release execution boundary', () => {
           organizationPrefix:
             'originals/organizations/33333333-3333-4333-8333-333333333333/',
           projectIds: ['44444444-4444-4444-8444-444444444444'],
+          factIds: ['66666666-6666-4666-8666-666666666666'],
+          sourceJobIds: [
+            '77777777-7777-4777-8777-777777777777',
+          ],
+          proposalIds: ['88888888-8888-4888-8888-888888888888'],
           sourceIds: ['55555555-5555-4555-8555-555555555555'],
           storageKeys: [
             'originals/organizations/33333333-3333-4333-8333-333333333333/source.pdf',
@@ -685,6 +706,16 @@ describe('current release execution boundary', () => {
             agentId: 'publikacja',
             enabled: true,
           },
+          accountDeletionReceipts: [
+            {
+              role: 'a' as const,
+              ok: true as const,
+              sourceObjects: 2,
+              propertyStudio: 1 as const,
+              accountKeys: 5 as const,
+            },
+          ],
+          ephemeralStateExpiresAt: 1_785_362_465,
         },
       })),
     })
@@ -692,12 +723,55 @@ describe('current release execution boundary', () => {
     await runCurrentReleaseAcceptance(validOptions(), dependencies)
 
     const cleanupRegistry = vi.mocked(dependencies.cleanup).mock
-      .calls[0]![0]
+      .calls[0]![0].registry
     expect(cleanupRegistry.releaseUsers[0]?.cognitoSub).toBe(subjectA)
     expect(cleanupRegistry.projectIds).toEqual([
       '44444444-4444-4444-8444-444444444444',
     ])
+    expect(cleanupRegistry.factIds).toEqual([
+      '66666666-6666-4666-8666-666666666666',
+    ])
+    expect(cleanupRegistry.sourceJobIds).toEqual([
+      '77777777-7777-4777-8777-777777777777',
+    ])
+    expect(cleanupRegistry.proposalIds).toEqual([
+      '88888888-8888-4888-8888-888888888888',
+    ])
+    expect(cleanupRegistry.accountDeletionReceipts).toHaveLength(1)
+    expect(cleanupRegistry.ephemeralStateExpiresAt).toBe(
+      1_785_362_465,
+    )
     expect(dependencies.saveRegistry).toHaveBeenCalledTimes(2)
+  })
+
+  it('measures cleanup duration for the runner-owned final scenario', async () => {
+    const dependencies = validDependencies({
+      now: vi
+        .fn()
+        .mockReturnValueOnce(
+          new Date('2026-07-29T22:00:00.000Z'),
+        )
+        .mockReturnValueOnce(
+          new Date('2026-07-29T22:01:00.000Z'),
+        )
+        .mockReturnValueOnce(
+          new Date('2026-07-29T22:01:02.500Z'),
+        )
+        .mockReturnValue(
+          new Date('2026-07-29T22:01:03.000Z'),
+        ),
+    })
+
+    const report = await runCurrentReleaseAcceptance(
+      validOptions(),
+      dependencies,
+    )
+
+    expect(report.scenarios.at(-1)).toEqual({
+      name: 'cleanup.complete',
+      status: 'passed',
+      durationMs: 2_500,
+    })
   })
 
   it('writes a rejected report, preserves registry and exits nonzero when cleanup residue remains', async () => {

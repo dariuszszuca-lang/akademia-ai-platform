@@ -16,6 +16,7 @@ import {
 } from '../../../e2e/current-release/guard'
 import {
   createSyntheticCleanupRegistry,
+  parseSyntheticCleanupRegistry,
   type SyntheticCleanupRegistry,
 } from '../synthetic-acceptance/cleanup-registry'
 import {
@@ -37,6 +38,12 @@ import {
   serializeCurrentReleaseReport,
   type CurrentReleaseReport,
 } from './report'
+import {
+  type CurrentReleaseCleanup,
+  type CurrentReleaseCleanupInput,
+} from './cleanup'
+
+export type { CurrentReleaseCleanup } from './cleanup'
 
 export const CURRENT_RELEASE_PRODUCTION_URL =
   'https://akademia-ai-platform.vercel.app'
@@ -63,16 +70,6 @@ export type CurrentReleaseRunnerOptions = {
   adminPassword: string | undefined
   acceptanceSecret: string | undefined
   workspaceRoot: string
-}
-
-export type CurrentReleaseCleanup = {
-  databaseEmpty: boolean
-  cognitoUsersAbsent: boolean
-  kvKeysAbsent: boolean
-  s3VersionsRemaining: number
-  adminStateRestored: boolean
-  dlqMessagesVisible: number
-  alarmsNotOk: number
 }
 
 export type BrowserExecutionInput = {
@@ -114,7 +111,7 @@ export type CurrentReleaseRunnerDependencies = {
     input: BrowserExecutionInput,
   ) => Promise<BrowserExecutionResult>
   cleanup: (
-    registry: SyntheticCleanupRegistry,
+    input: CurrentReleaseCleanupInput,
   ) => Promise<CurrentReleaseCleanup>
   getCommitSha: () => Promise<string>
   getDeploymentId: () => Promise<string>
@@ -197,6 +194,7 @@ export async function runCurrentReleaseAcceptance(
   let executionErrorCode: string | null = null
   let cleanup: CurrentReleaseCleanup | null = null
   let cleanupFailed = false
+  let cleanupDurationMs = 0
 
   try {
     await dependencies.saveRegistry(activeRegistry)
@@ -248,15 +246,37 @@ export async function runCurrentReleaseAcceptance(
         'CURRENT_RELEASE_BROWSER_AND_JOURNAL_FAILED'
     }
   } finally {
+    const cleanupStartedAt = dependencies.now()
     try {
       activeRegistry = await refreshRegistry(
         dependencies,
         runId,
         activeRegistry,
       )
-      cleanup = await dependencies.cleanup(activeRegistry)
+      cleanup = await dependencies.cleanup({
+        registry: activeRegistry,
+        baseUrl: options.baseUrl,
+        adminPassword: options.adminPassword!.trim(),
+        credentials: [
+          {
+            role: 'a',
+            username: registry.releaseUsers[0]!.username,
+            password: passwordA,
+          },
+          {
+            role: 'b',
+            username: registry.releaseUsers[1]!.username,
+            password: passwordB,
+          },
+        ],
+      })
     } catch {
       cleanupFailed = true
+    } finally {
+      cleanupDurationMs = durationBetween(
+        cleanupStartedAt,
+        dependencies.now(),
+      )
     }
   }
 
@@ -337,12 +357,12 @@ export async function runCurrentReleaseAcceptance(
         ? {
             name: 'cleanup.complete' as const,
             status: 'passed' as const,
-            durationMs: 0,
+            durationMs: cleanupDurationMs,
           }
         : {
             name: 'cleanup.complete' as const,
             status: 'failed' as const,
-            durationMs: 0,
+            durationMs: cleanupDurationMs,
             errorCode:
               'CURRENT_RELEASE_CLEANUP_INCOMPLETE' as const,
           },
@@ -794,7 +814,11 @@ function applyBrowserRegistryUpdate(
     throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_INVALID')
   }
 
-  Object.assign(registry, parsed.data)
+  const candidate = parseSyntheticCleanupRegistry({
+    ...registry,
+    ...parsed.data,
+  })
+  Object.assign(registry, candidate)
 }
 
 function cleanupChecksPass(cleanup: CurrentReleaseCleanup): boolean {
@@ -811,6 +835,18 @@ function cleanupChecksPass(cleanup: CurrentReleaseCleanup): boolean {
 
 function roundUsd(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000
+}
+
+function durationBetween(startedAt: Date, completedAt: Date): number {
+  const durationMs = completedAt.getTime() - startedAt.getTime()
+  if (
+    !Number.isFinite(durationMs) ||
+    durationMs < 0 ||
+    durationMs > 3_600_000
+  ) {
+    throw new Error('CURRENT_RELEASE_CLEANUP_DURATION_INVALID')
+  }
+  return Math.floor(durationMs)
 }
 
 async function refreshRegistry(

@@ -23,6 +23,11 @@ describe('synthetic cleanup registry', () => {
     expect(registry.releaseUsers).toEqual([])
     expect(registry.kvKeys).toEqual([])
     expect(registry.adminAgentState).toBeNull()
+    expect(registry.factIds).toEqual([])
+    expect(registry.sourceJobIds).toEqual([])
+    expect(registry.proposalIds).toEqual([])
+    expect(registry.accountDeletionReceipts).toEqual([])
+    expect(registry.ephemeralStateExpiresAt).toBeNull()
   })
 
   it('stores only bounded current-run identifiers with mode 0600', async () => {
@@ -136,6 +141,23 @@ describe('synthetic cleanup registry', () => {
       agentId: 'prawny',
       enabled: true,
     }
+    registry.factIds.push(
+      'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    )
+    registry.sourceJobIds.push(
+      'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    )
+    registry.proposalIds.push(
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    )
+    registry.accountDeletionReceipts.push({
+      role: 'a',
+      ok: true,
+      sourceObjects: 3,
+      propertyStudio: 1,
+      accountKeys: 5,
+    })
+    registry.ephemeralStateExpiresAt = 1_785_272_465
 
     try {
       const path = await saveSyntheticCleanupRegistry(
@@ -179,6 +201,11 @@ describe('synthetic cleanup registry', () => {
       expect(saved.releaseUsers).toEqual([])
       expect(saved.kvKeys).toEqual([])
       expect(saved.adminAgentState).toBeNull()
+      expect(saved.factIds).toEqual([])
+      expect(saved.sourceJobIds).toEqual([])
+      expect(saved.proposalIds).toEqual([])
+      expect(saved.accountDeletionReceipts).toEqual([])
+      expect(saved.ephemeralStateExpiresAt).toBeNull()
     } finally {
       await rm(workspaceRoot, { recursive: true, force: true })
     }
@@ -312,5 +339,97 @@ describe('synthetic cleanup registry', () => {
         typeof createSyntheticCleanupRegistry
       >),
     ).toThrow()
+  })
+
+  it('rejects duplicate or malformed fact IDs and deletion receipts', () => {
+    const registry = createSyntheticCleanupRegistry({
+      runId: 'syn-20260728T210000Z-deadbeef',
+      startedAt: '2026-07-28T21:00:00.000Z',
+    })
+    const factId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    registry.factIds.push(factId, factId)
+
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow('SYNTHETIC_RELEASE_FACT_ID_DUPLICATE')
+
+    registry.factIds = ['not-a-uuid']
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow()
+
+    registry.factIds = []
+    registry.sourceJobIds = [
+      factId,
+      factId,
+    ]
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow('SYNTHETIC_RELEASE_SOURCE_JOB_ID_DUPLICATE')
+
+    registry.sourceJobIds = []
+    registry.proposalIds = [
+      factId,
+      factId,
+    ]
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow('SYNTHETIC_RELEASE_PROPOSAL_ID_DUPLICATE')
+
+    registry.proposalIds = []
+    registry.accountDeletionReceipts = [
+      {
+        role: 'a',
+        ok: true,
+        sourceObjects: 0,
+        propertyStudio: 1,
+        accountKeys: 5,
+      },
+      {
+        role: 'a',
+        ok: true,
+        sourceObjects: 1,
+        propertyStudio: 1,
+        accountKeys: 5,
+      },
+    ]
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow('SYNTHETIC_RELEASE_DELETION_ROLE_DUPLICATE')
+
+    registry.accountDeletionReceipts = [
+      {
+        role: 'a',
+        ok: true,
+        sourceObjects: -1,
+        propertyStudio: 1,
+        accountKeys: 5,
+      },
+    ]
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow()
+  })
+
+  it('bounds the secret-free ephemeral state expiry to the run window', () => {
+    const registry = createSyntheticCleanupRegistry({
+      runId: 'syn-20260728T210000Z-deadbeef',
+      startedAt: '2026-07-28T21:00:00.000Z',
+    })
+
+    registry.ephemeralStateExpiresAt = 1_785_272_465
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).not.toThrow()
+
+    registry.ephemeralStateExpiresAt = 1_785_272_399
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow('SYNTHETIC_RELEASE_EPHEMERAL_EXPIRY_INVALID')
+
+    registry.ephemeralStateExpiresAt = 1_785_276_001
+    expect(() =>
+      saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow('SYNTHETIC_RELEASE_EPHEMERAL_EXPIRY_INVALID')
   })
 })

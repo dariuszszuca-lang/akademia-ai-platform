@@ -1,25 +1,22 @@
 import { z } from 'zod'
-import type { SyntheticCleanupRegistry } from '../synthetic-acceptance/cleanup-registry'
+import {
+  accountDeletionReceiptSchema,
+  type SyntheticCleanupRegistry,
+} from '../synthetic-acceptance/cleanup-registry'
 import { safeModelIdSchema } from '../../lib/model-id'
 import {
   currentReleaseScenarioResultSchema,
-  currentReleaseScenarios,
+  currentReleaseBrowserScenarios,
   type ScenarioResult,
 } from './domain'
 
-export const currentReleaseBrowserScenarios =
-  currentReleaseScenarios.filter(
-    (name) => name !== 'cleanup.complete',
-  )
+export { currentReleaseBrowserScenarios }
 
 export type CurrentReleaseBrowserScenario =
   (typeof currentReleaseBrowserScenarios)[number]
 
 export const currentReleaseBrowserScenarioSchema = z.enum(
-  currentReleaseBrowserScenarios as [
-    CurrentReleaseBrowserScenario,
-    ...CurrentReleaseBrowserScenario[],
-  ],
+  currentReleaseBrowserScenarios,
 )
 
 const uuidSchema = z.string().uuid()
@@ -45,6 +42,9 @@ export const browserRegistryUpdateSchema = z
     organizationId: uuidSchema.nullable(),
     organizationPrefix: z.string().max(240).nullable(),
     projectIds: z.array(uuidSchema).max(20),
+    factIds: z.array(uuidSchema).max(100).optional(),
+    sourceJobIds: z.array(uuidSchema).max(100).optional(),
+    proposalIds: z.array(uuidSchema).max(100).optional(),
     sourceIds: z.array(uuidSchema).max(20),
     storageKeys: z.array(z.string().min(1).max(1024)).max(40),
     kvKeys: z.array(z.string().min(1).max(512)).max(20),
@@ -58,8 +58,48 @@ export const browserRegistryUpdateSchema = z
       })
       .strict()
       .nullable(),
+    accountDeletionReceipts: z
+      .array(accountDeletionReceiptSchema)
+      .max(2)
+      .optional(),
+    ephemeralStateExpiresAt: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .optional(),
   })
   .strict()
+  .superRefine((update, context) => {
+    for (const [field, values] of [
+      ['projectIds', update.projectIds],
+      ['factIds', update.factIds ?? []],
+      ['sourceJobIds', update.sourceJobIds ?? []],
+      ['proposalIds', update.proposalIds ?? []],
+      ['sourceIds', update.sourceIds],
+      ['storageKeys', update.storageKeys],
+      ['kvKeys', update.kvKeys],
+    ] as const) {
+      if (new Set(values).size !== values.length) {
+        context.addIssue({
+          code: 'custom',
+          path: [field],
+          message: 'CURRENT_RELEASE_REGISTRY_UPDATE_DUPLICATE',
+        })
+      }
+    }
+    const receiptRoles = (update.accountDeletionReceipts ?? []).map(
+      (receipt) => receipt.role,
+    )
+    if (new Set(receiptRoles).size !== receiptRoles.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['accountDeletionReceipts'],
+        message:
+          'CURRENT_RELEASE_DELETION_RECEIPT_ROLE_DUPLICATE',
+      })
+    }
+  })
 
 const browserScenarioResultSchema =
   currentReleaseScenarioResultSchema.refine(

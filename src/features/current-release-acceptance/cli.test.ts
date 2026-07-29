@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   mapCurrentReleasePreflightError,
@@ -86,5 +87,18 @@ describe('current release acceptance CLI', () => {
       'CURRENT_RELEASE_COGNITO_PREREQUISITE_MISSING:SEE_RUNBOOK',
     )
     expect(mapped.message).not.toContain(raw)
+  })
+
+  it('uses the real cleanup implementation without conservative placeholders', () => {
+    const source = readFileSync(
+      'scripts/current-release-acceptance.ts',
+      'utf8',
+    )
+
+    expect(source).toContain('cleanupCurrentRelease')
+    expect(source).toContain('verifyRunS3Empty')
+    expect(source).not.toContain('databaseEmpty: false')
+    expect(source).not.toContain('s3VersionsRemaining:')
+    expect(source).not.toContain('Tasks 8-9 replace')
   })
 })

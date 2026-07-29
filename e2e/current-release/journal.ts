@@ -14,6 +14,8 @@ import {
 } from 'node:path'
 import {
   parseSyntheticCleanupRegistry,
+  safeDeletionReceiptSchema,
+  type SafeDeletionReceipt,
   type SyntheticCleanupRegistry,
 } from '../../src/features/synthetic-acceptance/cleanup-registry'
 import { parseBrowserExecutionResult } from '../../src/features/current-release-acceptance/browser-result'
@@ -283,7 +285,7 @@ export function createCurrentReleaseJournal(
   function update(
     mutate: (registry: SyntheticCleanupRegistry) => void,
   ): Promise<void> {
-    sequence = sequence.then(async () => {
+    const operation = sequence.then(async () => {
       const registry = await readCurrentReleaseJournal(
         paths,
         parsedRunId,
@@ -291,7 +293,11 @@ export function createCurrentReleaseJournal(
       mutate(registry)
       await writeCurrentReleaseJournal(paths, registry)
     })
-    return sequence
+    sequence = operation.then(
+      () => undefined,
+      () => undefined,
+    )
+    return operation
   }
 
   return {
@@ -305,6 +311,12 @@ export function createCurrentReleaseJournal(
         )
         if (!user) {
           throw new Error('CURRENT_RELEASE_JOURNAL_INVALID')
+        }
+        if (
+          user.cognitoSub !== null &&
+          user.cognitoSub !== cognitoSub
+        ) {
+          throw new Error('CURRENT_RELEASE_USER_SUBJECT_CONFLICT')
         }
         user.cognitoSub = cognitoSub
       })
@@ -323,17 +335,70 @@ export function createCurrentReleaseJournal(
       enabled: boolean,
     ): Promise<void> {
       return update((registry) => {
-        if (registry.adminAgentState !== null) {
-          throw new Error('CURRENT_RELEASE_ADMIN_STATE_ALREADY_RECORDED')
+        if (
+          registry.adminAgentState !== null &&
+          (registry.adminAgentState.agentId !== agentId ||
+            registry.adminAgentState.enabled !== enabled)
+        ) {
+          throw new Error('CURRENT_RELEASE_ADMIN_STATE_CONFLICT')
         }
         registry.adminAgentState = { agentId, enabled }
+      })
+    },
+
+    recordFactId(factId: string): Promise<void> {
+      return update((registry) => {
+        pushUnique(registry.factIds, factId)
+      })
+    },
+
+    recordDeletionReceipt(
+      role: 'a' | 'b',
+      value: SafeDeletionReceipt,
+    ): Promise<void> {
+      const receipt = safeDeletionReceiptSchema.parse(value)
+      return update((registry) => {
+        const existing = registry.accountDeletionReceipts.find(
+          (candidate) => candidate.role === role,
+        )
+        if (existing) {
+          if (
+            existing.ok !== receipt.ok ||
+            existing.sourceObjects !== receipt.sourceObjects ||
+            existing.propertyStudio !== receipt.propertyStudio ||
+            existing.accountKeys !== receipt.accountKeys
+          ) {
+            throw new Error(
+              'CURRENT_RELEASE_DELETION_RECEIPT_CONFLICT',
+            )
+          }
+          return
+        }
+        registry.accountDeletionReceipts.push({
+          role,
+          ...receipt,
+        })
+      })
+    },
+
+    recordEphemeralStateExpiresAt(
+      expiresAtEpochSeconds: number,
+    ): Promise<void> {
+      return update((registry) => {
+        registry.ephemeralStateExpiresAt = Math.max(
+          registry.ephemeralStateExpiresAt ?? 0,
+          expiresAtEpochSeconds,
+        )
       })
     },
 
     recordResources(input: {
       organizationId: string
       projectId?: string
+      factId?: string
       sourceId?: string
+      sourceJobId?: string
+      proposalId?: string
       storageKey?: string
     }): Promise<void> {
       return update((registry) => {
@@ -347,7 +412,10 @@ export function createCurrentReleaseJournal(
         registry.organizationPrefix =
           `originals/organizations/${input.organizationId}/`
         pushUnique(registry.projectIds, input.projectId)
+        pushUnique(registry.factIds, input.factId)
         pushUnique(registry.sourceIds, input.sourceId)
+        pushUnique(registry.sourceJobIds, input.sourceJobId)
+        pushUnique(registry.proposalIds, input.proposalId)
         pushUnique(registry.storageKeys, input.storageKey)
       })
     },

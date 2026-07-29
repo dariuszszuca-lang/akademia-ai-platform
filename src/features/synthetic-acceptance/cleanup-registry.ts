@@ -36,6 +36,20 @@ const adminAgentStateSchema = z
   })
   .strict()
 
+export const safeDeletionReceiptSchema = z
+  .object({
+    ok: z.literal(true),
+    sourceObjects: z.number().int().nonnegative(),
+    propertyStudio: z.literal(1),
+    accountKeys: z.literal(5),
+  })
+  .strict()
+
+export const accountDeletionReceiptSchema =
+  safeDeletionReceiptSchema.extend({
+    role: z.enum(['a', 'b']),
+  })
+
 const releaseKvSuffixes = [
   'profil',
   'persona-buyer',
@@ -53,6 +67,9 @@ const cleanupRegistrySchema = z
     organizationPrefix: z.string().max(240).nullable(),
     projectIds: z.array(uuidSchema),
     sourceIds: z.array(uuidSchema),
+    factIds: z.array(uuidSchema).max(100).default([]),
+    sourceJobIds: z.array(uuidSchema).max(100).default([]),
+    proposalIds: z.array(uuidSchema).max(100).default([]),
     storageKeys: z.array(z.string().min(1).max(1024)),
     releaseUsers: z.array(releaseUserSchema).max(2).default([]),
     kvKeys: z
@@ -60,6 +77,16 @@ const cleanupRegistrySchema = z
       .max(20)
       .default([]),
     adminAgentState: adminAgentStateSchema.nullable().default(null),
+    accountDeletionReceipts: z
+      .array(accountDeletionReceiptSchema)
+      .max(2)
+      .default([]),
+    ephemeralStateExpiresAt: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .default(null),
     startedAt: z.string().datetime(),
   })
   .strict()
@@ -154,10 +181,70 @@ const cleanupRegistrySchema = z
         message: 'SYNTHETIC_RELEASE_KV_KEY_DUPLICATE',
       })
     }
+
+    if (new Set(registry.factIds).size !== registry.factIds.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['factIds'],
+        message: 'SYNTHETIC_RELEASE_FACT_ID_DUPLICATE',
+      })
+    }
+    if (
+      new Set(registry.sourceJobIds).size !==
+      registry.sourceJobIds.length
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['sourceJobIds'],
+        message: 'SYNTHETIC_RELEASE_SOURCE_JOB_ID_DUPLICATE',
+      })
+    }
+    if (
+      new Set(registry.proposalIds).size !==
+      registry.proposalIds.length
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['proposalIds'],
+        message: 'SYNTHETIC_RELEASE_PROPOSAL_ID_DUPLICATE',
+      })
+    }
+
+    const receiptRoles = registry.accountDeletionReceipts.map(
+      (receipt) => receipt.role,
+    )
+    if (new Set(receiptRoles).size !== receiptRoles.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['accountDeletionReceipts'],
+        message: 'SYNTHETIC_RELEASE_DELETION_ROLE_DUPLICATE',
+      })
+    }
+
+    if (registry.ephemeralStateExpiresAt !== null) {
+      const startedAtEpochSeconds = Math.floor(
+        Date.parse(registry.startedAt) / 1000,
+      )
+      if (
+        !Number.isSafeInteger(startedAtEpochSeconds) ||
+        registry.ephemeralStateExpiresAt < startedAtEpochSeconds ||
+        registry.ephemeralStateExpiresAt >
+          startedAtEpochSeconds + 3_600
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['ephemeralStateExpiresAt'],
+          message: 'SYNTHETIC_RELEASE_EPHEMERAL_EXPIRY_INVALID',
+        })
+      }
+    }
   })
 
 export type SyntheticCleanupRegistry = z.infer<
   typeof cleanupRegistrySchema
+>
+export type SafeDeletionReceipt = z.infer<
+  typeof safeDeletionReceiptSchema
 >
 
 export function parseSyntheticCleanupRegistry(
@@ -188,10 +275,15 @@ export function createSyntheticCleanupRegistry({
     organizationPrefix: null,
     projectIds: [],
     sourceIds: [],
+    factIds: [],
+    sourceJobIds: [],
+    proposalIds: [],
     storageKeys: [],
     releaseUsers: [],
     kvKeys: [],
     adminAgentState: null,
+    accountDeletionReceipts: [],
+    ephemeralStateExpiresAt: null,
     startedAt,
   })
 }
