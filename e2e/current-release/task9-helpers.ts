@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type {
   BrowserContext,
   Page,
@@ -239,6 +240,143 @@ export function parseProposalDecisionReadback(
   }
 }
 
+type AcceptedAreaExpectation = {
+  factId: string
+  projectId: string
+  subjectA: string
+  sourceId: string
+}
+
+export function parseAcceptedAreaDecisionResponse(
+  payload: unknown,
+  expected: AcceptedAreaExpectation & {
+    proposalId: string
+    jobId: string
+    preAcceptVersion: number
+  },
+): {
+  proposalId: string
+  factId: string
+  version: number
+  value: 83.4
+} {
+  if (
+    !isRecord(payload) ||
+    payload.decisionCreated !== true ||
+    !isRecord(payload.proposal) ||
+    payload.proposal.id !== expected.proposalId ||
+    payload.proposal.factKey !== 'area.usable' ||
+    payload.proposal.status !== 'accepted' ||
+    payload.proposal.sourceId !== expected.sourceId ||
+    payload.proposal.jobId !== expected.jobId ||
+    payload.proposal.valueType !== 'number' ||
+    payload.proposal.value !== 83.4 ||
+    !isAcceptedAreaFact(payload.fact, {
+      ...expected,
+      version: (isRecord(payload.fact)
+        ? payload.fact.version
+        : null) as unknown,
+    }) ||
+    !isRecord(payload.fact) ||
+    !Number.isSafeInteger(payload.fact.version) ||
+    (payload.fact.version as number) <= expected.preAcceptVersion
+  ) {
+    throw new Error('STUDIO_ACCEPTED_AREA_INVALID')
+  }
+
+  return {
+    proposalId: expected.proposalId,
+    factId: expected.factId,
+    version: payload.fact.version as number,
+    value: 83.4,
+  }
+}
+
+export function parseRejectedPriceDecisionResponse(
+  payload: unknown,
+  expected: {
+    proposalId: string
+    sourceId: string
+    jobId: string
+  },
+): {
+  proposalId: string
+  factIsNull: true
+} {
+  if (
+    !isRecord(payload) ||
+    payload.decisionCreated !== true ||
+    payload.fact !== null ||
+    !isRecord(payload.proposal) ||
+    payload.proposal.id !== expected.proposalId ||
+    payload.proposal.factKey !== 'price.asking' ||
+    payload.proposal.status !== 'rejected' ||
+    payload.proposal.sourceId !== expected.sourceId ||
+    payload.proposal.jobId !== expected.jobId ||
+    payload.proposal.valueType !== 'number' ||
+    payload.proposal.value !== 750_000
+  ) {
+    throw new Error('STUDIO_REJECTED_PRICE_INVALID')
+  }
+
+  return {
+    proposalId: expected.proposalId,
+    factIsNull: true,
+  }
+}
+
+export function parseAcceptedAreaFactList(
+  payload: unknown,
+  expected: AcceptedAreaExpectation & {
+    version: number
+  },
+): {
+  factId: string
+  version: number
+  value: 83.4
+  factCount: 1
+} {
+  if (
+    !isRecord(payload) ||
+    !Array.isArray(payload.facts) ||
+    payload.facts.length !== 1 ||
+    !isAcceptedAreaFact(payload.facts[0], expected)
+  ) {
+    throw new Error('STUDIO_ACCEPTED_AREA_READBACK_INVALID')
+  }
+
+  return {
+    factId: expected.factId,
+    version: expected.version,
+    value: 83.4,
+    factCount: 1,
+  }
+}
+
+function isAcceptedAreaFact(
+  value: unknown,
+  expected: AcceptedAreaExpectation & {
+    version: unknown
+  },
+): boolean {
+  return (
+    isRecord(value) &&
+    value.id === expected.factId &&
+    value.propertyProjectId === expected.projectId &&
+    value.key === 'area.usable' &&
+    value.valueType === 'number' &&
+    value.value === 83.4 &&
+    value.unit === 'm²' &&
+    value.status === 'confirmed' &&
+    value.visibility === 'internal' &&
+    value.confirmedByUserId === expected.subjectA &&
+    Array.isArray(value.sourceIds) &&
+    value.sourceIds.includes(expected.sourceId) &&
+    Number.isSafeInteger(value.version) &&
+    value.version === expected.version
+  )
+}
+
 export type Task9SourceJobCost = {
   sourceId: string
   providerCostMicrounits: number | null
@@ -275,6 +413,75 @@ export function calculateObservedPipelineUsage(
   return {
     observedPipelineCostUsd: observedMicrounits / 1_000_000,
     modelIds: [...modelIds],
+  }
+}
+
+export function parseCurrentSourceJobEvidence(
+  jobs: readonly unknown[],
+  expected: {
+    organizationId: string
+    projectId: string
+    sourceId: string
+    jobId: string
+    maxUsd: number
+    reservedUsd: number
+    sourceReservationUsd: number
+  },
+): {
+  observedPipelineCostUsd: number
+  modelIds: string[]
+} {
+  const safeModelIdPattern =
+    /^(?:claude-[a-z0-9]+(?:-[a-z0-9]+)*|eu\.anthropic\.claude-[a-z0-9]+(?:-[a-z0-9]+)*(?::[0-9]+)?)$/
+  const matching = jobs.filter(
+    (job) =>
+      isRecord(job) &&
+      job.id === expected.jobId &&
+      job.sourceId === expected.sourceId,
+  )
+  const job = matching[0]
+  if (
+    jobs.length !== 1 ||
+    matching.length !== 1 ||
+    !isRecord(job) ||
+    job.organizationId !== expected.organizationId ||
+    job.propertyProjectId !== expected.projectId ||
+    job.status !== 'succeeded' ||
+    !Number.isSafeInteger(job.providerCostMicrounits) ||
+    (job.providerCostMicrounits as number) <= 0 ||
+    job.currency !== 'USD' ||
+    typeof job.modelId !== 'string' ||
+    job.modelId.trim().length === 0 ||
+    job.modelId.trim().length > 200 ||
+    !safeModelIdPattern.test(job.modelId.trim()) ||
+    !Number.isFinite(expected.maxUsd) ||
+    expected.maxUsd <= 0 ||
+    !Number.isFinite(expected.reservedUsd) ||
+    expected.reservedUsd < expected.sourceReservationUsd ||
+    !Number.isFinite(expected.sourceReservationUsd) ||
+    expected.sourceReservationUsd <= 0
+  ) {
+    throw new Error('STUDIO_PIPELINE_JOB_INVALID')
+  }
+  const observedPipelineCostUsd =
+    (job.providerCostMicrounits as number) / 1_000_000
+  if (observedPipelineCostUsd > expected.maxUsd) {
+    throw new Error('STUDIO_PIPELINE_JOB_INVALID')
+  }
+  const sharedObservedTotalUsd =
+    expected.reservedUsd -
+    expected.sourceReservationUsd +
+    observedPipelineCostUsd
+  if (
+    sharedObservedTotalUsd < 0 ||
+    sharedObservedTotalUsd > expected.maxUsd
+  ) {
+    throw new Error('STUDIO_PIPELINE_JOB_INVALID')
+  }
+
+  return {
+    observedPipelineCostUsd,
+    modelIds: [job.modelId.trim()],
   }
 }
 
@@ -506,12 +713,98 @@ export type DownloadedPdfSummary = {
   contentTypeIsPdf: boolean
   bodyLooksLikePdf: boolean
   bodySizeBytes: number
+  sha256Matches: boolean
+}
+
+export function parseSignedS3DownloadUrl(
+  rawUrl: string,
+  expected: {
+    bucketName: string
+    region: string
+    storageKey: string
+  },
+): {
+  expiresSeconds: number
+} {
+  let url: URL
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    throw new Error('STUDIO_SOURCE_DOWNLOAD_URL_INVALID')
+  }
+  const expectedHost =
+    `${expected.bucketName}.s3.${expected.region}.amazonaws.com`
+      .toLocaleLowerCase('en-US')
+  const rawAuthority =
+    rawUrl.match(/^https:\/\/([^/?#]+)/i)?.[1] ?? ''
+  const expiresValues = url.searchParams.getAll('X-Amz-Expires')
+  const expiresRaw = expiresValues[0] ?? ''
+  const expiresSeconds = Number(expiresRaw)
+  if (
+    url.protocol !== 'https:' ||
+    url.username !== '' ||
+    url.password !== '' ||
+    url.port !== '' ||
+    rawAuthority.toLocaleLowerCase('en-US') !== expectedHost ||
+    url.hostname.toLocaleLowerCase('en-US') !== expectedHost ||
+    url.pathname !== `/${expected.storageKey}` ||
+    url.hash !== '' ||
+    expiresValues.length !== 1 ||
+    !/^\d+$/.test(expiresRaw) ||
+    !Number.isSafeInteger(expiresSeconds) ||
+    expiresSeconds < 1 ||
+    expiresSeconds > 65 ||
+    url.searchParams.get('X-Amz-Algorithm') !==
+      'AWS4-HMAC-SHA256' ||
+    !url.searchParams.get('X-Amz-Signature')
+  ) {
+    throw new Error('STUDIO_SOURCE_DOWNLOAD_URL_INVALID')
+  }
+
+  return { expiresSeconds }
+}
+
+export function parsePdfDownloadHeaders(
+  status: number,
+  headers: Record<string, string>,
+): {
+  contentLength: number
+  contentType: 'application/pdf'
+} {
+  const normalized = Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [
+      key.toLocaleLowerCase('en-US'),
+      value,
+    ]),
+  )
+  const contentType = normalized['content-type']
+    ?.split(';', 1)[0]
+    ?.trim()
+    .toLocaleLowerCase('en-US')
+  const lengthRaw = normalized['content-length']?.trim() ?? ''
+  const contentLength = Number(lengthRaw)
+  if (
+    status !== 200 ||
+    contentType !== 'application/pdf' ||
+    !/^\d+$/.test(lengthRaw) ||
+    !Number.isSafeInteger(contentLength) ||
+    contentLength < 100 ||
+    contentLength > 25 * 1024 * 1024
+  ) {
+    throw new Error('STUDIO_SOURCE_DOWNLOAD_HEADERS_INVALID')
+  }
+
+  return {
+    contentLength,
+    contentType: 'application/pdf',
+  }
 }
 
 export function summarizeDownloadedPdf(input: {
   status: number
   contentType: string
   body: Uint8Array
+  expectedSha256: string
 }): DownloadedPdfSummary {
   const bodySizeBytes = input.body.byteLength
   const hasPdfHeader =
@@ -534,6 +827,10 @@ export function summarizeDownloadedPdf(input: {
       bodySizeBytes >= 100 &&
       bodySizeBytes <= 25 * 1024 * 1024,
     bodySizeBytes,
+    sha256Matches:
+      /^[a-f0-9]{64}$/.test(input.expectedSha256) &&
+      createHash('sha256').update(input.body).digest('hex') ===
+        input.expectedSha256,
   }
 }
 
@@ -543,7 +840,8 @@ export function assertDownloadedPdfSummary(
   if (
     !summary.statusIs200 ||
     !summary.contentTypeIsPdf ||
-    !summary.bodyLooksLikePdf
+    !summary.bodyLooksLikePdf ||
+    !summary.sha256Matches
   ) {
     throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
   }
@@ -561,6 +859,51 @@ export function assertRejectedAdminLogin(
   ) {
     throw new Error('ADMIN_INVALID_PASSWORD_NOT_REJECTED')
   }
+}
+
+export function summarizePilotAccessEvidence(input: {
+  heading: string
+  status: string
+  description: string
+}): boolean {
+  return (
+    input.heading.trim() === 'Dostęp pilotażowy Pro' &&
+    input.status.trim() === 'Aktywny' &&
+    /W pilotażu masz aktywne wszystkie funkcje planu Pro\./.test(
+      input.description,
+    ) &&
+    /Płatności są obecnie wyłączone\./.test(
+      input.description,
+    )
+  )
+}
+
+export async function runAdminFinallyProtocol(input: {
+  hadSuccessfulLogin: boolean
+  primaryError: unknown | null
+  ensureSuccessfulLogin(): Promise<void>
+  restore(): Promise<void>
+  logout(): Promise<void>
+}): Promise<void> {
+  let cleanupError: unknown | null = null
+  const attempt = async (
+    action: () => Promise<void>,
+  ): Promise<void> => {
+    try {
+      await action()
+    } catch (error) {
+      cleanupError ??= error
+    }
+  }
+
+  if (!input.hadSuccessfulLogin) {
+    await attempt(input.ensureSuccessfulLogin)
+  }
+  await attempt(input.restore)
+  await attempt(input.logout)
+
+  if (input.primaryError !== null) throw input.primaryError
+  if (cleanupError !== null) throw cleanupError
 }
 
 export function parseAdminAgentState(
@@ -614,6 +957,7 @@ export type AccountExportSummary = {
   accountExportedEventPresent: boolean
   forbiddenBIdentifiersAbsent: boolean
   forbiddenCredentialKeysAbsent: boolean
+  forbiddenCredentialValuesAbsent: boolean
   observedPipelineCostUsd: number
   modelIds: string[]
 }
@@ -627,6 +971,9 @@ type AccountExportExpected = {
   sourceJobId: string
   acceptedProposalId: string
   rejectedProposalId: string
+  maxUsd: number
+  reservedUsd: number
+  sourceReservationUsd: number
   forbiddenBIdentifiers: readonly string[]
   pilotAccessModeConfirmed: boolean
 }
@@ -639,17 +986,32 @@ export function summarizeAccountExport(
   const studio = isRecord(root.propertyStudio)
     ? root.propertyStudio
     : {}
-  const sourceJobs = Array.isArray(studio.sourceJobs)
-    ? studio.sourceJobs
-        .map(readSourceJobCost)
-        .filter(
-          (job): job is Task9SourceJobCost => job !== null,
-        )
-    : []
-  const usage = calculateObservedPipelineUsage(
-    sourceJobs,
-    expected.sourceId,
-  )
+  let currentJobEvidence: {
+    observedPipelineCostUsd: number
+    modelIds: string[]
+  } | null = null
+  try {
+    currentJobEvidence = parseCurrentSourceJobEvidence(
+      Array.isArray(studio.sourceJobs)
+        ? studio.sourceJobs
+        : [],
+      {
+        organizationId: expected.organizationId,
+        projectId: expected.projectId,
+        sourceId: expected.sourceId,
+        jobId: expected.sourceJobId,
+        maxUsd: expected.maxUsd,
+        reservedUsd: expected.reservedUsd,
+        sourceReservationUsd: expected.sourceReservationUsd,
+      },
+    )
+  } catch {
+    currentJobEvidence = null
+  }
+  const usage = currentJobEvidence ?? {
+    observedPipelineCostUsd: 0,
+    modelIds: [],
+  }
   const projects = readCollection(studio, 'projects')
   const facts = readCollection(studio, 'facts')
   const sources = readCollection(studio, 'sources')
@@ -662,10 +1024,8 @@ export function summarizeAccountExport(
     hasExactFact(facts, expected) &&
     hasExactSource(sources, expected) &&
     hasExactProposalCollection(proposals, expected)
-  const currentSourceJobPresent = hasExactSourceJob(
-    jobs,
-    expected,
-  )
+  const currentSourceJobPresent =
+    jobs !== null && currentJobEvidence !== null
   const auditEvidencePresent = hasExpectedAuditEvidence(
     audit,
     expected,
@@ -704,6 +1064,8 @@ export function summarizeAccountExport(
     forbiddenCredentialKeysAbsent: !containsForbiddenCredentialKey(
       payload,
     ),
+    forbiddenCredentialValuesAbsent:
+      !containsForbiddenCredentialValue(payload),
     ...usage,
   }
 }
@@ -724,7 +1086,8 @@ export function assertAccountExportSummary(
     !summary.studioEventsPresent ||
     !summary.accountExportedEventPresent ||
     !summary.forbiddenBIdentifiersAbsent ||
-    !summary.forbiddenCredentialKeysAbsent
+    !summary.forbiddenCredentialKeysAbsent ||
+    !summary.forbiddenCredentialValuesAbsent
   ) {
     throw new Error('ACCOUNT_EXPORT_INVALID')
   }
@@ -756,28 +1119,6 @@ export function parseSafeDeletionResponse(
     sourceObjects: payload.deleted.sourceObjects as number,
     propertyStudio: 1,
     accountKeys: 5,
-  }
-}
-
-function readSourceJobCost(
-  value: unknown,
-): Task9SourceJobCost | null {
-  if (
-    !isRecord(value) ||
-    typeof value.sourceId !== 'string'
-  ) {
-    return null
-  }
-  const cost = value.providerCostMicrounits
-  const modelId = value.modelId
-  return {
-    sourceId: value.sourceId,
-    providerCostMicrounits:
-      cost === null || typeof cost === 'number' ? cost : Number.NaN,
-    modelId:
-      modelId === null || typeof modelId === 'string'
-        ? modelId
-        : null,
   }
 }
 
@@ -849,21 +1190,6 @@ function hasExactProposalCollection(
   } catch {
     return false
   }
-}
-
-function hasExactSourceJob(
-  jobs: unknown[] | null,
-  expected: AccountExportExpected,
-): boolean {
-  return (
-    jobs?.length === 1 &&
-    isRecord(jobs[0]) &&
-    jobs[0].id === expected.sourceJobId &&
-    jobs[0].organizationId === expected.organizationId &&
-    jobs[0].propertyProjectId === expected.projectId &&
-    jobs[0].sourceId === expected.sourceId &&
-    jobs[0].status === 'succeeded'
-  )
 }
 
 const expectedAuditEvidence = [
@@ -943,11 +1269,23 @@ function hasAccountExportedEvent(
 
 const forbiddenCredentialKeys = new Set([
   'signedurl',
+  'presignedurl',
   'accesstoken',
   'refreshtoken',
   'idtoken',
+  'sessiontoken',
+  'securitytoken',
+  'bearertoken',
   'authorization',
+  'authentication',
   'password',
+  'clientsecret',
+  'secret',
+  'cookie',
+  'setcookie',
+  'xamzcredential',
+  'xamzsignature',
+  'xamzsecuritytoken',
 ])
 
 function containsForbiddenCredentialKey(
@@ -973,6 +1311,34 @@ function containsForbiddenCredentialKey(
       containsForbiddenCredentialKey(child, seen)
     )
   })
+}
+
+const forbiddenCredentialValuePatterns = [
+  /(?:^|[?&\s])X-Amz-(?:Algorithm|Credential|Date|Expires|SignedHeaders|Signature|Security-Token)=/i,
+  /\bBearer\s+[A-Za-z0-9._~+/=-]+/i,
+  /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b/,
+  /(?:^|[?&\s;])(?:access_?token|refresh_?token|id_?token|token|client_?secret|secret|authorization|cookie)\s*[:=]\s*\S+/i,
+] as const
+
+function containsForbiddenCredentialValue(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): boolean {
+  if (typeof value === 'string') {
+    return forbiddenCredentialValuePatterns.some((pattern) =>
+      pattern.test(value),
+    )
+  }
+  if (!value || typeof value !== 'object') return false
+  if (seen.has(value)) return false
+  seen.add(value)
+  return Array.isArray(value)
+    ? value.some((item) =>
+        containsForbiddenCredentialValue(item, seen),
+      )
+    : Object.values(value).some((item) =>
+        containsForbiddenCredentialValue(item, seen),
+      )
 }
 
 function containsStringFragment(

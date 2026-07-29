@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   chmod,
   lstat,
@@ -17,7 +18,11 @@ const MAX_SOURCE_BYTES = 25 * 1024 * 1024
 export async function createSyntheticSourcePdf(input: {
   browserDirectory: string
   runId: string
-}): Promise<{ path: string; sizeBytes: number }> {
+}): Promise<{
+  path: string
+  sizeBytes: number
+  checksumSha256: string
+}> {
   const runId = currentReleaseRunIdSchema.parse(input.runId)
   const browserDirectory = resolve(input.browserDirectory)
   const path = resolve(
@@ -82,7 +87,13 @@ export async function createSyntheticSourcePdf(input: {
   await writeFile(path, bytes, { mode: 0o600 })
   await chmod(path, 0o600)
 
-  return { path, sizeBytes: bytes.byteLength }
+  return {
+    path,
+    sizeBytes: bytes.byteLength,
+    checksumSha256: createHash('sha256')
+      .update(bytes)
+      .digest('hex'),
+  }
 }
 
 async function rejectSymlink(path: string): Promise<void> {

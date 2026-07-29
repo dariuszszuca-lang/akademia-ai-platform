@@ -9,9 +9,14 @@ import {
   assertIsolationSummary,
   assertUiIsolationSummary,
   createSingleSourcePipeline,
+  parseAcceptedAreaDecisionResponse,
+  parseAcceptedAreaFactList,
   parseFactUpdateResponse,
+  parsePdfDownloadHeaders,
   parsePersistedFactList,
   parseProposalDecisionReadback,
+  parseRejectedPriceDecisionResponse,
+  parseSignedS3DownloadUrl,
   selectTargetProposals,
   summarizeIsolationResponse,
   summarizeDownloadedPdf,
@@ -51,6 +56,7 @@ export async function runStudioScenarios(
   let storageKey: string | null = null
   let subjectA: string | null = null
   let subjectB: string | null = null
+  let restoredFactVersion: number | null = null
   let selectedProposals: Task9SelectedProposals | null = null
   let areaDecision: { id: string; status: 'accepted' } | null =
     null
@@ -268,6 +274,7 @@ export async function runStudioScenarios(
           version: createdVersion + 2,
         },
       )
+      restoredFactVersion = createdVersion + 2
       factId = nextFactId
       subjectA = nextSubjectA
     },
@@ -339,7 +346,8 @@ export async function runStudioScenarios(
         typeof source.storageKey !== 'string' ||
         source.storageKey.length === 0 ||
         source.mediaType !== 'application/pdf' ||
-        source.sizeBytes !== pdf.sizeBytes
+        source.sizeBytes !== pdf.sizeBytes ||
+        source.checksumSha256 !== pdf.checksumSha256
       ) {
         throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
       }
@@ -362,6 +370,11 @@ export async function runStudioScenarios(
         runtime,
         createdProjectId,
         nextSourceId,
+        {
+          storageKey: nextStorageKey,
+          sizeBytes: pdf.sizeBytes,
+          checksumSha256: pdf.checksumSha256,
+        },
       )
     },
   )
@@ -406,6 +419,19 @@ export async function runStudioScenarios(
         buttonName: 'Przyjmij nową',
         expectedStatus: 'accepted',
       })
+      const acceptedArea =
+        parseAcceptedAreaDecisionResponse(areaResult.payload, {
+          proposalId: areaResult.id,
+          factId: createdFactId,
+          projectId: createdProjectId,
+          subjectA: userASubject,
+          sourceId: createdSourceId,
+          jobId: selected.area.jobId,
+          preAcceptVersion: requireValue<number>(
+            restoredFactVersion,
+            'STUDIO_FACT_READBACK_INVALID',
+          ),
+        })
 
       const priceResult = await decideProposalFromUi({
         runtime,
@@ -413,6 +439,11 @@ export async function runStudioScenarios(
         proposal: selected.price,
         buttonName: 'Odrzuć',
         expectedStatus: 'rejected',
+      })
+      parseRejectedPriceDecisionResponse(priceResult.payload, {
+        proposalId: priceResult.id,
+        sourceId: createdSourceId,
+        jobId: selected.area.jobId,
       })
       const readbackResponse =
         await runtime.contextA.request.get(
@@ -435,6 +466,29 @@ export async function runStudioScenarios(
       )
       areaDecision = readback.accepted
       priceDecision = readback.rejected
+
+      const factsReadback =
+        await runtime.contextA.request.get(
+          `/api/properties/${createdProjectId}/facts`,
+        )
+      if (factsReadback.status() !== 200) {
+        throw new Error(
+          'STUDIO_ACCEPTED_AREA_READBACK_INVALID',
+        )
+      }
+      parseAcceptedAreaFactList(
+        await readJson(
+          factsReadback,
+          'STUDIO_ACCEPTED_AREA_READBACK_INVALID',
+        ),
+        {
+          factId: createdFactId,
+          projectId: createdProjectId,
+          subjectA: userASubject,
+          sourceId: createdSourceId,
+          version: acceptedArea.version,
+        },
+      )
 
       await runtime.pageA.goto(
         `/nieruchomosci/${createdProjectId}/braki`,
@@ -623,6 +677,11 @@ async function assertSingleDownloadGrant(
   runtime: Task9Runtime,
   projectId: string,
   sourceId: string,
+  expected: {
+    storageKey: string
+    sizeBytes: number
+    checksumSha256: string
+  },
 ): Promise<void> {
   const response = await runtime.contextA.request.get(
     `/api/properties/${projectId}/sources/${sourceId}/download`,
@@ -651,17 +710,34 @@ async function assertSingleDownloadGrant(
   ) {
     throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
   }
+  parseSignedS3DownloadUrl(payload.url, {
+    bucketName: runtime.operatorContext.resources.bucketName,
+    region: runtime.operatorContext.region,
+    storageKey: expected.storageKey,
+  })
 
   let downloadResponse: APIResponse | null = null
   try {
     downloadResponse = await runtime.contextA.request.get(
       payload.url,
+      { maxRedirects: 0 },
     )
+    const headers = parsePdfDownloadHeaders(
+      downloadResponse.status(),
+      downloadResponse.headers(),
+    )
+    if (headers.contentLength !== expected.sizeBytes) {
+      throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
+    }
+    const body = await downloadResponse.body()
+    if (body.byteLength !== headers.contentLength) {
+      throw new Error('STUDIO_SOURCE_DOWNLOAD_INVALID')
+    }
     const summary = summarizeDownloadedPdf({
       status: downloadResponse.status(),
-      contentType:
-        downloadResponse.headers()['content-type'] ?? '',
-      body: await downloadResponse.body(),
+      contentType: headers.contentType,
+      body,
+      expectedSha256: expected.checksumSha256,
     })
     assertDownloadedPdfSummary(summary)
   } catch {
@@ -681,7 +757,11 @@ async function decideProposalFromUi<
   proposal: Task9ProposalCandidate
   buttonName: 'Przyjmij nową' | 'Odrzuć'
   expectedStatus: TStatus
-}): Promise<{ id: string; status: TStatus }> {
+}): Promise<{
+  id: string
+  status: TStatus
+  payload: unknown
+}> {
   const { pageA } = input.runtime
   const item = pageA.locator('ol > li').filter({
     has: pageA.getByRole('heading', {
@@ -719,11 +799,12 @@ async function decideProposalFromUi<
   if (response.status() !== 200) {
     throw new Error('STUDIO_PROPOSAL_DECISION_INVALID')
   }
+  const payload = await readJson(
+    response,
+    'STUDIO_PROPOSAL_DECISION_INVALID',
+  )
   const proposal = readNestedRecord(
-    await readJson(
-      response,
-      'STUDIO_PROPOSAL_DECISION_INVALID',
-    ),
+    payload,
     'proposal',
     'STUDIO_PROPOSAL_DECISION_INVALID',
   )
@@ -736,6 +817,7 @@ async function decideProposalFromUi<
   return {
     id: input.proposal.id,
     status: input.expectedStatus,
+    payload,
   }
 }
 

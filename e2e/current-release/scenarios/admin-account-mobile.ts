@@ -1,5 +1,7 @@
 import {
   expect,
+  type Download,
+  type Locator,
   type Page,
 } from '@playwright/test'
 import { getUserSubject } from '../operator'
@@ -8,7 +10,9 @@ import {
   assertRejectedAdminLogin,
   parseAdminAgentState,
   parseSafeDeletionResponse,
+  runAdminFinallyProtocol,
   summarizeAccountExport,
+  summarizePilotAccessEvidence,
   type Task9Runtime,
   type Task9StudioState,
 } from '../task9-helpers'
@@ -48,64 +52,83 @@ export async function runAdminAccountMobileScenarios(
           new URL(response.url()).pathname ===
             '/api/account/export',
       )
+      const downloadPromise = pageA.waitForEvent('download')
       await pageA
         .getByRole('button', {
           name: 'Pobierz JSON',
           exact: true,
         })
         .click()
-      const response = await responsePromise
-      if (response.status() !== 200) {
-        throw new Error('ACCOUNT_EXPORT_INVALID')
-      }
+      const [response, download] = await Promise.all([
+        responsePromise,
+        downloadPromise,
+      ])
+      try {
+        if (response.status() !== 200) {
+          throw new Error('ACCOUNT_EXPORT_INVALID')
+        }
 
-      const payload = await readJson(
-        response,
-        'ACCOUNT_EXPORT_INVALID',
-      )
+        const payload = await readJson(
+          response,
+          'ACCOUNT_EXPORT_INVALID',
+        )
 
-      await pageA.goto('/settings/subscription')
-      await expect(
-        pageA.getByRole('heading', {
+        await pageA.goto('/settings/subscription')
+        const pilotHeading = pageA.getByRole('heading', {
           name: 'Dostęp pilotażowy Pro',
           exact: true,
-        }),
-      ).toBeVisible()
-      await expect(
-        pageA.getByText('Aktywny', { exact: true }),
-      ).toBeVisible()
-      await expect(
-        pageA.getByText(
-          /Płatności są obecnie wyłączone\./,
-        ),
-      ).toBeVisible()
+        })
+        const pilotStatus = pageA.getByText('Aktywny', {
+          exact: true,
+        })
+        const pilotDescription = pageA.getByText(
+          /W pilotażu masz aktywne wszystkie funkcje planu Pro\.[\s\S]*Płatności są obecnie wyłączone\./,
+        )
+        await expect(pilotHeading).toBeVisible()
+        await expect(pilotStatus).toBeVisible()
+        await expect(pilotDescription).toBeVisible()
+        const pilotAccessModeConfirmed =
+          summarizePilotAccessEvidence({
+            heading: await pilotHeading.innerText(),
+            status: await pilotStatus.innerText(),
+            description: await pilotDescription.innerText(),
+          })
 
-      const summary = summarizeAccountExport(payload, {
-        subjectA: studio.subjectA,
-        organizationId: studio.organizationId,
-        projectId: studio.projectId,
-        factId: studio.factId,
-        sourceId: studio.sourceId,
-        sourceJobId: studio.jobId,
-        acceptedProposalId: studio.proposals.area.id,
-        rejectedProposalId: studio.proposals.price.id,
-        forbiddenBIdentifiers: [
-          studio.subjectB,
-          runtime.fixtures.userB,
-          `synthetic-release-${runtime.fixtures.runId}-b`,
-        ],
-        pilotAccessModeConfirmed: true,
-      })
-      assertAccountExportSummary(summary)
-      if (
-        runtime.budget.snapshot().sourcePipelineCalls !== 1
-      ) {
-        throw new Error('STUDIO_SOURCE_PIPELINE_CALLS_INVALID')
-      }
-      exportUsage = {
-        observedPipelineCostUsd:
-          summary.observedPipelineCostUsd,
-        modelIds: summary.modelIds,
+        const summary = summarizeAccountExport(payload, {
+          subjectA: studio.subjectA,
+          organizationId: studio.organizationId,
+          projectId: studio.projectId,
+          factId: studio.factId,
+          sourceId: studio.sourceId,
+          sourceJobId: studio.jobId,
+          acceptedProposalId: studio.proposals.area.id,
+          rejectedProposalId: studio.proposals.price.id,
+          maxUsd: runtime.fixtures.budget.maxUsd,
+          reservedUsd: runtime.budget.snapshot().reservedUsd,
+          sourceReservationUsd:
+            runtime.fixtures.budget.unitCosts.sourcePipelineUsd,
+          forbiddenBIdentifiers: [
+            studio.subjectB,
+            runtime.fixtures.userB,
+            `synthetic-release-${runtime.fixtures.runId}-b`,
+          ],
+          pilotAccessModeConfirmed,
+        })
+        assertAccountExportSummary(summary)
+        if (
+          runtime.budget.snapshot().sourcePipelineCalls !== 1
+        ) {
+          throw new Error(
+            'STUDIO_SOURCE_PIPELINE_CALLS_INVALID',
+          )
+        }
+        exportUsage = {
+          observedPipelineCostUsd:
+            summary.observedPipelineCostUsd,
+          modelIds: summary.modelIds,
+        }
+      } finally {
+        await cleanupDownload(download)
       }
     },
   )
@@ -114,7 +137,7 @@ export async function runAdminAccountMobileScenarios(
     'ui.mobile',
     'UI_MOBILE_FAILED',
     async () => {
-      await runMobileChecks(runtime.pageA, studio)
+      await runMobileChecks(runtime, studio)
     },
   )
 
@@ -138,6 +161,8 @@ async function runAdminToggle(
 ): Promise<void> {
   const { pageA, contextA } = runtime
   let originalEnabled: boolean | null = null
+  let successfulLogin = false
+  let primaryError: unknown | null = null
 
   try {
     await pageA.goto('/admin/login')
@@ -170,20 +195,11 @@ async function runAdminToggle(
       pageA.getByText('Invalid password', { exact: true }),
     ).toBeVisible()
 
-    await passwordInput.fill(runtime.fixtures.adminPassword)
-    const loginPromise = pageA.waitForResponse(
-      (response) =>
-        response.request().method() === 'POST' &&
-        new URL(response.url()).pathname === '/api/admin/auth',
+    await successfulAdminLogin(
+      pageA,
+      runtime.fixtures.adminPassword,
     )
-    await pageA
-      .getByRole('button', { name: 'Zaloguj', exact: true })
-      .click()
-    const login = await loginPromise
-    if (login.status() !== 200) {
-      throw new Error('ADMIN_LOGIN_FAILED')
-    }
-    await pageA.waitForURL((url) => url.pathname === '/admin')
+    successfulLogin = true
 
     const current = await contextA.request.get('/api/admin/agents')
     originalEnabled = await readAdminAgentState(current)
@@ -225,8 +241,22 @@ async function runAdminToggle(
     } else {
       await expect(publicationLink).toHaveCount(0)
     }
-  } finally {
-    try {
+  } catch (error) {
+    primaryError = error
+  }
+
+  await runAdminFinallyProtocol({
+    hadSuccessfulLogin: successfulLogin,
+    primaryError,
+    ensureSuccessfulLogin: async () => {
+      await pageA.goto('/admin/login')
+      await successfulAdminLogin(
+        pageA,
+        runtime.fixtures.adminPassword,
+      )
+      successfulLogin = true
+    },
+    restore: async () => {
       if (originalEnabled !== null) {
         const restore = await contextA.request.patch(
           '/api/admin/agents',
@@ -247,37 +277,66 @@ async function runAdminToggle(
           throw new Error('ADMIN_RESTORE_READBACK_FAILED')
         }
       }
-    } finally {
-      const logout = await contextA.request.post(
-        '/api/admin/logout',
-      )
-      if (logout.status() !== 200) {
-        throw new Error('ADMIN_LOGOUT_FAILED')
-      }
-      const status = await contextA.request.get(
-        '/api/admin/status',
-      )
-      if (
-        status.status() !== 200 ||
-        !isExactAdminStatus(
-          await readJson(status, 'ADMIN_LOGOUT_FAILED'),
-        )
-      ) {
-        throw new Error('ADMIN_LOGOUT_FAILED')
-      }
-    }
+    },
+    logout: () => logoutAdmin(contextA),
+  })
+}
+
+async function successfulAdminLogin(
+  page: Page,
+  password: string,
+): Promise<void> {
+  await page.locator('input[type="password"]').fill(password)
+  const loginPromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      new URL(response.url()).pathname === '/api/admin/auth',
+  )
+  await page
+    .getByRole('button', { name: 'Zaloguj', exact: true })
+    .click()
+  const login = await loginPromise
+  const payload = await readJson(login, 'ADMIN_LOGIN_FAILED')
+  if (
+    login.status() !== 200 ||
+    !isRecord(payload) ||
+    Object.keys(payload).length !== 1 ||
+    payload.ok !== true
+  ) {
+    throw new Error('ADMIN_LOGIN_FAILED')
+  }
+  await page.waitForURL((url) => url.pathname === '/admin')
+}
+
+async function logoutAdmin(
+  context: Task9Runtime['contextA'],
+): Promise<void> {
+  const logout = await context.request.post('/api/admin/logout')
+  if (logout.status() !== 200) {
+    throw new Error('ADMIN_LOGOUT_FAILED')
+  }
+  const status = await context.request.get('/api/admin/status')
+  if (
+    status.status() !== 200 ||
+    !isExactAdminStatus(
+      await readJson(status, 'ADMIN_LOGOUT_FAILED'),
+    )
+  ) {
+    throw new Error('ADMIN_LOGOUT_FAILED')
   }
 }
 
 async function runMobileChecks(
-  page: Page,
+  runtime: Task9Runtime,
   studio: Task9StudioState,
 ): Promise<void> {
+  const page = runtime.pageA
   await page.setViewportSize({ width: 390, height: 844 })
 
   const routes: Array<{
     path: string
     ready: () => Promise<void>
+    focusTarget?: () => Locator
   }> = [
     {
       path: '/start',
@@ -296,6 +355,20 @@ async function runMobileChecks(
             name: /Tak Cię widzą/,
           }),
         ).toBeVisible(),
+    },
+    {
+      path: '/onboarding',
+      ready: () =>
+        expect(
+          page.getByRole('heading', {
+            name: /Stwórzmy razem/,
+          }),
+        ).toBeVisible(),
+      focusTarget: () =>
+        page.getByRole('link', {
+          name: 'Wstrzymaj',
+          exact: true,
+        }),
     },
     {
       path: '/agent',
@@ -387,17 +460,19 @@ async function runMobileChecks(
       if (active instanceof HTMLElement) active.blur()
     })
     await page.keyboard.press('Tab')
-    const skipLink = page.getByRole('link', {
-      name: 'Przejdź do treści',
-      exact: true,
-    })
-    await expect(skipLink).toBeFocused()
-    await expect(skipLink).toBeVisible()
-    const box = await skipLink.boundingBox()
+    const focusTarget =
+      route.focusTarget?.() ??
+      page.getByRole('link', {
+        name: 'Przejdź do treści',
+        exact: true,
+      })
+    await expect(focusTarget).toBeFocused()
+    await expect(focusTarget).toBeVisible()
+    const box = await focusTarget.boundingBox()
     if (!box || box.width <= 0 || box.height <= 0) {
       throw new Error('UI_MOBILE_SKIP_LINK_INVALID')
     }
-    const focusIsVisible = await skipLink.evaluate((element) => {
+    const focusIsVisible = await focusTarget.evaluate((element) => {
       const style = window.getComputedStyle(element)
       return (
         style.outlineStyle !== 'none' ||
@@ -407,6 +482,132 @@ async function runMobileChecks(
     if (!focusIsVisible) {
       throw new Error('UI_MOBILE_SKIP_LINK_INVALID')
     }
+  }
+
+  await runMobileAdminCheck(runtime)
+}
+
+async function runMobileAdminCheck(
+  runtime: Task9Runtime,
+): Promise<void> {
+  const { pageA, contextA } = runtime
+  let successfulLogin = false
+  let primaryError: unknown | null = null
+
+  try {
+    await pageA.goto('/admin')
+    await pageA.waitForURL(
+      (url) => url.pathname === '/admin/login',
+    )
+    await expect(
+      pageA.getByRole('heading', {
+        name: 'Panel Akademii AI',
+        exact: true,
+      }),
+    ).toBeVisible()
+    await assertMobilePageHealth(pageA)
+
+    const password = pageA.locator('input[type="password"]')
+    const unfocusedBorder = await password.evaluate(
+      (element) => window.getComputedStyle(element).borderColor,
+    )
+    await password.focus()
+    await expect(password).toBeFocused()
+    const focusedStyle = await password.evaluate((element) => {
+      const style = window.getComputedStyle(element)
+      return {
+        borderColor: style.borderColor,
+        boxShadow: style.boxShadow,
+        outlineStyle: style.outlineStyle,
+      }
+    })
+    if (
+      focusedStyle.borderColor === unfocusedBorder &&
+      focusedStyle.boxShadow === 'none' &&
+      focusedStyle.outlineStyle === 'none'
+    ) {
+      throw new Error('UI_MOBILE_ADMIN_FOCUS_INVALID')
+    }
+
+    await successfulAdminLogin(
+      pageA,
+      runtime.fixtures.adminPassword,
+    )
+    successfulLogin = true
+    await expect(
+      pageA.getByRole('heading', {
+        name: 'Zarządzanie Zespołem AI',
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(
+      pageA.getByText('Ładowanie agentów...', { exact: true }),
+    ).toBeHidden()
+    await assertMobilePageHealth(pageA)
+
+    const logoutButton = pageA.getByRole('button', {
+      name: 'Wyloguj',
+      exact: true,
+    })
+    await logoutButton.focus()
+    await expect(logoutButton).toBeFocused()
+    const focusVisible = await logoutButton.evaluate((element) => {
+      const style = window.getComputedStyle(element)
+      return (
+        style.outlineStyle !== 'none' ||
+        style.boxShadow !== 'none'
+      )
+    })
+    if (!focusVisible) {
+      throw new Error('UI_MOBILE_ADMIN_FOCUS_INVALID')
+    }
+
+    const logoutPromise = pageA.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/api/admin/logout',
+    )
+    await logoutButton.click()
+    const logout = await logoutPromise
+    if (logout.status() !== 200) {
+      throw new Error('UI_MOBILE_ADMIN_LOGOUT_FAILED')
+    }
+    await pageA.waitForURL(
+      (url) => url.pathname === '/admin/login',
+    )
+  } catch (error) {
+    primaryError = error
+  }
+
+  await runAdminFinallyProtocol({
+    hadSuccessfulLogin: successfulLogin,
+    primaryError,
+    ensureSuccessfulLogin: async () => {
+      await pageA.goto('/admin/login')
+      await successfulAdminLogin(
+        pageA,
+        runtime.fixtures.adminPassword,
+      )
+      successfulLogin = true
+    },
+    restore: async () => {},
+    logout: () => logoutAdmin(contextA),
+  })
+}
+
+async function assertMobilePageHealth(page: Page): Promise<void> {
+  const fitsViewport = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth <=
+      window.innerWidth,
+  )
+  if (!fitsViewport) {
+    throw new Error('UI_MOBILE_HORIZONTAL_OVERFLOW')
+  }
+  if (
+    (await page.locator('[role="alert"]:visible').count()) > 0
+  ) {
+    throw new Error('UI_MOBILE_VISIBLE_ERROR')
   }
 }
 
@@ -536,6 +737,13 @@ async function deleteAccountB(
   ) {
     throw new Error('ACCOUNT_DELETE_B_IDENTITY_PRESENT')
   }
+}
+
+async function cleanupDownload(
+  download: Download,
+): Promise<void> {
+  await download.cancel().catch(() => {})
+  await download.delete().catch(() => {})
 }
 
 async function readAdminAgentState(

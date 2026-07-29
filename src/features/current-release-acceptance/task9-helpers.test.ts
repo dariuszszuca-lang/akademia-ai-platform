@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,15 +14,23 @@ import {
   assertUiIsolationSummary,
   calculateObservedPipelineUsage,
   createSingleSourcePipeline,
+  parseAcceptedAreaDecisionResponse,
+  parseAcceptedAreaFactList,
   parseAdminAgentState,
   parseFactUpdateResponse,
+  parsePdfDownloadHeaders,
   parsePersistedFactList,
+  parseCurrentSourceJobEvidence,
   parseProposalDecisionReadback,
+  parseRejectedPriceDecisionResponse,
   parseSafeDeletionResponse,
+  parseSignedS3DownloadUrl,
+  runAdminFinallyProtocol,
   selectTargetProposals,
   summarizeAccountExport,
   summarizeDownloadedPdf,
   summarizeIsolationResponse,
+  summarizePilotAccessEvidence,
   summarizeUiIsolationResponse,
   type Task9ProposalCandidate,
 } from '../../../e2e/current-release/task9-helpers'
@@ -230,6 +239,135 @@ describe('Task 9 proposal selection', () => {
       ),
     ).toThrow('STUDIO_PROPOSAL_READBACK_INVALID')
   })
+
+  it('binds the accepted area response and independent fact readback to the original fact', () => {
+    const decision = parseAcceptedAreaDecisionResponse(
+      {
+        proposal: {
+          id: 'area',
+          factKey: 'area.usable',
+          status: 'accepted',
+          sourceId,
+          jobId,
+          valueType: 'number',
+          value: 83.4,
+        },
+        fact: acceptedAreaFact(4),
+        decisionCreated: true,
+      },
+      {
+        proposalId: 'area',
+        factId,
+        projectId,
+        subjectA: 'subject-a',
+        sourceId,
+        jobId,
+        preAcceptVersion: 3,
+      },
+    )
+    expect(decision).toEqual({
+      proposalId: 'area',
+      factId,
+      version: 4,
+      value: 83.4,
+    })
+
+    expect(
+      parseAcceptedAreaFactList(
+        { facts: [acceptedAreaFact(4)] },
+        {
+          factId,
+          projectId,
+          subjectA: 'subject-a',
+          sourceId,
+          version: decision.version,
+        },
+      ),
+    ).toEqual({
+      factId,
+      version: 4,
+      value: 83.4,
+      factCount: 1,
+    })
+
+    expect(() =>
+      parseAcceptedAreaDecisionResponse(
+        {
+          proposal: {
+            id: 'area',
+            factKey: 'area.usable',
+            status: 'accepted',
+            sourceId,
+            jobId,
+            valueType: 'number',
+            value: 83.4,
+          },
+          fact: {
+            ...acceptedAreaFact(3),
+            sourceIds: [],
+          },
+          decisionCreated: true,
+        },
+        {
+          proposalId: 'area',
+          factId,
+          projectId,
+          subjectA: 'subject-a',
+          sourceId,
+          jobId,
+          preAcceptVersion: 3,
+        },
+      ),
+    ).toThrow('STUDIO_ACCEPTED_AREA_INVALID')
+  })
+
+  it('requires the rejected price response to have no fact', () => {
+    expect(
+      parseRejectedPriceDecisionResponse(
+        {
+          proposal: {
+            id: 'price',
+            factKey: 'price.asking',
+            status: 'rejected',
+            sourceId,
+            jobId,
+            valueType: 'number',
+            value: 750_000,
+          },
+          fact: null,
+          decisionCreated: true,
+        },
+        {
+          proposalId: 'price',
+          sourceId,
+          jobId,
+        },
+      ),
+    ).toEqual({ proposalId: 'price', factIsNull: true })
+
+    expect(() =>
+      parseRejectedPriceDecisionResponse(
+        {
+          proposal: {
+            id: 'price',
+            factKey: 'price.asking',
+            status: 'rejected',
+            sourceId,
+            jobId,
+            valueType: 'number',
+            value: 750_000,
+          },
+          fact: acceptedAreaFact(4),
+          decisionCreated: true,
+        },
+        {
+          proposalId: 'price',
+          sourceId,
+          jobId,
+        },
+      ),
+    ).toThrow('STUDIO_REJECTED_PRICE_INVALID')
+  })
 })
 
 describe('Task 9 source accounting', () => {
@@ -314,6 +452,62 @@ describe('Task 9 source accounting', () => {
       'STUDIO_SOURCE_PIPELINE_ALREADY_USED',
     )
     expect(budget.snapshot().sourcePipelineCalls).toBe(1)
+  })
+
+  it('requires one costed succeeded USD job inside the shared budget', () => {
+    const validJob = {
+      id: jobId,
+      organizationId,
+      propertyProjectId: projectId,
+      sourceId,
+      status: 'succeeded',
+      providerCostMicrounits: 250_000,
+      currency: 'USD',
+      modelId: 'claude-sonnet-4-6',
+    }
+    expect(
+      parseCurrentSourceJobEvidence(
+        [validJob],
+        {
+          organizationId,
+          projectId,
+          sourceId,
+          jobId,
+          maxUsd: 2,
+          reservedUsd: 1,
+          sourceReservationUsd: 0.25,
+        },
+      ),
+    ).toEqual({
+      observedPipelineCostUsd: 0.25,
+      modelIds: ['claude-sonnet-4-6'],
+    })
+
+    for (const invalid of [
+      { ...validJob, providerCostMicrounits: null },
+      { ...validJob, providerCostMicrounits: 0 },
+      { ...validJob, modelId: '   ' },
+      { ...validJob, modelId: 'model current' },
+      { ...validJob, currency: 'EUR' },
+      // The job itself is below $2, but replacing the $0.25 reservation with
+      // $1.50 would push the shared observed total to $2.25.
+      { ...validJob, providerCostMicrounits: 1_500_000 },
+    ]) {
+      expect(() =>
+        parseCurrentSourceJobEvidence(
+          [invalid],
+          {
+            organizationId,
+            projectId,
+            sourceId,
+            jobId,
+            maxUsd: 2,
+            reservedUsd: 1,
+            sourceReservationUsd: 0.25,
+          },
+        ),
+      ).toThrow('STUDIO_PIPELINE_JOB_INVALID')
+    }
   })
 })
 
@@ -500,15 +694,83 @@ describe('Task 9 safe summaries', () => {
     ).toThrow('STUDIO_FACT_READBACK_INVALID')
   })
 
-  it('reduces a downloaded PDF to bounded evidence without retaining bytes or a URL', () => {
+  it('allowlists only the exact short-lived regional S3 URL', () => {
+    const expected = {
+      bucketName: 'property-source-prod-261965598943',
+      region: 'eu-central-1',
+      storageKey:
+        `originals/organizations/${organizationId}/properties/${projectId}/sources/${sourceId}/original`,
+    }
+    const path = `/${expected.storageKey}`
+    const valid =
+      `https://${expected.bucketName}.s3.${expected.region}.amazonaws.com${path}` +
+      '?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=60&X-Amz-Signature=abc'
+
+    expect(parseSignedS3DownloadUrl(valid, expected)).toEqual({
+      expiresSeconds: 60,
+    })
+    for (const invalid of [
+      valid.replace('https://', 'http://'),
+      valid.replace(
+        `${expected.bucketName}.s3.${expected.region}.amazonaws.com`,
+        '127.0.0.1',
+      ),
+      valid.replace('https://', 'https://user:pass@'),
+      valid.replace('.amazonaws.com', '.amazonaws.com:443'),
+      valid.replace('X-Amz-Expires=60', 'X-Amz-Expires=66'),
+    ]) {
+      expect(() =>
+        parseSignedS3DownloadUrl(invalid, expected),
+      ).toThrow('STUDIO_SOURCE_DOWNLOAD_URL_INVALID')
+    }
+  })
+
+  it('rejects redirects and missing or oversized content-length before reading a body', () => {
+    expect(
+      parsePdfDownloadHeaders(200, {
+        'content-type': 'application/pdf',
+        'content-length': '209',
+      }),
+    ).toEqual({
+      contentLength: 209,
+      contentType: 'application/pdf',
+    })
+    for (const [status, headers] of [
+      [
+        302,
+        {
+          'content-type': 'application/pdf',
+          'content-length': '209',
+        },
+      ],
+      [200, { 'content-type': 'application/pdf' }],
+      [
+        200,
+        {
+          'content-type': 'application/pdf',
+          'content-length': String(25 * 1024 * 1024 + 1),
+        },
+      ],
+    ] as const) {
+      expect(() =>
+        parsePdfDownloadHeaders(status, headers),
+      ).toThrow('STUDIO_SOURCE_DOWNLOAD_HEADERS_INVALID')
+    }
+  })
+
+  it('reduces a downloaded PDF to checksum evidence without retaining bytes or a URL', () => {
     const pdf = Buffer.concat([
       Buffer.from('%PDF-1.7\n', 'ascii'),
       Buffer.alloc(200, 65),
     ])
+    const expectedSha256 = createHash('sha256')
+      .update(pdf)
+      .digest('hex')
     const summary = summarizeDownloadedPdf({
       status: 200,
       contentType: 'application/pdf',
       body: pdf,
+      expectedSha256,
     })
 
     expect(summary).toEqual({
@@ -516,6 +778,7 @@ describe('Task 9 safe summaries', () => {
       contentTypeIsPdf: true,
       bodyLooksLikePdf: true,
       bodySizeBytes: pdf.byteLength,
+      sha256Matches: true,
     })
     expect(() => assertDownloadedPdfSummary(summary)).not.toThrow()
     expect(JSON.stringify(summary)).not.toContain('%PDF')
@@ -524,8 +787,12 @@ describe('Task 9 safe summaries', () => {
       assertDownloadedPdfSummary(
         summarizeDownloadedPdf({
           status: 200,
-          contentType: 'text/html',
-          body: Buffer.from('<html>not a pdf</html>'),
+          contentType: 'application/pdf',
+          body: Buffer.concat([
+            Buffer.from('%PDF-1.7\n', 'ascii'),
+            Buffer.alloc(200, 66),
+          ]),
+          expectedSha256,
         }),
       ),
     ).toThrow('STUDIO_SOURCE_DOWNLOAD_INVALID')
@@ -587,8 +854,9 @@ describe('Task 9 safe summaries', () => {
       accountExportedEventPresent: true,
       forbiddenBIdentifiersAbsent: true,
       forbiddenCredentialKeysAbsent: true,
+      forbiddenCredentialValuesAbsent: true,
       observedPipelineCostUsd: 0.25,
-      modelIds: ['model-current'],
+      modelIds: ['claude-sonnet-4-6'],
     })
     expect(() => assertAccountExportSummary(summary)).not.toThrow()
   })
@@ -610,6 +878,49 @@ describe('Task 9 safe summaries', () => {
     expect(JSON.stringify(summary)).not.toContain(
       'must-never-be-returned',
     )
+  })
+
+  it('detects presigned, bearer, JWT, token, secret, auth, and cookie string values', () => {
+    for (const forbidden of [
+      'https://bucket.s3.eu-central-1.amazonaws.com/a?X-Amz-Signature=abc',
+      'Bearer abc.def.ghi',
+      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.signature',
+      'token=hidden',
+      'client_secret=hidden',
+      'Authorization: hidden',
+      'Cookie: session=hidden',
+    ]) {
+      const summary = summarizeAccountExport(
+        {
+          ...validAccountExport(),
+          nested: { harmlessLabel: forbidden },
+        },
+        accountExportExpectation(true),
+      )
+      expect(summary.forbiddenCredentialValuesAbsent).toBe(false)
+      expect(() => assertAccountExportSummary(summary)).toThrow(
+        'ACCOUNT_EXPORT_INVALID',
+      )
+      expect(JSON.stringify(summary)).not.toContain(forbidden)
+    }
+  })
+
+  it('derives pilot access only from exact UI evidence', () => {
+    expect(
+      summarizePilotAccessEvidence({
+        heading: 'Dostęp pilotażowy Pro',
+        status: 'Aktywny',
+        description:
+          'W pilotażu masz aktywne wszystkie funkcje planu Pro. Płatności są obecnie wyłączone.',
+      }),
+    ).toBe(true)
+    expect(
+      summarizePilotAccessEvidence({
+        heading: 'Dostęp pilotażowy Pro',
+        status: 'Aktywny',
+        description: 'Płatności są aktywne.',
+      }),
+    ).toBe(false)
   })
 
   it('fails closed without onboarding, subscription state, or explicit pilot access mode', () => {
@@ -682,6 +993,27 @@ describe('Task 9 safe summaries', () => {
     )
   })
 
+  it('always attempts admin login clearing, restore, and logout while preserving the primary error', async () => {
+    const operations: string[] = []
+    await expect(
+      runAdminFinallyProtocol({
+        hadSuccessfulLogin: false,
+        primaryError: new Error('PRIMARY_ADMIN_FAILURE'),
+        ensureSuccessfulLogin: async () => {
+          operations.push('login')
+        },
+        restore: async () => {
+          operations.push('restore')
+          throw new Error('RESTORE_FAILURE')
+        },
+        logout: async () => {
+          operations.push('logout')
+        },
+      }),
+    ).rejects.toThrow('PRIMARY_ADMIN_FAILURE')
+    expect(operations).toEqual(['login', 'restore', 'logout'])
+  })
+
   it('parses only the safe deletion receipt', () => {
     expect(
       parseSafeDeletionResponse({
@@ -728,8 +1060,12 @@ describe('Task 9 synthetic source PDF', () => {
       const document = await PDFDocument.load(
         await readFile(result.path),
       )
+      const checksumSha256 = createHash('sha256')
+        .update(await readFile(result.path))
+        .digest('hex')
 
       expect(result.sizeBytes).toBe(file.size)
+      expect(result.checksumSha256).toBe(checksumSha256)
       expect(file.size).toBeGreaterThan(0)
       expect(file.size).toBeLessThanOrEqual(25 * 1024 * 1024)
       expect(file.mode & 0o777).toBe(0o600)
@@ -824,7 +1160,8 @@ function validAccountExport() {
           sourceId,
           status: 'succeeded',
           providerCostMicrounits: 250_000,
-          modelId: 'model-current',
+          currency: 'USD',
+          modelId: 'claude-sonnet-4-6',
         },
       ],
       audit: [
@@ -888,8 +1225,28 @@ function accountExportExpectation(
     sourceJobId: jobId,
     acceptedProposalId: 'area',
     rejectedProposalId: 'price',
+    maxUsd: 2,
+    reservedUsd: 1,
+    sourceReservationUsd: 0.25,
     forbiddenBIdentifiers: ['subject-b', 'marker-b'],
     pilotAccessModeConfirmed,
+  }
+}
+
+function acceptedAreaFact(version: number) {
+  return {
+    id: factId,
+    propertyProjectId: projectId,
+    key: 'area.usable',
+    label: 'Powierzchnia użytkowa',
+    valueType: 'number',
+    value: 83.4,
+    unit: 'm²',
+    status: 'confirmed',
+    visibility: 'internal',
+    confirmedByUserId: 'subject-a',
+    sourceIds: [sourceId],
+    version,
   }
 }
 
