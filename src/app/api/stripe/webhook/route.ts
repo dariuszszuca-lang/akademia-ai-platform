@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
+import { getBillingMode } from '@/lib/billing/mode'
 import { getStripe, planFromPriceId } from '@/lib/billing/stripe'
 import { getSubscriptionForUser, setSubscriptionForUser } from '@/lib/billing/state'
 import type { UserSubscription, SubscriptionStatus } from '@/lib/billing/plans'
@@ -18,6 +19,13 @@ export const runtime = 'nodejs'
  * - invoice.payment_failed → past_due
  */
 export async function POST(req: Request) {
+  if (getBillingMode() === 'pilot') {
+    return NextResponse.json(
+      { error: 'billing_unavailable', mode: 'pilot' },
+      { status: 503 },
+    )
+  }
+
   const sig = (await headers()).get('stripe-signature')
   const secret = process.env.STRIPE_WEBHOOK_SECRET
   if (!sig || !secret) {

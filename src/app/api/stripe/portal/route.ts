@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getBillingMode } from '@/lib/billing/mode'
 import { getStripe } from '@/lib/billing/stripe'
 import { getServerUserId } from '@/lib/session'
 import { getUserSubscription } from '@/lib/billing/state'
@@ -8,6 +9,13 @@ import { getUserSubscription } from '@/lib/billing/state'
  * Tworzy Stripe Customer Portal session — user może zarządzać subskrypcją (zmiana planu, anulowanie, faktury).
  */
 export async function POST() {
+  if (getBillingMode() === 'pilot') {
+    return NextResponse.json(
+      { error: 'billing_unavailable', mode: 'pilot' },
+      { status: 503 },
+    )
+  }
+
   const userId = await getServerUserId()
   if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })

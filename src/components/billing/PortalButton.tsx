@@ -1,8 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import type { BillingMode } from '@/lib/billing/mode'
 
-export default function PortalButton() {
+export default function PortalButton({
+  billingMode,
+}: {
+  billingMode: BillingMode
+}) {
   const [loading, setLoading] = useState(false)
 
   async function open() {
@@ -15,6 +20,8 @@ export default function PortalButton() {
       setLoading(false)
     }
   }
+
+  if (billingMode === 'pilot') return null
 
   return (
     <button

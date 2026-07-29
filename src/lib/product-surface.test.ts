@@ -17,6 +17,7 @@ const publicShells = [
   'src/components/DashboardShell.tsx',
   'src/components/Navbar.tsx',
   'src/components/CommandPalette.tsx',
+  'src/components/settings/SettingsClient.tsx',
   'src/components/onboarding/OnboardingShell.tsx',
   'src/lib/agent/prompts.ts',
   'src/lib/billing/plans.ts',
@@ -36,7 +37,10 @@ describe('public product surfaces', () => {
       'utf8',
     )
     const settings = readFileSync(
-      resolve(process.cwd(), 'src/app/(dashboard)/settings/page.tsx'),
+      resolve(
+        process.cwd(),
+        'src/components/settings/SettingsClient.tsx',
+      ),
       'utf8',
     )
     expect(api).toContain('property-studio-export-')

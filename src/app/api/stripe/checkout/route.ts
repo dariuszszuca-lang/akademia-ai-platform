@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getStripe, getPriceId } from '@/lib/billing/stripe'
+import { getBillingMode } from '@/lib/billing/mode'
 import { getServerUserId } from '@/lib/session'
 import { getUserSubscription, setUserSubscription } from '@/lib/billing/state'
 
@@ -14,6 +15,13 @@ export const maxDuration = 30
  * Po sukcesie webhook /api/stripe/webhook zaktualizuje subscription state.
  */
 export async function POST(req: Request) {
+  if (getBillingMode() === 'pilot') {
+    return NextResponse.json(
+      { error: 'billing_unavailable', mode: 'pilot' },
+      { status: 503 },
+    )
+  }
+
   const userId = await getServerUserId()
   if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })

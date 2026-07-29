@@ -2,14 +2,20 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import type { BillingMode } from '@/lib/billing/mode'
 import type { PlanDisplay, PlanId } from '@/lib/billing/plans'
 
 type Props = {
   plans: PlanDisplay[]
   currentPlan: PlanId
+  billingMode: BillingMode
 }
 
-export default function PricingCards({ plans, currentPlan }: Props) {
+export default function PricingCards({
+  plans,
+  currentPlan,
+  billingMode,
+}: Props) {
   const { user } = useAuth()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -79,6 +85,10 @@ export default function PricingCards({ plans, currentPlan }: Props) {
               {isCurrent ? (
                 <div className="w-full py-3 rounded-full text-sm font-medium text-foreground/40 bg-foreground/[0.04] text-center border border-foreground/[0.08]">
                   Twój aktualny plan
+                </div>
+              ) : billingMode === 'pilot' ? (
+                <div className="w-full rounded-full border border-accent/25 bg-accent/[0.06] px-4 py-3 text-center text-sm text-accent">
+                  Płatności uruchomimy po pilotażu
                 </div>
               ) : (
                 <button

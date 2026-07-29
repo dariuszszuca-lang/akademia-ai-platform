@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { getBillingMode } from '@/lib/billing/mode'
 import { getUserSubscription } from '@/lib/billing/state'
 import { trialDaysLeft, PLAN_DISPLAY } from '@/lib/billing/plans'
 import PortalButton from '@/components/billing/PortalButton'
@@ -9,6 +10,7 @@ export default async function SubscriptionSettingsPage() {
   const sub = await getUserSubscription()
   const trialDays = trialDaysLeft(sub)
   const display = PLAN_DISPLAY.find(p => p.id === sub.plan)
+  const billingMode = getBillingMode()
 
   const statusLabel: Record<string, string> = {
     trialing: 'Trial',
@@ -18,6 +20,50 @@ export default async function SubscriptionSettingsPage() {
     incomplete: 'Niedokończona',
     expired: 'Wygasła',
     none: 'Brak',
+  }
+
+  if (billingMode === 'pilot') {
+    return (
+      <div className="mx-auto max-w-2xl space-y-10 animate-fade-in-up">
+        <header className="space-y-3">
+          <p className="eyebrow">Dostęp</p>
+          <h1 className="display-title text-foreground" style={{ fontSize: 'clamp(32px, 5vw, 48px)' }}>
+            Twój <em>plan</em>.
+          </h1>
+        </header>
+
+        <div className="p-6 rounded-2xl border border-foreground/[0.08] bg-foreground/[0.02]">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="text-foreground text-2xl font-medium">
+              Dostęp pilotażowy Pro
+            </h2>
+            <span className="text-[11px] uppercase tracking-[0.25em] text-accent">
+              Aktywny
+            </span>
+          </div>
+
+          <p className="text-foreground/60 text-sm mb-4">
+            W pilotażu masz aktywne wszystkie funkcje planu Pro. Płatności są
+            obecnie wyłączone.
+          </p>
+
+          <Link
+            href="/pricing"
+            className="inline-flex px-5 py-2.5 text-foreground/60 hover:text-foreground text-sm border border-foreground/[0.12] rounded-full transition"
+          >
+            Zobacz funkcje planów
+          </Link>
+        </div>
+
+        <div className="text-foreground/40 text-xs leading-relaxed">
+          Potrzebujesz pomocy? Napisz na{' '}
+          <a href="mailto:dariusz.szuca@gmail.com" className="text-accent hover:underline">
+            dariusz.szuca@gmail.com
+          </a>
+          .
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -68,7 +114,7 @@ export default async function SubscriptionSettingsPage() {
 
         <div className="flex gap-3 flex-wrap">
           {sub.stripeCustomerId ? (
-            <PortalButton />
+            <PortalButton billingMode={billingMode} />
           ) : (
             <Link
               href="/pricing"

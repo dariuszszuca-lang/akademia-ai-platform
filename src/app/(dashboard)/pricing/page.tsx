@@ -1,4 +1,5 @@
 import { PLAN_DISPLAY } from '@/lib/billing/plans'
+import { getBillingMode } from '@/lib/billing/mode'
 import { getUserSubscription } from '@/lib/billing/state'
 import { trialDaysLeft } from '@/lib/billing/plans'
 import PricingCards from '@/components/billing/PricingCards'
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export default async function PricingPage() {
   const sub = await getUserSubscription()
   const trialDays = trialDaysLeft(sub)
+  const billingMode = getBillingMode()
 
   return (
     <div className="mx-auto max-w-5xl space-y-12 animate-fade-in-up">
@@ -20,18 +22,29 @@ export default async function PricingPage() {
           Wszystkie plany pozwalają korzystać z 6 agentów AI. Różnią się limitami dziennymi i dodatkowymi funkcjami (RAG na Kodeksie cywilnym, Persona Path A, multi-user).
         </p>
 
-        {sub.status === 'trialing' && trialDays !== null && (
+        {billingMode === 'pilot' ? (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/30 text-accent text-sm">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            Aktywny dostęp pilotażowy Pro
+          </div>
+        ) : sub.status === 'trialing' && trialDays !== null ? (
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/30 text-accent text-sm">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             Trial · {trialDays} {trialDays === 1 ? 'dzień' : 'dni'} pozostało
           </div>
-        )}
+        ) : null}
       </header>
 
-      <PricingCards plans={PLAN_DISPLAY} currentPlan={sub.plan} />
+      <PricingCards
+        plans={PLAN_DISPLAY}
+        currentPlan={billingMode === 'pilot' ? 'pro' : sub.plan}
+        billingMode={billingMode}
+      />
 
       <div className="text-center text-foreground/40 text-xs">
-        Płatność miesięczna · Anulujesz w każdej chwili w panelu Stripe · Faktura VAT na firmę
+        {billingMode === 'pilot'
+          ? 'Płatności są wyłączone na czas pilotażu'
+          : 'Płatność miesięczna · Anulujesz w każdej chwili w panelu Stripe · Faktura VAT na firmę'}
       </div>
     </div>
   )
