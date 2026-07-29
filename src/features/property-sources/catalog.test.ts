@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  normalizeFactLabel,
+  propertyFactCatalog,
   resolveFactDefinition,
   resolveFactDefinitionByLabel,
 } from './catalog'
@@ -71,5 +73,35 @@ describe('property extraction fact catalog', () => {
 
   it('does not resolve partial labels', () => {
     expect(resolveFactDefinitionByLabel('Powierzchnia')).toBeNull()
+  })
+
+  it.each([
+    'Cena ofertowa.',
+    'Cena-ofertowa',
+    'Cena___ofertowa',
+    'Cena / ofertowa',
+  ])('normalizes punctuation and separator runs in %s', (label) => {
+    expect(resolveFactDefinitionByLabel(label)).toMatchObject({
+      key: 'price.asking',
+    })
+  })
+
+  it('normalizes canonically equivalent NFC and NFD labels', () => {
+    const label = 'Powierzchnia użytkowa'
+
+    expect(
+      resolveFactDefinitionByLabel(label.normalize('NFC')),
+    ).toMatchObject({ key: 'area.usable' })
+    expect(
+      resolveFactDefinitionByLabel(label.normalize('NFD')),
+    ).toMatchObject({ key: 'area.usable' })
+  })
+
+  it('keeps every normalized catalog label unique', () => {
+    const normalizedLabels = propertyFactCatalog.map((definition) =>
+      normalizeFactLabel(definition.label),
+    )
+
+    expect(new Set(normalizedLabels).size).toBe(normalizedLabels.length)
   })
 })

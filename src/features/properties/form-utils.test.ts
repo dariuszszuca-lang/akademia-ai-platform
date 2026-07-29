@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   coerceFactValue,
+  resolveFactInput,
   resolveFactKey,
   toFactKey,
 } from './form-utils'
@@ -19,6 +20,45 @@ describe('property fact form utilities', () => {
     expect(resolveFactKey('Niestandardowy parametr')).toBe(
       'niestandardowyParametr',
     )
+  })
+
+  it('resolves the complete catalog metadata for the property type', () => {
+    expect(
+      resolveFactInput('Powierzchnia użytkowa', 'apartment', {
+        category: 'other',
+        valueType: 'text',
+        unit: 'cm',
+      }),
+    ).toEqual({
+      key: 'area.usable',
+      category: 'Powierzchnia',
+      valueType: 'number',
+      unit: 'm²',
+    })
+  })
+
+  it('rejects a known label unsupported by the property type', () => {
+    expect(
+      resolveFactInput('Powierzchnia działki', 'apartment', {
+        category: 'other',
+        valueType: 'text',
+      }),
+    ).toBeNull()
+  })
+
+  it('uses manual metadata only for a custom label', () => {
+    expect(
+      resolveFactInput('Niestandardowy parametr', 'apartment', {
+        category: 'other',
+        valueType: 'text',
+        unit: 'opis',
+      }),
+    ).toEqual({
+      key: 'niestandardowyParametr',
+      category: 'other',
+      valueType: 'text',
+      unit: 'opis',
+    })
   })
 
   it('coerces typed form values before sending them to the API', () => {

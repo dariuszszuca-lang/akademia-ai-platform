@@ -1,13 +1,10 @@
 import { z } from 'zod'
+import {
+  propertyFactValueTypes,
+  propertyTypes,
+} from '../property-sources/catalog-data'
 
-export const propertyTypes = [
-  'apartment',
-  'house',
-  'plot',
-  'commercial',
-  'premises',
-  'other',
-] as const
+export { propertyFactValueTypes, propertyTypes }
 
 export const transactionTypes = ['sale', 'rent'] as const
 
@@ -35,15 +32,6 @@ export const propertyFactStatuses = [
 
 export const propertyFactVisibilities = ['internal', 'client', 'public'] as const
 export const actorTypes = ['user', 'ai', 'integration'] as const
-export const propertyFactValueTypes = [
-  'text',
-  'number',
-  'money',
-  'boolean',
-  'date',
-  'json',
-] as const
-
 export const propertyFactValueTypeSchema = z.enum(propertyFactValueTypes)
 
 const propertyBaseSchema = z.object({

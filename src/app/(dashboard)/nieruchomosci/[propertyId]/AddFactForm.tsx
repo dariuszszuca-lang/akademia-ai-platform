@@ -2,26 +2,45 @@
 
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { PropertyFact } from '@/features/properties/domain'
 import {
   coerceFactValue,
-  resolveFactKey,
+  resolveFactInput,
 } from '@/features/properties/form-utils'
+import {
+  isFactDefinitionSupported,
+  resolveFactDefinitionByLabel,
+  type PropertyFactValueType,
+  type PropertyType,
+} from '@/features/property-sources/catalog-data'
 
 type AddFactFormProps = {
   propertyId: string
+  propertyType: PropertyType
 }
 
 const fieldClassName =
   'mt-2 min-h-11 w-full rounded-xl border border-[#d8d1c4] bg-white px-3.5 text-sm text-[#162026] outline-none transition placeholder:text-[#87908b] focus:border-[#2d6b68] focus:ring-4 focus:ring-[#2d6b68]/10'
 
-export default function AddFactForm({ propertyId }: AddFactFormProps) {
+export default function AddFactForm({
+  propertyId,
+  propertyType,
+}: AddFactFormProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [label, setLabel] = useState('')
+  const [category, setCategory] = useState('areas')
   const [valueType, setValueType] =
-    useState<PropertyFact['valueType']>('text')
+    useState<PropertyFactValueType>('text')
+  const [unit, setUnit] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const catalogDefinition = resolveFactDefinitionByLabel(label)
+  const isCatalogMetadataLocked = catalogDefinition !== null
+  const effectiveCategory = catalogDefinition?.category ?? category
+  const effectiveValueType = catalogDefinition?.valueType ?? valueType
+  const effectiveUnit = catalogDefinition
+    ? (catalogDefinition.unit ?? '')
+    : unit
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -32,33 +51,42 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
 
     const form = event.currentTarget
     const formData = new FormData(form)
-    const label = String(formData.get('label') ?? '').trim()
+    const trimmedLabel = label.trim()
     const rawValue = String(formData.get('value') ?? '')
     const status = String(formData.get('status') ?? 'declared')
 
     try {
-      const value = coerceFactValue(rawValue, valueType)
+      const factInput = resolveFactInput(trimmedLabel, propertyType, {
+        category,
+        valueType,
+        ...(unit ? { unit } : {}),
+      })
+      if (!factInput) {
+        setError(
+          'Ta informacja katalogowa nie jest dostępna dla tego typu nieruchomości.',
+        )
+        return
+      }
+
+      const value = coerceFactValue(rawValue, factInput.valueType)
       if (
-        (valueType === 'number' || valueType === 'money') &&
+        (factInput.valueType === 'number' ||
+          factInput.valueType === 'money') &&
         (typeof value !== 'number' || Number.isNaN(value))
       ) {
         setError('Wpisz poprawną wartość liczbową.')
         return
       }
 
-      const unit = String(formData.get('unit') ?? '').trim()
       const response = await fetch(
         `/api/properties/${propertyId}/facts`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            key: resolveFactKey(label),
-            label,
-            category: formData.get('category'),
-            valueType,
+            ...factInput,
+            label: trimmedLabel,
             value,
-            ...(unit ? { unit } : {}),
             status,
             visibility: formData.get('visibility'),
             sourceIds: [],
@@ -82,12 +110,16 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
       }
 
       form.reset()
+      setLabel('')
+      setCategory('areas')
       setValueType('text')
+      setUnit('')
       setIsOpen(false)
       router.refresh()
     } catch (caughtError) {
       setError(
-        valueType === 'json' && caughtError instanceof SyntaxError
+        effectiveValueType === 'json' &&
+          caughtError instanceof SyntaxError
           ? 'Dane JSON mają niepoprawny format.'
           : 'Brak połączenia z serwerem. Spróbuj ponownie za chwilę.',
       )
@@ -139,6 +171,8 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
             required
             minLength={2}
             maxLength={160}
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
             placeholder="np. Powierzchnia użytkowa"
             className={fieldClassName}
           />
@@ -146,17 +180,31 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
 
         <label className="text-sm font-semibold">
           Kategoria
-          <select name="category" className={fieldClassName}>
-            <option value="areas">Powierzchnie</option>
-            <option value="price">Cena</option>
-            <option value="costs">Koszty</option>
-            <option value="rooms">Pomieszczenia</option>
-            <option value="building">Budynek</option>
-            <option value="plot">Działka</option>
-            <option value="legal">Stan prawny</option>
-            <option value="technical">Dane techniczne</option>
-            <option value="address">Lokalizacja</option>
-            <option value="other">Pozostałe</option>
+          <select
+            name="category"
+            value={effectiveCategory}
+            disabled={isCatalogMetadataLocked}
+            onChange={(event) => setCategory(event.target.value)}
+            className={fieldClassName}
+          >
+            {catalogDefinition ? (
+              <option value={catalogDefinition.category}>
+                {catalogDefinition.category}
+              </option>
+            ) : (
+              <>
+                <option value="areas">Powierzchnie</option>
+                <option value="price">Cena</option>
+                <option value="costs">Koszty</option>
+                <option value="rooms">Pomieszczenia</option>
+                <option value="building">Budynek</option>
+                <option value="plot">Działka</option>
+                <option value="legal">Stan prawny</option>
+                <option value="technical">Dane techniczne</option>
+                <option value="address">Lokalizacja</option>
+                <option value="other">Pozostałe</option>
+              </>
+            )}
           </select>
         </label>
 
@@ -164,9 +212,10 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
           Rodzaj wartości
           <select
             name="valueType"
-            value={valueType}
+            value={effectiveValueType}
+            disabled={isCatalogMetadataLocked}
             onChange={(event) =>
-              setValueType(event.target.value as PropertyFact['valueType'])
+              setValueType(event.target.value as PropertyFactValueType)
             }
             className={fieldClassName}
           >
@@ -179,17 +228,27 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
           </select>
         </label>
 
-        <ValueField valueType={valueType} />
+        <ValueField valueType={effectiveValueType} />
 
         <label className="text-sm font-semibold">
           Jednostka
           <input
             name="unit"
             maxLength={30}
-            placeholder={valueType === 'money' ? 'PLN' : 'np. m²'}
+            value={effectiveUnit}
+            disabled={isCatalogMetadataLocked}
+            onChange={(event) => setUnit(event.target.value)}
+            placeholder={effectiveValueType === 'money' ? 'PLN' : 'np. m²'}
             className={fieldClassName}
           />
         </label>
+
+        {catalogDefinition &&
+          !isFactDefinitionSupported(catalogDefinition, propertyType) && (
+            <p className="text-sm font-medium text-[#9a3f32] md:col-span-2">
+              Ta informacja katalogowa nie pasuje do tego typu nieruchomości.
+            </p>
+          )}
 
         <label className="text-sm font-semibold">
           Status wiarygodności
@@ -235,7 +294,7 @@ export default function AddFactForm({ propertyId }: AddFactFormProps) {
 function ValueField({
   valueType,
 }: {
-  valueType: PropertyFact['valueType']
+  valueType: PropertyFactValueType
 }) {
   if (valueType === 'boolean') {
     return (

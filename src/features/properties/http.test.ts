@@ -148,4 +148,80 @@ describe('property HTTP handlers', () => {
       version: 2,
     })
   })
+
+  it('rejects malformed metadata for a catalog fact before writing', async () => {
+    const { handlers, service } = setup()
+    const project = await service.createProject('user-a', {
+      title: 'Mieszkanie Jeżyce',
+      propertyType: 'apartment',
+      transactionType: 'sale',
+      city: 'Poznań',
+      addressMode: 'hidden',
+    })
+
+    const response = await handlers.createFact(
+      jsonRequest('POST', {
+        key: 'area.usable',
+        label: 'Powierzchnia użytkowa',
+        category: 'areas',
+        valueType: 'text',
+        value: '52,4',
+        status: 'declared',
+        visibility: 'internal',
+        sourceIds: [],
+      }),
+      { params: Promise.resolve({ propertyId: project.id }) },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe('validation_error')
+    expect(body.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'custom',
+          message: 'CATALOG_FACT_METADATA_INVALID',
+        }),
+      ]),
+    )
+    await expect(service.listFacts('user-a', project.id)).resolves.toEqual([])
+  })
+
+  it('rejects a catalog fact unsupported by the property type before writing', async () => {
+    const { handlers, service } = setup()
+    const project = await service.createProject('user-a', {
+      title: 'Mieszkanie Jeżyce',
+      propertyType: 'apartment',
+      transactionType: 'sale',
+      city: 'Poznań',
+      addressMode: 'hidden',
+    })
+
+    const response = await handlers.createFact(
+      jsonRequest('POST', {
+        key: 'plot.area',
+        label: 'Powierzchnia działki',
+        category: 'Działka',
+        valueType: 'number',
+        value: 920,
+        unit: 'm²',
+        status: 'declared',
+        visibility: 'internal',
+        sourceIds: [],
+      }),
+      { params: Promise.resolve({ propertyId: project.id }) },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe('validation_error')
+    expect(body.issues).toEqual([
+      expect.objectContaining({
+        code: 'custom',
+        message: 'CATALOG_FACT_PROPERTY_TYPE_UNSUPPORTED',
+        path: ['key'],
+      }),
+    ])
+    await expect(service.listFacts('user-a', project.id)).resolves.toEqual([])
+  })
 })

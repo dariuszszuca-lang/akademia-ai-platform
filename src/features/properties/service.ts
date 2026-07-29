@@ -4,7 +4,9 @@ import {
   updatePropertyFactSchema,
   updatePropertySchema,
 } from './domain'
+import { ZodError } from 'zod'
 import type { PropertyRepository } from './repository'
+import { validateCatalogFactMetadata } from '../property-sources/catalog'
 import {
   noopStudioEventSink,
   type StudioEventInput,
@@ -134,6 +136,20 @@ export class PropertyService {
     const input = createPropertyFactSchema.parse(
       normalizeCreateFactInput(rawInput, userId),
     )
+    const catalogIssues = validateCatalogFactMetadata(
+      input,
+      project.propertyType,
+    )
+    if (catalogIssues.length > 0) {
+      throw new ZodError(
+        catalogIssues.map((issue) => ({
+          code: 'custom',
+          path: [issue.path],
+          message: issue.message,
+        })),
+      )
+    }
+
     const fact = await this.repository.createFact(userId, projectId, input)
     if (!fact) throw new Error('PROPERTY_NOT_FOUND')
 

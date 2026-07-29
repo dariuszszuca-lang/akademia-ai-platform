@@ -131,7 +131,10 @@ export default async function PropertyWorkspacePage({
               Dokumenty i propozycje AI znajdziesz w zakładce Źródła.
             </p>
             <div className="mt-5">
-              <AddFactForm propertyId={project.id} />
+              <AddFactForm
+                propertyId={project.id}
+                propertyType={project.propertyType}
+              />
             </div>
           </section>
 
