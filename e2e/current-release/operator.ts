@@ -416,6 +416,70 @@ export async function createUser(
   )
 }
 
+export async function signInUser(
+  context: ResolvedOperatorContext,
+  username: string,
+  password: string,
+  clientId: string,
+  executor: AwsCommandExecutor = createAwsCommandExecutor(),
+): Promise<{ AuthenticationResult: { AccessToken: string } }> {
+  validateMutation(context, username)
+  validatePassword(context.runId, password)
+  if (
+    !/^[A-Za-z0-9]+$/.test(clientId) ||
+    clientId.length < 10 ||
+    clientId.length > 128
+  ) {
+    throw operatorError('CLIENT_ID_INVALID', context.runId)
+  }
+  await assertCallerIdentity(context, executor)
+  const result = await executeWithAttempts(
+    [
+      'cognito-idp',
+      'initiate-auth',
+      '--cli-input-json',
+      'file:///dev/stdin',
+      '--profile',
+      context.profile,
+      '--region',
+      context.region,
+      '--output',
+      'json',
+    ],
+    executor,
+    1,
+    JSON.stringify({
+      AuthFlow: 'USER_PASSWORD_AUTH',
+      ClientId: clientId,
+      AuthParameters: {
+        USERNAME: username,
+        PASSWORD: password,
+      },
+    }),
+  )
+  if (!result.ok) {
+    throw operatorError('AUTH_FAILED', context.runId)
+  }
+  const parsed = z
+    .object({
+      AuthenticationResult: z
+        .object({
+          AccessToken: z.string().min(20),
+        })
+        .passthrough(),
+    })
+    .passthrough()
+    .safeParse(parseJson(result.stdout, context.runId))
+  if (!parsed.success) {
+    throw operatorError('AUTH_RESPONSE_INVALID', context.runId)
+  }
+  return {
+    AuthenticationResult: {
+      AccessToken: parsed.data.AuthenticationResult.AccessToken,
+    },
+  }
+}
+
 export async function deleteUser(
   context: ResolvedOperatorContext,
   username: string,

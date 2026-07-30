@@ -30,6 +30,8 @@ type DeleteAccountDependencies = {
   deleteValue: (key: string) => Promise<void>
 }
 
+const accountKeyDeleteRetryDelaysMs = [0, 100, 300] as const
+
 export function getAccountKeys(userId: string) {
   return [
     `user:${userId}:profil`,
@@ -93,7 +95,7 @@ export async function deleteAccountData(
 
   const keys = getAccountKeys(userId)
   for (const key of keys) {
-    await dependencies.deleteValue(key)
+    await deleteAccountKeyWithRetry(key, dependencies.deleteValue)
   }
 
   return {
@@ -101,4 +103,25 @@ export async function deleteAccountData(
     propertyStudio: 1,
     accountKeys: keys.length,
   }
+}
+
+async function deleteAccountKeyWithRetry(
+  key: string,
+  deleteValue: DeleteAccountDependencies['deleteValue'],
+): Promise<void> {
+  let lastError: unknown
+  for (const delayMs of accountKeyDeleteRetryDelaysMs) {
+    if (delayMs > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, delayMs)
+      })
+    }
+    try {
+      await deleteValue(key)
+      return
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
 }

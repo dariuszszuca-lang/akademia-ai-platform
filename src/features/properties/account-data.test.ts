@@ -104,6 +104,31 @@ describe('property studio account data workflows', () => {
     expect(deletePropertiesForUser).not.toHaveBeenCalled()
     expect(deleteValue).not.toHaveBeenCalled()
   })
+
+  it('retries an idempotent KV deletion after a transient failure', async () => {
+    const calls = new Map<string, number>()
+    const firstKey = getAccountKeys('user-a')[0]!
+
+    const deleted = await deleteAccountData('user-a', {
+      listSourcesForUser: async () => [],
+      recordAccountDeleted: async () => {},
+      purgeSourceObjects: async () => ({ deletedVersions: 0 }),
+      deletePropertiesForUser: async () => {},
+      deleteValue: async (key) => {
+        const attempt = (calls.get(key) ?? 0) + 1
+        calls.set(key, attempt)
+        if (key === firstKey && attempt === 1) {
+          throw new Error('transient kv failure')
+        }
+      },
+    })
+
+    expect(calls.get(firstKey)).toBe(2)
+    for (const key of getAccountKeys('user-a').slice(1)) {
+      expect(calls.get(key)).toBe(1)
+    }
+    expect(deleted.accountKeys).toBe(5)
+  })
 })
 
 function sourceFixture(): PropertySource {

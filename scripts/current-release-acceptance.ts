@@ -9,6 +9,7 @@ import {
   deleteUser,
   getUserSubject,
   resolveOperatorContext,
+  signInUser,
   verifyRunS3Empty,
   type OperatorBaseContext,
 } from '../e2e/current-release/operator'
@@ -42,6 +43,12 @@ type CurrentReleaseCliOptions = {
   allowProduction: true
   baseUrl: typeof CURRENT_RELEASE_PRODUCTION_URL
   maxCostUsd: 2
+}
+
+export function normalizePulledCognitoClientId(
+  value: string | undefined,
+): string {
+  return (value ?? '').trim().replace(/\\n$/u, '')
 }
 
 export function parseCurrentReleaseCliArgs(
@@ -127,6 +134,9 @@ export function createDefaultCurrentReleaseDependencies(
         },
         executor,
       )
+      const clientId = normalizePulledCognitoClientId(
+        process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+      )
       return cleanupCurrentRelease(input, {
         assertIdentity: () =>
           assertCallerIdentity(context, executor).then(
@@ -135,11 +145,23 @@ export function createDefaultCurrentReleaseDependencies(
         getUserSubject: (username) =>
           getUserSubject(context, username, executor),
         deleteAccount: ({ baseUrl, username, password }) =>
-          deleteSyntheticAccountByContract({
-            baseUrl,
-            username,
-            password,
-          }),
+          deleteSyntheticAccountByContract(
+            {
+              baseUrl,
+              username,
+              password,
+            },
+            {
+              signIn: (signInUsername, signInPassword) =>
+                signInUser(
+                  context,
+                  signInUsername,
+                  signInPassword,
+                  clientId,
+                  executor,
+                ),
+            },
+          ),
         deleteIdentity: (username) =>
           deleteUser(context, username, executor),
         persistRegistry: (registry) =>

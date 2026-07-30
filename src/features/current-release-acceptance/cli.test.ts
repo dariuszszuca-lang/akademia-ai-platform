@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   mapCurrentReleasePreflightError,
+  normalizePulledCognitoClientId,
   parseCurrentReleaseCliArgs,
   runCurrentReleaseCli,
 } from '../../../scripts/current-release-acceptance'
@@ -89,6 +90,16 @@ describe('current release acceptance CLI', () => {
     expect(mapped.message).not.toContain(raw)
   })
 
+  it('normalizes only the serialized trailing newline on the pulled public Cognito client id', () => {
+    expect(
+      normalizePulledCognitoClientId('syntheticclient123\\n'),
+    ).toBe('syntheticclient123')
+    expect(
+      normalizePulledCognitoClientId('syntheticclient123\n'),
+    ).toBe('syntheticclient123')
+    expect(normalizePulledCognitoClientId(undefined)).toBe('')
+  })
+
   it('uses the real cleanup implementation without conservative placeholders', () => {
     const source = readFileSync(
       'scripts/current-release-acceptance.ts',
@@ -97,6 +108,7 @@ describe('current release acceptance CLI', () => {
 
     expect(source).toContain('cleanupCurrentRelease')
     expect(source).toContain('verifyRunS3Empty')
+    expect(source).toContain('signInUser')
     expect(source).not.toContain('databaseEmpty: false')
     expect(source).not.toContain('s3VersionsRemaining:')
     expect(source).not.toContain('Tasks 8-9 replace')

@@ -15,6 +15,7 @@ import {
   createUser,
   deleteUser,
   resolveOperatorContext,
+  signInUser,
   verifyRunS3Empty,
   type AwsCommandExecutor,
   type AwsCommandResult,
@@ -410,6 +411,45 @@ describe('operator execution policies', () => {
       expect(call.args).toContain('file:///dev/stdin')
       expect(call.options.input).toContain(password)
     }
+  })
+
+  it('authenticates the exact synthetic user through the secure AWS JSON channel', async () => {
+    const context = await resolveOperatorContext(
+      baseContext(),
+      fakeExecutor(resolverResponses()),
+    )
+    const accessToken = 'synthetic-access-token'
+    const operationExecutor = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({
+          AuthenticationResult: { AccessToken: accessToken },
+        }),
+      },
+    ])
+
+    await expect(
+      signInUser(
+        context,
+        username,
+        password,
+        'syntheticclient123',
+        operationExecutor,
+      ),
+    ).resolves.toEqual({
+      AuthenticationResult: { AccessToken: accessToken },
+    })
+
+    const authCall = operationExecutor.calls.find((call) =>
+      call.args.includes('initiate-auth'),
+    )
+    expect(authCall?.args.join(' ')).not.toContain(password)
+    expect(authCall?.args).toContain('file:///dev/stdin')
+    expect(authCall?.options.input).toContain(password)
+    expect(authCall?.options.input).toContain(
+      'syntheticclient123',
+    )
   })
 
   it('reasserts identity before the second create-user mutation and stops on identity change', async () => {

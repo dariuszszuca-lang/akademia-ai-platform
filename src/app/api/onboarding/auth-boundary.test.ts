@@ -336,6 +336,51 @@ describe('onboarding model observability', () => {
     },
   )
 
+  it('preserves the exact source name in the generated profile', async () => {
+    const exactName =
+      'PROFILE-A-syn-20260730T115608Z-c0e434e3-CONTEXT-PROOF'
+    mocks.getOnboardingState.mockResolvedValueOnce({
+      expressAnswers: Object.fromEntries(
+        expressQuestions.map((question) => [
+          question.id,
+          question.id === 'q1'
+            ? `${exactName}, 38 lat, Testowo, 6 lat w nieruchomościach.`
+            : 'synthetic answer',
+        ]),
+      ),
+      deepAnswers: {},
+      personaBuyer: { answers: {} },
+      personaSeller: { answers: {} },
+    })
+    mocks.anthropicStream.mockReturnValueOnce(
+      (async function* () {
+        yield {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: '# PROFIL\n\n## DANE PODSTAWOWE\n- Imię: Profil testowy',
+          },
+        }
+        yield {
+          type: 'content_block_delta',
+          delta: {
+            type: 'text_delta',
+            text: '\n- Wiek: 38\n',
+          },
+        }
+      })(),
+    )
+    const route = await import('./generate-profil/route')
+
+    const response = await route.POST()
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(body).toContain(`- Imię: ${exactName}`)
+    expect(body).not.toContain('- Imię: Profil testowy')
+    expect(mocks.saveProfilMd).toHaveBeenCalledWith(body)
+  })
+
   it('requests a strict supported persona schema with a bounded provider call', async () => {
     const route = await import('./persona/types/route')
     const request = new Request(
