@@ -56,9 +56,10 @@ export default function WizardFlow({
     }
   }
 
-  async function next() {
-    if (!value.trim()) return
-    await persist(current.id, value)
+  async function next(selectedValue?: string) {
+    const submittedValue = selectedValue ?? value
+    if (!submittedValue.trim()) return
+    await persist(current.id, submittedValue)
     if (isLast) {
       generate()
     } else {
@@ -159,7 +160,7 @@ export default function WizardFlow({
         </div>
         <button
           type="button"
-          onClick={next}
+          onClick={() => void next()}
           disabled={!value.trim()}
           className="px-6 py-2.5 bg-accent text-white font-medium rounded-full text-sm hover:bg-accent/90 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
         >

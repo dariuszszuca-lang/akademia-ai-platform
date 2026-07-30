@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { OnboardingQuestion } from '@/lib/onboarding/types'
+import { createWizardSelectionScheduler } from './wizard-selection'
 
 type Props = {
   question: OnboardingQuestion
   initialValue: string
   onChange: (value: string) => void
-  onSubmit: () => void
+  onSubmit: (value?: string) => void
 }
 
 export default function WizardQuestion({ question, initialValue, onChange, onSubmit }: Props) {
@@ -24,6 +25,18 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
     setValue(v)
     onChange(v)
   }
+
+  const [selectionScheduler] = useState(() =>
+    createWizardSelectionScheduler({
+      onChange: update,
+      onSubmit,
+    }),
+  )
+
+  useEffect(
+    () => () => selectionScheduler.cancel(),
+    [selectionScheduler],
+  )
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -49,10 +62,7 @@ export default function WizardQuestion({ question, initialValue, onChange, onSub
             <button
               key={opt.value}
               type="button"
-              onClick={() => {
-                update(opt.value)
-                setTimeout(onSubmit, 220)
-              }}
+              onClick={() => selectionScheduler.schedule(opt.value)}
               className={
                 'w-full text-left px-5 py-4 rounded-xl border transition-all duration-200 ' +
                 (value === opt.value
