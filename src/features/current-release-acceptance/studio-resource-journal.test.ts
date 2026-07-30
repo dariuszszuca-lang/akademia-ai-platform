@@ -45,6 +45,14 @@ const validSource = {
   sizeBytes: 1024,
   checksumSha256: 'a'.repeat(64),
 }
+const validSourceExpectation = {
+  organizationId,
+  projectId,
+  sizeBytes: validSource.sizeBytes,
+  checksumSha256: validSource.checksumSha256,
+  pipelineCalls: 1,
+  budgetSourcePipelineCalls: 1,
+}
 
 type ProjectCheckpoint = (
   project: Record<string, unknown>,
@@ -74,6 +82,8 @@ type SourceCheckpoint = (
     projectId: string
     sizeBytes: number
     checksumSha256: string
+    pipelineCalls: number
+    budgetSourcePipelineCalls: number
   },
   recordResources: Task9Runtime['recordResources'],
 ) => Promise<{
@@ -192,12 +202,7 @@ describe('Task 9 Studio resource journal checkpoints', () => {
     await expect(
       source(
         { ...validSource, mediaType: 'text/plain' },
-        {
-          organizationId,
-          projectId,
-          sizeBytes: validSource.sizeBytes,
-          checksumSha256: validSource.checksumSha256,
-        },
+        validSourceExpectation,
         async (record) => {
           records.push(record)
         },
@@ -221,12 +226,7 @@ describe('Task 9 Studio resource journal checkpoints', () => {
           ...validSource,
           storageKey: 'originals/organizations/other/source.pdf',
         },
-        {
-          organizationId,
-          projectId,
-          sizeBytes: validSource.sizeBytes,
-          checksumSha256: validSource.checksumSha256,
-        },
+        validSourceExpectation,
         async (record) => {
           records.push(record)
         },
@@ -234,6 +234,48 @@ describe('Task 9 Studio resource journal checkpoints', () => {
     ).rejects.toThrow('STUDIO_SOURCE_REGISTRATION_INVALID')
     expect(records).toEqual([{ organizationId, sourceId }])
   })
+
+  it.each([
+    {
+      name: 'pipeline call count',
+      pipelineCalls: 0,
+      budgetSourcePipelineCalls: 1,
+    },
+    {
+      name: 'budget source pipeline count',
+      pipelineCalls: 1,
+      budgetSourcePipelineCalls: 0,
+    },
+  ])(
+    'journals source cleanup IDs before rejecting an invalid $name',
+    async ({
+      pipelineCalls,
+      budgetSourcePipelineCalls,
+    }) => {
+      const { source } = await loadResourceCheckpoints()
+      const records: Array<
+        Parameters<Task9Runtime['recordResources']>[0]
+      > = []
+
+      await expect(
+        source(
+          validSource,
+          {
+            ...validSourceExpectation,
+            pipelineCalls,
+            budgetSourcePipelineCalls,
+          },
+          async (record) => {
+            records.push(record)
+          },
+        ),
+      ).rejects.toThrow('STUDIO_SOURCE_REGISTRATION_INVALID')
+      expect(records).toEqual([
+        { organizationId, sourceId },
+        { organizationId, storageKey },
+      ])
+    },
+  )
 
   it.each([
     { failedWrite: 0, expectedRecords: 1 },
@@ -252,12 +294,7 @@ describe('Task 9 Studio resource journal checkpoints', () => {
 
       const execution = source(
         validSource,
-        {
-          organizationId,
-          projectId,
-          sizeBytes: validSource.sizeBytes,
-          checksumSha256: validSource.checksumSha256,
-        },
+        validSourceExpectation,
         async (record) => {
           records.push(record)
           if (records.length - 1 === failedWrite) {

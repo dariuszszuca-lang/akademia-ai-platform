@@ -146,6 +146,8 @@ export async function journalAndValidateRegisteredSource(
     projectId: string
     sizeBytes: number
     checksumSha256: string
+    pipelineCalls: number
+    budgetSourcePipelineCalls: number
   },
   recordResources: Task9Runtime['recordResources'],
 ): Promise<{
@@ -175,7 +177,9 @@ export async function journalAndValidateRegisteredSource(
     source.propertyProjectId !== expected.projectId ||
     source.mediaType !== 'application/pdf' ||
     source.sizeBytes !== expected.sizeBytes ||
-    source.checksumSha256 !== expected.checksumSha256
+    source.checksumSha256 !== expected.checksumSha256 ||
+    expected.pipelineCalls !== 1 ||
+    expected.budgetSourcePipelineCalls !== 1
   ) {
     throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
   }
@@ -437,11 +441,7 @@ export async function runStudioScenarios(
               ),
           )
           const registration = await registrationPromise
-          if (
-            registration.status() !== 201 ||
-            pipeline.calls() !== 1 ||
-            runtime.budget.snapshot().sourcePipelineCalls !== 1
-          ) {
+          if (registration.status() !== 201) {
             throw new Error(
               'STUDIO_SOURCE_REGISTRATION_INVALID',
             )
@@ -463,6 +463,9 @@ export async function runStudioScenarios(
                 projectId: createdProjectId,
                 sizeBytes: pdf.sizeBytes,
                 checksumSha256: pdf.checksumSha256,
+                pipelineCalls: pipeline.calls(),
+                budgetSourcePipelineCalls:
+                  runtime.budget.snapshot().sourcePipelineCalls,
               },
               runtime.recordResources,
             )
