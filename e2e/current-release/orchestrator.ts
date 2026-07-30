@@ -84,6 +84,13 @@ export async function finalizeCurrentReleaseBrowserRun(
         : 'CURRENT_RELEASE_CONTEXT_CLOSE_FAILED',
     )
   }
+  const scenarios = input.scenarios()
+  if (
+    input.primaryError &&
+    scenarios.every((scenario) => scenario.status === 'passed')
+  ) {
+    throw new Error('CURRENT_RELEASE_UNRECORDED_FAILURE')
+  }
   if (
     input.usage.sourcePipelineCalls === 1 &&
     input.usage.observedPipelineCostUsd <= 0
@@ -96,7 +103,7 @@ export async function finalizeCurrentReleaseBrowserRun(
     const registry = await input.readJournal()
     await input.writeResult(
       {
-        scenarios: input.scenarios(),
+        scenarios,
         modelIds: [...input.modelIds].sort(),
         usage: input.usage,
         registryUpdate: projectBrowserRegistryUpdate(registry),

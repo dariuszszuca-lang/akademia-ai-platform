@@ -58,80 +58,96 @@ test.describe.serial(
       const networkLedger = createTask8NetworkLedger()
       const lifecycle: Task8BrowserLifecycle = {}
       let observedPipelineCostUsd = 0
-      let recordedTask9Usage: Task9BrowserUsage | null = null
+      const recordedTask9Usage: {
+        value: Task9BrowserUsage | null
+      } = { value: null }
+      const task8Handoff: {
+        value: Awaited<
+          ReturnType<typeof runAuthOnboardingScenarios>
+        > | null
+      } = { value: null }
       let primaryError: unknown | null = null
+      const recordUsage = async (
+        usage: Task9BrowserUsage,
+      ): Promise<void> => {
+        if (
+          recordedTask9Usage.value &&
+          (recordedTask9Usage.value.observedPipelineCostUsd !==
+            usage.observedPipelineCostUsd ||
+            recordedTask9Usage.value.modelIds.join('\0') !==
+              usage.modelIds.join('\0'))
+        ) {
+          throw new Error('CURRENT_RELEASE_TASK9_USAGE_CONFLICT')
+        }
+        recordedTask9Usage.value = usage
+        observedPipelineCostUsd = usage.observedPipelineCostUsd
+        for (const modelId of usage.modelIds) {
+          modelIds.add(modelId)
+        }
+      }
 
       try {
-        await runCurrentReleaseScenarioFlow({
-          runAuthOnboarding: () =>
-            runAuthOnboardingScenarios({
-              browser,
-              fixtures,
-              operatorContext,
-              budget,
-              journal,
-              modelIds,
-              runScenario,
-              lifecycle,
-              networkLedger,
-            }),
-          runAgents: runAgentScenarios,
-          runStudio: (handoff) =>
-            runStudioScenarios(
-              createTask9Runtime({
-                handoff,
+        const returnedUsage =
+          await runCurrentReleaseScenarioFlow({
+            runAuthOnboarding: async () => {
+              const handoff = await runAuthOnboardingScenarios({
+                browser,
+                fixtures,
+                operatorContext,
+                budget,
                 journal,
-                recordUsage: async (usage) => {
-                  if (
-                    recordedTask9Usage &&
-                    (recordedTask9Usage.observedPipelineCostUsd !==
-                      usage.observedPipelineCostUsd ||
-                      recordedTask9Usage.modelIds.join('\0') !==
-                        usage.modelIds.join('\0'))
-                  ) {
-                    throw new Error(
-                      'CURRENT_RELEASE_TASK9_USAGE_CONFLICT',
-                    )
-                  }
-                  recordedTask9Usage = usage
-                  observedPipelineCostUsd =
-                    usage.observedPipelineCostUsd
-                  for (const modelId of usage.modelIds) {
-                    modelIds.add(modelId)
-                  }
-                },
-              }),
-            ),
-          runAdminAccountMobile: (handoff, studio) =>
-            runAdminAccountMobileScenarios(
-              createTask9Runtime({
-                handoff,
-                journal,
-                recordUsage: async (usage) => {
-                  if (
-                    recordedTask9Usage &&
-                    (recordedTask9Usage.observedPipelineCostUsd !==
-                      usage.observedPipelineCostUsd ||
-                      recordedTask9Usage.modelIds.join('\0') !==
-                        usage.modelIds.join('\0'))
-                  ) {
-                    throw new Error(
-                      'CURRENT_RELEASE_TASK9_USAGE_CONFLICT',
-                    )
-                  }
-                  recordedTask9Usage = usage
-                  observedPipelineCostUsd =
-                    usage.observedPipelineCostUsd
-                  for (const modelId of usage.modelIds) {
-                    modelIds.add(modelId)
-                  }
-                },
-              }),
-              studio,
-            ),
-        })
+                modelIds,
+                runScenario,
+                lifecycle,
+                networkLedger,
+              })
+              task8Handoff.value = handoff
+              return handoff
+            },
+            runAgents: runAgentScenarios,
+            runStudio: (handoff) =>
+              runStudioScenarios(
+                createTask9Runtime({
+                  handoff,
+                  journal,
+                  recordUsage,
+                }),
+              ),
+            runAdminAccountMobile: (handoff, studio) =>
+              runAdminAccountMobileScenarios(
+                createTask9Runtime({
+                  handoff,
+                  journal,
+                  recordUsage,
+                }),
+                studio,
+              ),
+          })
+        if (
+          !recordedTask9Usage.value ||
+          recordedTask9Usage.value.observedPipelineCostUsd !==
+            returnedUsage.observedPipelineCostUsd ||
+          recordedTask9Usage.value.modelIds.join('\0') !==
+            returnedUsage.modelIds.join('\0')
+        ) {
+          throw new Error('CURRENT_RELEASE_TASK9_USAGE_MISSING')
+        }
       } catch (error) {
         primaryError = error
+      }
+
+      if (task8Handoff.value) {
+        try {
+          await task8Handoff.value.recordEphemeralStateExpiresAt(
+            task8Handoff.value.ephemeralStateExpiresAt,
+          )
+        } catch {
+          primaryError = new Error(
+            primaryError
+              ? 'CURRENT_RELEASE_SCENARIO_AND_EPHEMERAL_JOURNAL_FAILED'
+              : 'CURRENT_RELEASE_EPHEMERAL_JOURNAL_FAILED',
+          )
+        }
       }
 
       const usage = budget.snapshot()

@@ -304,6 +304,37 @@ describe('current release browser finalization', () => {
 
     expect(writeResult).not.toHaveBeenCalled()
   })
+
+  it('does not write an all-pass result after an error outside a recorded scenario', async () => {
+    const writeResult = vi.fn(async () => {})
+
+    await expect(
+      finalizeCurrentReleaseBrowserRun({
+        primaryError: new Error(
+          'CURRENT_RELEASE_EPHEMERAL_JOURNAL_FAILED',
+        ),
+        scenarios: () => [
+          {
+            name: 'auth.registration',
+            status: 'passed',
+            durationMs: 1,
+          },
+        ],
+        modelIds: new Set(),
+        usage: {
+          onboardingGenerationCalls: 0,
+          agentCalls: 0,
+          sourcePipelineCalls: 0,
+          observedPipelineCostUsd: 0,
+        },
+        readJournal: async () => registry(),
+        writeResult,
+        forbiddenValues: [],
+      }),
+    ).rejects.toThrow('CURRENT_RELEASE_UNRECORDED_FAILURE')
+
+    expect(writeResult).not.toHaveBeenCalled()
+  })
 })
 
 describe('current release scenario flow', () => {
