@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type {
   Task9Runtime,
   Task9SelectedProposals,
@@ -37,6 +37,30 @@ type JournalSelectedProposalResources = (
   selected: Task9SelectedProposals,
 ) => Promise<void>
 
+const journalWrites = [
+  {
+    name: 'source job',
+    record: {
+      organizationId,
+      sourceJobId: selectedProposals.area.jobId,
+    },
+  },
+  {
+    name: 'area proposal',
+    record: {
+      organizationId,
+      proposalId: selectedProposals.area.id,
+    },
+  },
+  {
+    name: 'price proposal',
+    record: {
+      organizationId,
+      proposalId: selectedProposals.price.id,
+    },
+  },
+] as const
+
 async function loadJournalStep(): Promise<JournalSelectedProposalResources> {
   const studioModule = (await import(
     '../../../e2e/current-release/scenarios/studio'
@@ -45,6 +69,19 @@ async function loadJournalStep(): Promise<JournalSelectedProposalResources> {
     studioModule.journalSelectedProposalResources
   expect(journalStep).toBeTypeOf('function')
   return journalStep as JournalSelectedProposalResources
+}
+
+async function runJournalThenScenarioSteps(
+  journalSelectedProposalResources: JournalSelectedProposalResources,
+  recordResources: Task9Runtime['recordResources'],
+  events: string[],
+): Promise<void> {
+  await journalSelectedProposalResources(
+    recordResources,
+    organizationId,
+    selectedProposals,
+  )
+  events.push('validation', 'mutation', 'decision')
 }
 
 describe('Task 9 Studio crash-safe journal contract', () => {
@@ -71,83 +108,121 @@ describe('Task 9 Studio crash-safe journal contract', () => {
     expect(invalidRecord.organizationId).toBe(organizationId)
   })
 
-  it('awaits each journal write before the next write and scope step', async () => {
-    const journalSelectedProposalResources =
-      await loadJournalStep()
-    let releaseFirstWrite = () => {}
-    const firstWriteBlocked = new Promise<void>((resolve) => {
-      releaseFirstWrite = resolve
-    })
-    const records: Array<
-      Parameters<Task9Runtime['recordResources']>[0]
-    > = []
-    const recordResources: Task9Runtime['recordResources'] =
-      vi.fn(async (record) => {
-        records.push(record)
-        if (records.length === 1) {
-          await firstWriteBlocked
-        }
-      })
-    let nextScopeReached = false
-
-    const execution = journalSelectedProposalResources(
-      recordResources,
-      organizationId,
-      selectedProposals,
-    ).then(() => {
-      nextScopeReached = true
-    })
-    await Promise.resolve()
-
-    expect(records).toEqual([
-      {
-        organizationId,
-        sourceJobId: selectedProposals.area.jobId,
-      },
-    ])
-    expect(nextScopeReached).toBe(false)
-
-    releaseFirstWrite()
-    await execution
-
-    expect(records).toEqual([
-      {
-        organizationId,
-        sourceJobId: selectedProposals.area.jobId,
-      },
-      {
-        organizationId,
-        proposalId: selectedProposals.area.id,
-      },
-      {
-        organizationId,
-        proposalId: selectedProposals.price.id,
-      },
-    ])
-    expect(nextScopeReached).toBe(true)
-  })
-
-  it('does not reach a proposal decision when journaling rejects', async () => {
-    const journalSelectedProposalResources =
-      await loadJournalStep()
-    const journalError = new Error('journal failed')
-    const recordResources: Task9Runtime['recordResources'] =
-      vi.fn().mockRejectedValueOnce(journalError)
-    const decideProposal = vi.fn()
-
-    const execution = (async () => {
-      await journalSelectedProposalResources(
-        recordResources,
-        organizationId,
-        selectedProposals,
+  it.each(
+    journalWrites.map((write, index) => ({
+      index,
+      name: write.name,
+    })),
+  )(
+    'blocks later writes and scenario steps while $name is pending',
+    async ({ index: blockedIndex }) => {
+      const journalSelectedProposalResources =
+        await loadJournalStep()
+      let releaseBlockedWrite = () => {}
+      let markBlockedWriteReached = () => {}
+      const blockedWriteReleased = new Promise<void>(
+        (resolve) => {
+          releaseBlockedWrite = resolve
+        },
       )
-      decideProposal()
-    })()
+      const blockedWriteReached = new Promise<void>((resolve) => {
+        markBlockedWriteReached = resolve
+      })
+      const events: string[] = []
+      let callIndex = 0
+      const recordResources: Task9Runtime['recordResources'] =
+        async (record) => {
+          const currentIndex = callIndex
+          callIndex += 1
+          events.push(journalWrites[currentIndex]!.name)
+          expect(record).toEqual(
+            journalWrites[currentIndex]!.record,
+          )
+          if (currentIndex === blockedIndex) {
+            markBlockedWriteReached()
+            await blockedWriteReleased
+          }
+        }
 
-    await expect(execution).rejects.toBe(journalError)
-    expect(recordResources).toHaveBeenCalledTimes(1)
-    expect(decideProposal).not.toHaveBeenCalled()
-  })
+      const execution = runJournalThenScenarioSteps(
+        journalSelectedProposalResources,
+        recordResources,
+        events,
+      )
+      await blockedWriteReached
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(events).toEqual(
+        journalWrites
+          .slice(0, blockedIndex + 1)
+          .map((write) => write.name),
+      )
+      expect(events).not.toContain('validation')
+      expect(events).not.toContain('mutation')
+      expect(events).not.toContain('decision')
+
+      releaseBlockedWrite()
+      await execution
+
+      expect(events).toEqual([
+        ...journalWrites.map((write) => write.name),
+        'validation',
+        'mutation',
+        'decision',
+      ])
+    },
+  )
+
+  it.each(
+    journalWrites.map((write, index) => ({
+      index,
+      name: write.name,
+    })),
+  )(
+    'stops later writes and scenario steps when $name rejects',
+    async ({ index: rejectedIndex }) => {
+      const journalSelectedProposalResources =
+        await loadJournalStep()
+      const journalError = new Error(
+        `journal write ${rejectedIndex} failed`,
+      )
+      const events: string[] = []
+      let callIndex = 0
+      const recordResources: Task9Runtime['recordResources'] = (
+        record,
+      ) => {
+        const currentIndex = callIndex
+        callIndex += 1
+        events.push(journalWrites[currentIndex]!.name)
+        expect(record).toEqual(
+          journalWrites[currentIndex]!.record,
+        )
+        if (currentIndex !== rejectedIndex) {
+          return Promise.resolve()
+        }
+        const rejection = Promise.reject(journalError)
+        void rejection.catch(() => {})
+        return rejection
+      }
+
+      const execution = runJournalThenScenarioSteps(
+        journalSelectedProposalResources,
+        recordResources,
+        events,
+      )
+
+      await expect(execution).rejects.toBe(journalError)
+      expect(events).toEqual(
+        journalWrites
+          .slice(0, rejectedIndex + 1)
+          .map((write) => write.name),
+      )
+      expect(events).not.toContain('validation')
+      expect(events).not.toContain('mutation')
+      expect(events).not.toContain('decision')
+    },
+  )
 
   it('awaits journaling immediately after selecting proposals', () => {
     const studioSource = readFileSync(
