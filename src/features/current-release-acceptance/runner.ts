@@ -519,6 +519,7 @@ function browserResultForbiddenValues(
     childEnv.CURRENT_RELEASE_USER_B_PASSWORD,
     childEnv.ADMIN_PASSWORD,
     childEnv.CURRENT_RELEASE_ACCEPTANCE_SECRET,
+    childEnv.CURRENT_RELEASE_RUNNER_GUARD,
   ].filter(
     (value): value is string =>
       typeof value === 'string' && value.length > 0,

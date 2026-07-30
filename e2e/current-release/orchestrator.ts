@@ -84,6 +84,12 @@ export async function finalizeCurrentReleaseBrowserRun(
         : 'CURRENT_RELEASE_CONTEXT_CLOSE_FAILED',
     )
   }
+  if (
+    input.usage.sourcePipelineCalls === 1 &&
+    input.usage.observedPipelineCostUsd <= 0
+  ) {
+    throw new Error('CURRENT_RELEASE_PIPELINE_COST_NOT_OBSERVED')
+  }
 
   let finalizationFailed = false
   try {

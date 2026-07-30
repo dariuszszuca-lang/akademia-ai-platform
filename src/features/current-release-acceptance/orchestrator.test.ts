@@ -232,7 +232,7 @@ describe('current release browser finalization', () => {
           onboardingGenerationCalls: 9,
           agentCalls: 8,
           sourcePipelineCalls: 1,
-          observedPipelineCostUsd: 0,
+          observedPipelineCostUsd: 0.1,
         },
         readJournal: async () => registry(),
         writeResult,
@@ -268,6 +268,38 @@ describe('current release browser finalization', () => {
       }),
     ).rejects.toThrow(
       'CURRENT_RELEASE_SCENARIO_AND_CONTEXT_CLOSE_FAILED',
+    )
+
+    expect(writeResult).not.toHaveBeenCalled()
+  })
+
+  it('does not write a partial result after pipeline use until its cost was observed', async () => {
+    const writeResult = vi.fn(async () => {})
+
+    await expect(
+      finalizeCurrentReleaseBrowserRun({
+        primaryError: new Error('STUDIO_PROPOSALS_FAILED'),
+        scenarios: () => [
+          {
+            name: 'studio.proposals',
+            status: 'failed',
+            durationMs: 10,
+            errorCode: 'STUDIO_PROPOSALS_FAILED',
+          },
+        ],
+        modelIds: new Set(),
+        usage: {
+          onboardingGenerationCalls: 9,
+          agentCalls: 8,
+          sourcePipelineCalls: 1,
+          observedPipelineCostUsd: 0,
+        },
+        readJournal: async () => registry(),
+        writeResult,
+        forbiddenValues: [],
+      }),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_PIPELINE_COST_NOT_OBSERVED',
     )
 
     expect(writeResult).not.toHaveBeenCalled()

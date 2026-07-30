@@ -578,6 +578,83 @@ describe('current release execution boundary', () => {
     ).rejects.toThrow('CURRENT_RELEASE_BROWSER_PROCESS_FAILED')
   })
 
+  it('rejects a runner guard embedded in an otherwise valid browser result', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'release-browser-guard-'),
+    )
+    const paths = getCurrentReleasePaths(workspaceRoot, runId)
+    const registry = createSyntheticCleanupRegistry({
+      runId,
+      startedAt: '2026-07-29T22:00:00.000Z',
+    })
+    const runnerGuard = 'g'.repeat(43)
+    const executeBrowser = createDefaultBrowserExecutor(
+      workspaceRoot,
+      {
+        executeFile: () => {
+          writeFileSync(
+            paths.resultPath,
+            JSON.stringify({
+              scenarios: passingScenarios(),
+              modelIds: [],
+              usage: {
+                onboardingGenerationCalls: 9,
+                agentCalls: 8,
+                sourcePipelineCalls: 1 as const,
+                observedPipelineCostUsd: 0.1,
+              },
+              registryUpdate: {
+                releaseUsers: [
+                  {
+                    role: 'a',
+                    username:
+                      `synthetic-${runnerGuard}@example.invalid`,
+                    cognitoSub: null,
+                  },
+                  {
+                    role: 'b',
+                    username:
+                      `synthetic-release-${runId}-b@example.invalid`,
+                    cognitoSub: null,
+                  },
+                ],
+                organizationId: null,
+                organizationPrefix: null,
+                projectIds: [],
+                factIds: [],
+                sourceJobIds: [],
+                proposalIds: [],
+                sourceIds: [],
+                storageKeys: [],
+                kvKeys: [],
+                adminAgentState: null,
+                accountDeletionReceipts: [],
+                ephemeralStateExpiresAt: null,
+              },
+            }),
+          )
+          return ''
+        },
+      },
+    )
+
+    await expect(
+      executeBrowser({
+        runId,
+        baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+        childEnv: {
+          CURRENT_RELEASE_RUN_ID: runId,
+          CURRENT_RELEASE_RUNNER_GUARD: runnerGuard,
+        },
+        costReservations: CURRENT_RELEASE_COST_RESERVATIONS,
+        resultPath: paths.resultPath,
+        registryPath: paths.registryPath,
+        paths,
+        registry,
+      }),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
+  })
+
   it('removes a secret-bearing invalid result and guard marker on every exit', async () => {
     const workspaceRoot = await mkdtemp(
       join(tmpdir(), 'release-browser-cleanup-'),
