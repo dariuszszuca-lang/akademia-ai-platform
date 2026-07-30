@@ -145,10 +145,14 @@ export default function InviteRegisterPage() {
 
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
-                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
+                  <label
+                    htmlFor="register-name"
+                    className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2"
+                  >
                     Imię i nazwisko
                   </label>
                   <input
+                    id="register-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -159,10 +163,14 @@ export default function InviteRegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
+                  <label
+                    htmlFor="register-email"
+                    className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2"
+                  >
                     Email
                   </label>
                   <input
+                    id="register-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -173,10 +181,14 @@ export default function InviteRegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
+                  <label
+                    htmlFor="register-password"
+                    className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2"
+                  >
                     Hasło
                   </label>
                   <input
+                    id="register-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -236,10 +248,14 @@ export default function InviteRegisterPage() {
 
               <form onSubmit={handleConfirm} className="space-y-4">
                 <div>
-                  <label className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2">
+                  <label
+                    htmlFor="register-confirm-code"
+                    className="block text-[11px] text-foreground/50 uppercase tracking-wider font-semibold mb-2"
+                  >
                     Kod weryfikacyjny
                   </label>
                   <input
+                    id="register-confirm-code"
                     type="text"
                     value={confirmCode}
                     onChange={(e) => setConfirmCode(e.target.value)}

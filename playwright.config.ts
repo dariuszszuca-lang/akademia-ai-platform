@@ -13,6 +13,7 @@ export default defineConfig({
   reporter: 'line',
   outputDir: 'Temp/current-release-playwright-artifacts',
   use: {
+    actionTimeout: 30_000,
     baseURL:
       process.env.CURRENT_RELEASE_BASE_URL ??
       'http://127.0.0.1:3000',

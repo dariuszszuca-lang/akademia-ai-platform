@@ -68,6 +68,18 @@ describe('direct Playwright production guard', () => {
     ).toBe(false)
   })
 
+  it('bounds every Playwright action so missing controls fail fast', async () => {
+    vi.stubEnv(
+      'CURRENT_RELEASE_BASE_URL',
+      'http://127.0.0.1:3000',
+    )
+    const { default: config } =
+      await import('../../../playwright.config')
+
+    expect(config.use?.actionTimeout).toBeGreaterThan(0)
+    expect(config.use?.actionTimeout).toBeLessThanOrEqual(30_000)
+  })
+
   it('rejects production before test discovery without the runner-only guard', async () => {
     vi.stubEnv('CURRENT_RELEASE_BASE_URL', productionUrl)
 
