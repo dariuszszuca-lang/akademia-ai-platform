@@ -1,26 +1,11 @@
 import { createHash } from 'node:crypto'
-import {
-  chmod,
-  lstat,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  stat,
-  symlink,
-  writeFile,
-} from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
 import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { createChildCostBudget } from '../../../e2e/current-release/budget'
 import {
   createSyntheticSourcePdf,
-  removeSyntheticSourcePdf,
+  toSyntheticSourceUploadPayload,
   usingSyntheticSourcePdf,
-  type SyntheticSourcePdf,
 } from '../../../e2e/current-release/synthetic-source-pdf'
 import {
   assertAccountExportSummary,
@@ -1182,360 +1167,99 @@ describe('Task 9 safe summaries', () => {
 })
 
 describe('Task 9 synthetic source PDF', () => {
-  it('writes one bounded ASCII-safe page with the run marker in mode 0600', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-pdf-'),
-    )
+  it('creates exact deterministic in-memory PDF content, hash, and filename without a path', async () => {
     const runId = 'syn-20260729T203000Z-a1b2c3d4'
-
+    const first = await createSyntheticSourcePdf({ runId })
+    const second = await createSyntheticSourcePdf({ runId })
     try {
-      const result = await createSyntheticSourcePdf({
-        browserDirectory: directory,
-        runId,
-      })
-      const file = await stat(result.path)
-      const document = await PDFDocument.load(
-        await readFile(result.path),
+      expect(first).not.toHaveProperty('path')
+      expect(first.name).toBe(`task9-source-${runId}.pdf`)
+      expect(first.mimeType).toBe('application/pdf')
+      expect(Buffer.isBuffer(first.buffer)).toBe(true)
+      expect(first.sizeBytes).toBe(first.buffer.byteLength)
+      expect(first.sizeBytes).toBeGreaterThanOrEqual(100)
+      expect(first.sizeBytes).toBeLessThanOrEqual(
+        25 * 1024 * 1024,
       )
-      const checksumSha256 = createHash('sha256')
-        .update(await readFile(result.path))
-        .digest('hex')
+      expect(first.buffer.subarray(0, 5).toString('ascii')).toBe(
+        '%PDF-',
+      )
+      expect(first.checksumSha256).toBe(
+        createHash('sha256').update(first.buffer).digest('hex'),
+      )
+      expect(second.name).toBe(first.name)
+      expect(second.checksumSha256).toBe(first.checksumSha256)
+      expect(second.buffer).toEqual(first.buffer)
 
-      expect(result.sizeBytes).toBe(file.size)
-      expect(result.checksumSha256).toBe(checksumSha256)
-      expect(file.size).toBeGreaterThan(0)
-      expect(file.size).toBeLessThanOrEqual(25 * 1024 * 1024)
-      expect(file.mode & 0o777).toBe(0o600)
-      expect((await stat(directory)).mode & 0o777).toBe(0o700)
-      expect(dirname(result.path)).toBe(directory)
+      const document = await PDFDocument.load(first.buffer)
       expect(document.getPageCount()).toBe(1)
       expect(document.getTitle()).toContain(runId)
       expect(document.getSubject()).toContain('83,40 m2')
       expect(document.getSubject()).toContain('750 000 PLN')
-      await removeSyntheticSourcePdf(result, directory)
     } finally {
-      await rm(directory, { recursive: true, force: true })
+      first.buffer.fill(0)
+      second.buffer.fill(0)
     }
   })
 
-  it('removes the local PDF after successful evidence use and remains idempotent', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-cleanup-success-'),
-    )
-    const artifacts: SyntheticSourcePdf[] = []
-
+  it('builds the exact Playwright upload payload without path metadata', async () => {
+    const pdf = await createSyntheticSourcePdf({
+      runId: 'syn-20260729T203001Z-a1b2c3d4',
+    })
     try {
-      const evidence = await usingSyntheticSourcePdf(
-        {
-          browserDirectory: directory,
-          runId: 'syn-20260729T203001Z-a1b2c3d4',
-        },
+      const payload = toSyntheticSourceUploadPayload(pdf)
+      expect(Object.keys(payload).sort()).toEqual([
+        'buffer',
+        'mimeType',
+        'name',
+      ])
+      expect(payload).toEqual({
+        name: pdf.name,
+        mimeType: 'application/pdf',
+        buffer: pdf.buffer,
+      })
+      expect(payload).not.toHaveProperty('path')
+    } finally {
+      pdf.buffer.fill(0)
+    }
+  })
+
+  it('zeroes the in-memory PDF after successful evidence use', async () => {
+    const retainedBuffers: Buffer[] = []
+    const checksum = await usingSyntheticSourcePdf(
+      { runId: 'syn-20260729T203002Z-a1b2c3d4' },
+      async (pdf) => {
+        retainedBuffers.push(pdf.buffer)
+        expect(pdf.buffer.some((byte) => byte !== 0)).toBe(true)
+        return pdf.checksumSha256
+      },
+    )
+
+    expect(checksum).toMatch(/^[a-f0-9]{64}$/)
+    const retainedBuffer = retainedBuffers[0]
+    expect(retainedBuffer).toBeDefined()
+    expect(retainedBuffer?.every((byte) => byte === 0)).toBe(
+      true,
+    )
+  })
+
+  it('zeroes the in-memory PDF when registration or evidence use fails', async () => {
+    const retainedBuffers: Buffer[] = []
+    await expect(
+      usingSyntheticSourcePdf(
+        { runId: 'syn-20260729T203003Z-a1b2c3d4' },
         async (pdf) => {
-          artifacts.push(pdf)
-          expect(await stat(pdf.path)).toBeDefined()
-          return pdf.checksumSha256
+          retainedBuffers.push(pdf.buffer)
+          throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
         },
-      )
-      expect(evidence).toMatch(/^[a-f0-9]{64}$/)
-      const artifact = artifacts[0]
-      if (!artifact) throw new Error('TEST_ARTIFACT_MISSING')
-      await expect(stat(artifact.path)).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
-      await expect(
-        removeSyntheticSourcePdf(artifact, directory),
-      ).resolves.toBeUndefined()
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
+      ),
+    ).rejects.toThrow('STUDIO_SOURCE_REGISTRATION_INVALID')
 
-  it('removes the local PDF when registration or evidence use fails', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-cleanup-failure-'),
+    const retainedBuffer = retainedBuffers[0]
+    expect(retainedBuffer).toBeDefined()
+    expect(retainedBuffer?.every((byte) => byte === 0)).toBe(
+      true,
     )
-    let artifactPath = ''
-
-    try {
-      await expect(
-        usingSyntheticSourcePdf(
-          {
-            browserDirectory: directory,
-            runId: 'syn-20260729T203002Z-a1b2c3d4',
-          },
-          async (pdf: { path: string }) => {
-            artifactPath = pdf.path
-            throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
-          },
-        ),
-      ).rejects.toThrow('STUDIO_SOURCE_REGISTRATION_INVALID')
-      await expect(stat(artifactPath)).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('creates unique direct-child artifacts without overwriting either file', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-unique-'),
-    )
-    const runId = 'syn-20260729T203003Z-a1b2c3d4'
-
-    try {
-      const first = await createSyntheticSourcePdf({
-        browserDirectory: directory,
-        runId,
-      })
-      const firstBytes = await readFile(first.path)
-      const second = await createSyntheticSourcePdf({
-        browserDirectory: directory,
-        runId,
-      })
-
-      expect(second.path).not.toBe(first.path)
-      expect(dirname(first.path)).toBe(directory)
-      expect(dirname(second.path)).toBe(directory)
-      expect(await readFile(first.path)).toEqual(firstBytes)
-      await removeSyntheticSourcePdf(first, directory)
-      await removeSyntheticSourcePdf(second, directory)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('fails closed without leaking a path when an exclusive destination exists', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-existing-'),
-    )
-    const runId = 'syn-20260729T203004Z-a1b2c3d4'
-    const artifactId = '00000000-0000-4000-8000-000000000004'
-    const artifactPath = join(
-      directory,
-      `task9-source-${runId}-${artifactId}.pdf`,
-    )
-
-    try {
-      await writeFile(artifactPath, 'existing-artifact')
-      let failure: unknown
-      try {
-        await createSyntheticSourcePdf(
-          { browserDirectory: directory, runId },
-          { createArtifactId: () => artifactId },
-        )
-      } catch (error) {
-        failure = error
-      }
-      expect(String(failure)).toBe(
-        'Error: SYNTHETIC_SOURCE_PDF_INVALID',
-      )
-      expect(String(failure)).not.toContain(directory)
-      expect(String(failure)).not.toContain(artifactPath)
-      expect(await readFile(artifactPath, 'utf8')).toBe(
-        'existing-artifact',
-      )
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('does not follow an exclusive destination symlink or leak its path', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-existing-symlink-'),
-    )
-    const runId = 'syn-20260729T203005Z-a1b2c3d4'
-    const artifactId = '00000000-0000-4000-8000-000000000005'
-    const artifactPath = join(
-      directory,
-      `task9-source-${runId}-${artifactId}.pdf`,
-    )
-    const outsidePath = join(directory, 'outside.pdf')
-
-    try {
-      await writeFile(outsidePath, 'outside-target')
-      await symlink(outsidePath, artifactPath)
-      let failure: unknown
-      try {
-        await createSyntheticSourcePdf(
-          { browserDirectory: directory, runId },
-          { createArtifactId: () => artifactId },
-        )
-      } catch (error) {
-        failure = error
-      }
-      expect(String(failure)).toBe(
-        'Error: SYNTHETIC_SOURCE_PDF_INVALID',
-      )
-      expect(String(failure)).not.toContain(artifactPath)
-      expect(await readFile(outsidePath, 'utf8')).toBe(
-        'outside-target',
-      )
-      expect((await lstat(artifactPath)).isSymbolicLink()).toBe(
-        true,
-      )
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('does not chmod or write through a browser-directory symlink', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-directory-symlink-'),
-    )
-    const targetDirectory = join(directory, 'target')
-    const linkedDirectory = join(directory, 'browser')
-
-    try {
-      await mkdir(targetDirectory, { mode: 0o755 })
-      await chmod(targetDirectory, 0o755)
-      await symlink(targetDirectory, linkedDirectory)
-      let failure: unknown
-      try {
-        await createSyntheticSourcePdf({
-          browserDirectory: linkedDirectory,
-          runId: 'syn-20260729T203010Z-a1b2c3d4',
-        })
-      } catch (error) {
-        failure = error
-      }
-      expect(String(failure)).toBe(
-        'Error: SYNTHETIC_SOURCE_PDF_INVALID',
-      )
-      expect(String(failure)).not.toContain(linkedDirectory)
-      expect((await stat(targetDirectory)).mode & 0o777).toBe(
-        0o755,
-      )
-      expect(await readdir(targetDirectory)).toEqual([])
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('does not delete a regular file swapped in before cleanup', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-race-'),
-    )
-    const runId = 'syn-20260729T203006Z-a1b2c3d4'
-
-    try {
-      const artifact = await createSyntheticSourcePdf({
-        browserDirectory: directory,
-        runId,
-      })
-      await rm(artifact.path)
-      await writeFile(artifact.path, 'foreign-replacement')
-
-      let failure: unknown
-      try {
-        await removeSyntheticSourcePdf(artifact, directory)
-      } catch (error) {
-        failure = error
-      }
-      expect(String(failure)).toBe(
-        'Error: SYNTHETIC_SOURCE_PDF_REMOVE_INVALID',
-      )
-      expect(String(failure)).not.toContain(artifact.path)
-      expect(await readFile(artifact.path, 'utf8')).toBe(
-        'foreign-replacement',
-      )
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('does not delete a symlink swapped in before cleanup', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-race-symlink-'),
-    )
-    const outsidePath = join(directory, 'outside.pdf')
-
-    try {
-      const artifact = await createSyntheticSourcePdf({
-        browserDirectory: directory,
-        runId: 'syn-20260729T203007Z-a1b2c3d4',
-      })
-      await rm(artifact.path)
-      await writeFile(outsidePath, 'outside-target')
-      await symlink(outsidePath, artifact.path)
-
-      await expect(
-        removeSyntheticSourcePdf(artifact, directory),
-      ).rejects.toThrow('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
-      expect(await readFile(outsidePath, 'utf8')).toBe(
-        'outside-target',
-      )
-      expect((await lstat(artifact.path)).isSymbolicLink()).toBe(
-        true,
-      )
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('fails closed when cleanup is scoped to a different directory', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-outside-'),
-    )
-    const otherDirectory = join(directory, 'other')
-
-    try {
-      await mkdir(otherDirectory)
-      const artifact = await createSyntheticSourcePdf({
-        browserDirectory: directory,
-        runId: 'syn-20260729T203008Z-a1b2c3d4',
-      })
-      await expect(
-        removeSyntheticSourcePdf(artifact, otherDirectory),
-      ).rejects.toThrow('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
-      expect(await stat(artifact.path)).toBeDefined()
-      await removeSyntheticSourcePdf(artifact, directory)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
-  })
-
-  it('removes its exclusive artifact and hides raw errors after a post-write failure', async () => {
-    const directory = await mkdtemp(
-      join(tmpdir(), 'task9-source-post-write-'),
-    )
-    const runId = 'syn-20260729T203009Z-a1b2c3d4'
-    const artifactId = '00000000-0000-4000-8000-000000000009'
-    const artifactPath = join(
-      directory,
-      `task9-source-${runId}-${artifactId}.pdf`,
-    )
-
-    try {
-      let failure: unknown
-      try {
-        await createSyntheticSourcePdf(
-          { browserDirectory: directory, runId },
-          {
-            createArtifactId: () => artifactId,
-            afterWrite: async () => {
-              throw new Error(`RAW_FS_FAILURE ${artifactPath}`)
-            },
-          },
-        )
-      } catch (error) {
-        failure = error
-      }
-      expect(String(failure)).toBe(
-        'Error: SYNTHETIC_SOURCE_PDF_INVALID',
-      )
-      expect(String(failure)).not.toContain(directory)
-      await expect(stat(artifactPath)).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
-      expect(
-        (await readdir(directory)).filter((name) =>
-          name.endsWith('.pdf'),
-        ),
-      ).toEqual([])
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
   })
 })
 

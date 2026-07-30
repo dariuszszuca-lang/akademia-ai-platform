@@ -3,7 +3,10 @@ import {
   type APIResponse,
 } from '@playwright/test'
 import { getUserSubject } from '../operator'
-import { usingSyntheticSourcePdf } from '../synthetic-source-pdf'
+import {
+  toSyntheticSourceUploadPayload,
+  usingSyntheticSourcePdf,
+} from '../synthetic-source-pdf'
 import {
   assertDownloadedPdfSummary,
   assertIsolationSummary,
@@ -295,8 +298,6 @@ export async function runStudioScenarios(
     async () => {
       await usingSyntheticSourcePdf(
         {
-          browserDirectory:
-            runtime.fixtures.paths.browserDirectory,
           runId: runtime.fixtures.runId,
         },
         async (pdf) => {
@@ -325,7 +326,9 @@ export async function runStudioScenarios(
           await pipeline.run(() =>
             pageA
               .locator('input[type="file"]')
-              .setInputFiles(pdf.path),
+              .setInputFiles(
+                toSyntheticSourceUploadPayload(pdf),
+              ),
           )
           const registration = await registrationPromise
           if (
