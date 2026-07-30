@@ -27,6 +27,10 @@ import { LEGAL_NO_SOURCE_MESSAGE } from '../../lib/legal/fallback'
 const runId = 'syn-20260729T220000Z-deadbeef'
 const productionOrigin =
   'https://akademia-ai-platform.vercel.app'
+const profileMarkerA =
+  `PROFILE-A-${runId}-CONTEXT-PROOF`
+const profileMarkerB =
+  `PROFILE-B-${runId}-CONTEXT-PROOF`
 const modelPaths = new Set([
   '/api/onboarding/generate-profil',
   '/api/onboarding/persona/types',
@@ -67,6 +71,9 @@ type ResponseWaiter = {
 type RequestCounter = {
   count: number
   failNextModelAction: boolean
+  ignoreProfileContext?: boolean
+  leakForeignProfileContext?: boolean
+  requestPayloads?: string[]
 }
 
 describe('current release scenario TTL call sites', () => {
@@ -167,6 +174,50 @@ describe('current release scenario TTL call sites', () => {
     await execution
     expect(requests.count).toBe(8)
     expect(persistence.persisted).toHaveLength(8)
+    expect(requests.requestPayloads).toHaveLength(8)
+    expect(
+      requests.requestPayloads?.every(
+        (payload) =>
+          !payload.includes(profileMarkerA) &&
+          !payload.includes(profileMarkerB),
+      ),
+    ).toBe(true)
+  })
+
+  it('fails when the real agent call sites ignore persisted profile and personas', async () => {
+    const persistence = createPersistenceController(8)
+    persistence.gates.forEach((gate) => gate.resolve())
+    const requests: RequestCounter = {
+      count: 0,
+      failNextModelAction: false,
+      ignoreProfileContext: true,
+    }
+
+    await expect(
+      runAgentScenarios(
+        createAgentRuntime(persistence, requests),
+      ),
+    ).rejects.toThrow('AGENT_RESPONSE_INVALID')
+    expect(requests.count).toBe(1)
+    expect(persistence.persisted).toHaveLength(1)
+  })
+
+  it('fails when a real agent call leaks the persisted B profile marker', async () => {
+    const persistence = createPersistenceController(8)
+    persistence.gates.forEach((gate) => gate.resolve())
+    const requests: RequestCounter = {
+      count: 0,
+      failNextModelAction: false,
+      leakForeignProfileContext: true,
+    }
+
+    await expect(
+      runAgentScenarios(
+        createAgentRuntime(persistence, requests),
+      ),
+    ).rejects.toThrow('AGENT_RESPONSE_INVALID')
+    expect(requests.count).toBe(1)
+    expect(persistence.persisted).toHaveLength(1)
   })
 
   it('starts no agent request when persistence rejects', async () => {
@@ -306,7 +357,8 @@ function createAgentRuntime(
     pageA: new FakeAgentPage(requests),
     budget: createFakeBudget(9),
     modelIds: new Set<string>(),
-    foreignUserMarkers: [],
+    foreignUserMarkers: [profileMarkerB],
+    profileMarker: profileMarkerA,
     userASubject: '11111111-1111-4111-8111-111111111111',
     ephemeralStateExpiresAt: 1,
     recordEphemeralStateExpiresAt: (expiresAt: number) =>
@@ -511,31 +563,44 @@ class FakeAgentPage {
     )
   }
 
-  async evaluate(): Promise<{
+  async evaluate(
+    _callback: unknown,
+    input: unknown,
+  ): Promise<{
     status: number
     body: string
   }> {
     this.requests.count += 1
+    this.requests.requestPayloads ??= []
+    this.requests.requestPayloads.push(JSON.stringify(input))
     if (this.requests.failNextModelAction) {
       this.requests.failNextModelAction = false
       throw new Error('model action failed')
     }
+    const observedProfileMarker =
+      this.requests.ignoreProfileContext
+        ? ''
+        : `${profileMarkerA}${
+            this.requests.leakForeignProfileContext
+              ? ` ${profileMarkerB}`
+              : ''
+          } `
     if (this.requests.count === 7) {
       return {
         status: 200,
         body:
-          '[[META]]{"sources":[{"art":"158"}]}[[/META]]\nForma wynika z art. 158.',
+          `[[META]]{"sources":[{"art":"158"}]}[[/META]]\n${observedProfileMarker}Forma wynika z art. 158.`,
       }
     }
     if (this.requests.count === 8) {
       return {
         status: 200,
-        body: `${LEGAL_NO_SOURCE_MESSAGE}\n\nBrak podstawy.`,
+        body: `${LEGAL_NO_SOURCE_MESSAGE}\n\n${observedProfileMarker}Brak podstawy.`,
       }
     }
     return {
       status: 200,
-      body: 'Bezpieczna odpowiedź syntetyczna.',
+      body: `${observedProfileMarker}Bezpieczna odpowiedź syntetyczna.`,
     }
   }
 }

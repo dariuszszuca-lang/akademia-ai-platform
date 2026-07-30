@@ -65,6 +65,7 @@ export type Task8BrowserHandoff = {
   networkLedger: Task8NetworkLedger
   runScenario: Task8ScenarioRunner
   foreignUserMarkers: readonly string[]
+  profileMarker: string
   userASubject: string
   userBSubject: string
 } & Task8EphemeralStateRuntime
@@ -74,6 +75,11 @@ const PRODUCTION_ORIGIN =
 const RATE_LIMIT_WINDOW_SECONDS = 60
 const RATE_LIMIT_TTL_MARGIN_SECONDS = 5
 const CLEANUP_SETTLE_MARGIN_SECONDS = 5
+const task8ProfileMarkerSchema = z
+  .string()
+  .regex(
+    /^PROFILE-[AB]-syn-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}-CONTEXT-PROOF$/,
+  )
 
 const task8OnboardingModelPaths = new Set([
   '/api/onboarding/generate-profil',
@@ -280,7 +286,18 @@ export function syntheticAnswer(
   actor: 'a' | 'b',
 ): string {
   const actorLabel = actor.toUpperCase()
-  return `Syntetyczna odpowiedź ${actorLabel}-${index + 1}; znacznik ${runId}; rynek Testowo.`
+  const profileMarker = buildTask8ProfileMarker(runId, actor)
+  return `Syntetyczna odpowiedź ${actorLabel}-${index + 1}; znacznik ${runId}; rynek Testowo. Stała instrukcja dla AI: zachowaj dosłownie kod kontrolny ${profileMarker} w zapisanym profilu i umieszczaj go w każdej odpowiedzi agenta.`
+}
+
+export function buildTask8ProfileMarker(
+  runId: string,
+  actor: 'a' | 'b',
+): string {
+  const parsedRunId = currentReleaseRunIdSchema.parse(runId)
+  return task8ProfileMarkerSchema.parse(
+    `PROFILE-${actor.toUpperCase()}-${parsedRunId}-CONTEXT-PROOF`,
+  )
 }
 
 export function buildForeignUserMarkers(
@@ -304,6 +321,7 @@ export function buildForeignUserMarkers(
     `SYN-B-${runId}-seller-`,
     input.userB,
     input.userBSubject,
+    buildTask8ProfileMarker(runId, 'b'),
   ]
   if (
     markers.some((marker) => marker.length < 8) ||
@@ -332,6 +350,7 @@ export function collectObservableModelId(
 
 export type SafeAgentBodySummary = {
   nonEmpty: boolean
+  usedProfileMarker: boolean
   hasGenerationError: boolean
   leaksForeignMarker: boolean
 }
@@ -339,9 +358,13 @@ export type SafeAgentBodySummary = {
 export function summarizeAgentBody(
   body: string,
   foreignMarkers: readonly string[],
+  profileMarker: string,
 ): SafeAgentBodySummary {
+  const parsedProfileMarker =
+    task8ProfileMarkerSchema.parse(profileMarker)
   return {
     nonEmpty: body.trim().length > 0,
+    usedProfileMarker: body.includes(parsedProfileMarker),
     hasGenerationError: body.includes('[Błąd generowania'),
     leaksForeignMarker: foreignMarkers.some(
       (marker) => marker.length > 0 && body.includes(marker),
@@ -359,6 +382,7 @@ export type LegalPositiveSummary = SafeAgentBodySummary & {
 export function assertLegalPositiveSummary(
   body: string,
   foreignMarkers: readonly string[],
+  profileMarker: string,
 ): LegalPositiveSummary {
   const match = body.match(
     /^\[\[META\]\](\{[^\n]*\})\[\[\/META\]\]\n([\s\S]*)$/,
@@ -398,7 +422,11 @@ export function assertLegalPositiveSummary(
     ),
   )
   const answerArticles = extractCitedArticleNumbers(answer)
-  const base = summarizeAgentBody(answer, foreignMarkers)
+  const base = summarizeAgentBody(
+    answer,
+    foreignMarkers,
+    profileMarker,
+  )
   const summary: LegalPositiveSummary = {
     ...base,
     nonEmptySources: parsed.data.sources.length > 0,
@@ -414,6 +442,7 @@ export function assertLegalPositiveSummary(
     !summary.hasArticleSource ||
     !summary.hasArticleInAnswer ||
     !summary.hasMatchingArticleCitation ||
+    !summary.usedProfileMarker ||
     summary.hasGenerationError ||
     summary.leaksForeignMarker
   ) {
@@ -433,9 +462,15 @@ export type LegalNegativeSummary = Omit<
 export function assertLegalNegativeSummary(
   body: string,
   foreignMarkers: readonly string[],
+  profileMarker: string,
 ): LegalNegativeSummary {
-  const base = summarizeAgentBody(body, foreignMarkers)
+  const base = summarizeAgentBody(
+    body,
+    foreignMarkers,
+    profileMarker,
+  )
   const summary: LegalNegativeSummary = {
+    usedProfileMarker: base.usedProfileMarker,
     hasNoSourceMessage: body.startsWith(LEGAL_NO_SOURCE_MESSAGE),
     hasMetadata:
       body.includes('[[META]]') || body.includes('[[/META]]'),
@@ -445,6 +480,7 @@ export function assertLegalNegativeSummary(
   if (
     !base.nonEmpty ||
     !summary.hasNoSourceMessage ||
+    !summary.usedProfileMarker ||
     summary.hasMetadata ||
     summary.hasGenerationError ||
     summary.leaksForeignMarker
@@ -483,6 +519,7 @@ export function buildTask8BrowserHandoff<
     userASubject: string
     userBSubject: string
     foreignUserMarkers: readonly string[]
+    profileMarker: string
     ephemeralStateExpiresAt: number
     recordEphemeralStateExpiresAt(
       expiresAt: number,
@@ -500,6 +537,8 @@ export function buildTask8BrowserHandoff<
       input.foreignUserMarkers.length ||
     !Number.isSafeInteger(input.ephemeralStateExpiresAt) ||
     input.ephemeralStateExpiresAt <= 0 ||
+    !task8ProfileMarkerSchema.safeParse(input.profileMarker)
+      .success ||
     typeof input.recordEphemeralStateExpiresAt !== 'function'
   ) {
     throw new Error('CURRENT_RELEASE_HANDOFF_INVALID')

@@ -20,6 +20,7 @@ import type { createCurrentReleaseJournal } from '../journal'
 import {
   buildTask8BrowserHandoff,
   buildForeignUserMarkers,
+  buildTask8ProfileMarker,
   collectObservableModelId,
   persistEphemeralStateBeforeRequest,
   syntheticAnswer,
@@ -93,6 +94,14 @@ export async function runAuthOnboardingScenarios(
     recordEphemeralStateExpiresAt:
       runtime.recordEphemeralStateExpiresAt,
   }
+  const userAProfileMarker = buildTask8ProfileMarker(
+    runtime.fixtures.runId,
+    'a',
+  )
+  const userBProfileMarker = buildTask8ProfileMarker(
+    runtime.fixtures.runId,
+    'b',
+  )
   const contextA = await runtime.browser.newContext({
     baseURL: runtime.fixtures.baseUrl,
   })
@@ -260,6 +269,9 @@ export async function runAuthOnboardingScenarios(
         modelIds: runtime.modelIds,
         ephemeralState,
       })
+      await expect(
+        pageA.getByText(userAProfileMarker, { exact: false }),
+      ).toBeVisible()
       await assertProfileFiles(pageA, ['profil.md'])
     },
   )
@@ -327,6 +339,9 @@ export async function runAuthOnboardingScenarios(
         modelIds: runtime.modelIds,
         ephemeralState,
       })
+      await expect(
+        pageB.getByText(userBProfileMarker, { exact: false }),
+      ).toBeVisible()
       for (const type of ['buyer', 'seller'] as const) {
         await completePersonaPathB({
           page: pageB,
@@ -411,6 +426,7 @@ export async function runAuthOnboardingScenarios(
       userB: runtime.fixtures.userB,
       userBSubject: requireSubject(userBSubject),
     }),
+    profileMarker: userAProfileMarker,
     ephemeralStateExpiresAt:
       ephemeralState.ephemeralStateExpiresAt,
     userASubject: requireSubject(userASubject),

@@ -21,6 +21,9 @@ export const agentCallMatrix = [
   ['prawny', 'pytanie-prawne'],
 ] as const
 
+const profileEvidenceInstruction =
+  'Na początku odpowiedzi umieść dokładnie kod kontrolny zapisany w profilu użytkownika.'
+
 export async function runAgentScenarios(
   runtime: Task8BrowserHandoff,
 ): Promise<void> {
@@ -38,7 +41,7 @@ export async function runAgentScenarios(
             context:
               `SYN-A-${runtime.fixtures.runId}; rynek Testowo; wyłącznie dane syntetyczne.`,
             goal:
-              `Krótka odpowiedź testowa dla ${runtime.fixtures.runId}.`,
+              `Krótka odpowiedź testowa dla ${runtime.fixtures.runId}. ${profileEvidenceInstruction}`,
           })
           collectObservableModelId(
             response.headers,
@@ -47,9 +50,11 @@ export async function runAgentScenarios(
           const summary = summarizeAgentBody(
             response.body,
             foreignMarkers,
+            runtime.profileMarker,
           )
           if (
             !summary.nonEmpty ||
+            !summary.usedProfileMarker ||
             summary.hasGenerationError ||
             summary.leaksForeignMarker
           ) {
@@ -71,7 +76,7 @@ export async function runAgentScenarios(
           context:
             `SYN-A-${runtime.fixtures.runId}; sprzedaż nieruchomości; dane syntetyczne.`,
           goal:
-            'Jaka forma jest wymagana dla umowy przenoszącej własność nieruchomości? Podaj podstawę i numer artykułu.',
+            `Jaka forma jest wymagana dla umowy przenoszącej własność nieruchomości? Podaj podstawę i numer artykułu. ${profileEvidenceInstruction}`,
         })
         collectObservableModelId(
           response.headers,
@@ -80,6 +85,7 @@ export async function runAgentScenarios(
         assertLegalPositiveSummary(
           response.body,
           foreignMarkers,
+          runtime.profileMarker,
         )
       })
     },
@@ -108,7 +114,7 @@ export async function runAgentScenarios(
             context:
               `SYN-A-${runtime.fixtures.runId}; kontrola braku trafienia; dane syntetyczne.`,
             goal:
-              'Odpowiedz tylko w granicach przepisów znalezionych w bazie.',
+              `Odpowiedz tylko w granicach przepisów znalezionych w bazie. ${profileEvidenceInstruction}`,
           },
           {
             'x-current-release-run-id':
@@ -126,6 +132,7 @@ export async function runAgentScenarios(
         assertLegalNegativeSummary(
           response.body,
           foreignMarkers,
+          runtime.profileMarker,
         )
       })
     },
@@ -156,6 +163,12 @@ async function callAgent(
   body: string
   headers: Record<string, string>
 }> {
+  if (
+    data.context.includes(runtime.profileMarker) ||
+    data.goal.includes(runtime.profileMarker)
+  ) {
+    throw new Error('CURRENT_RELEASE_PROFILE_MARKER_IN_REQUEST')
+  }
   return persistEphemeralStateBeforeRequest(
     runtime,
     async () => {
