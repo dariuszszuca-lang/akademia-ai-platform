@@ -67,6 +67,122 @@ export async function journalSelectedProposalResources(
   })
 }
 
+export async function journalAndValidateCreatedProject(
+  project: Record<string, unknown>,
+  expectedTitle: string,
+  recordResources: Task9Runtime['recordResources'],
+): Promise<{
+  organizationId: string
+  projectId: string
+}> {
+  const projectId = readUuid(
+    project.id,
+    'STUDIO_PROPERTY_RESPONSE_INVALID',
+  )
+  const organizationId = readUuid(
+    project.organizationId,
+    'STUDIO_PROPERTY_RESPONSE_INVALID',
+  )
+  await recordResources({ organizationId, projectId })
+
+  if (
+    project.title !== expectedTitle ||
+    project.propertyType !== 'apartment' ||
+    project.transactionType !== 'sale' ||
+    project.city !== 'Testowo' ||
+    project.district !== 'Dzielnica Zero' ||
+    project.addressMode !== 'hidden'
+  ) {
+    throw new Error('STUDIO_PROPERTY_RESPONSE_INVALID')
+  }
+
+  return { organizationId, projectId }
+}
+
+export async function journalAndValidateCreatedFact(
+  fact: Record<string, unknown>,
+  expected: {
+    projectId: string
+    subjectA: string
+  },
+  recordFactId: Task9Runtime['recordFactId'],
+): Promise<{
+  factId: string
+  version: number
+}> {
+  const factId = readUuid(
+    fact.id,
+    'STUDIO_FACT_RESPONSE_INVALID',
+  )
+  await recordFactId(factId)
+
+  if (
+    fact.propertyProjectId !== expected.projectId ||
+    fact.key !== 'area.usable' ||
+    fact.label !== 'Powierzchnia użytkowa' ||
+    fact.valueType !== 'number' ||
+    fact.value !== 80 ||
+    fact.unit !== 'm²' ||
+    fact.status !== 'confirmed' ||
+    fact.visibility !== 'internal' ||
+    fact.confirmedByUserId !== expected.subjectA ||
+    fact.confirmedByUserId === 'current-session-user' ||
+    !Number.isSafeInteger(fact.version) ||
+    (fact.version as number) < 1
+  ) {
+    throw new Error('STUDIO_FACT_RESPONSE_INVALID')
+  }
+
+  return {
+    factId,
+    version: fact.version as number,
+  }
+}
+
+export async function journalAndValidateRegisteredSource(
+  source: Record<string, unknown>,
+  expected: {
+    organizationId: string
+    projectId: string
+    sizeBytes: number
+    checksumSha256: string
+  },
+  recordResources: Task9Runtime['recordResources'],
+): Promise<{
+  sourceId: string
+  storageKey: string
+}> {
+  const sourceId = readUuid(
+    source.id,
+    'STUDIO_SOURCE_REGISTRATION_INVALID',
+  )
+  await recordResources({
+    organizationId: expected.organizationId,
+    sourceId,
+  })
+  const storageKey = readCleanupStorageKey(
+    source.storageKey,
+    expected.organizationId,
+    'STUDIO_SOURCE_REGISTRATION_INVALID',
+  )
+  await recordResources({
+    organizationId: expected.organizationId,
+    storageKey,
+  })
+
+  if (
+    source.organizationId !== expected.organizationId ||
+    source.propertyProjectId !== expected.projectId ||
+    source.mediaType !== 'application/pdf' ||
+    source.sizeBytes !== expected.sizeBytes ||
+    source.checksumSha256 !== expected.checksumSha256
+  ) {
+    throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
+  }
+
+  return { sourceId, storageKey }
+}
+
 export async function runStudioScenarios(
   runtime: Task9Runtime,
 ): Promise<Task9StudioState> {
@@ -126,39 +242,23 @@ export async function runStudioScenarios(
         'project',
         'STUDIO_PROPERTY_RESPONSE_INVALID',
       )
-      const nextProjectId = readUuid(
-        project.id,
-        'STUDIO_PROPERTY_RESPONSE_INVALID',
-      )
-      const nextOrganizationId = readUuid(
-        project.organizationId,
-        'STUDIO_PROPERTY_RESPONSE_INVALID',
-      )
-      if (
-        project.title !== title ||
-        project.propertyType !== 'apartment' ||
-        project.transactionType !== 'sale' ||
-        project.city !== 'Testowo' ||
-        project.district !== 'Dzielnica Zero' ||
-        project.addressMode !== 'hidden'
-      ) {
-        throw new Error('STUDIO_PROPERTY_RESPONSE_INVALID')
-      }
-
-      await runtime.recordResources({
-        organizationId: nextOrganizationId,
-        projectId: nextProjectId,
-      })
-      organizationId = nextOrganizationId
-      projectId = nextProjectId
+      const createdProject =
+        await journalAndValidateCreatedProject(
+          project,
+          title,
+          runtime.recordResources,
+        )
+      organizationId = createdProject.organizationId
+      projectId = createdProject.projectId
 
       await pageA.waitForURL(
         (url) =>
-          url.pathname === `/nieruchomosci/${nextProjectId}`,
+          url.pathname ===
+          `/nieruchomosci/${createdProject.projectId}`,
       )
       if (
         new URL(pageA.url()).pathname !==
-        `/nieruchomosci/${nextProjectId}`
+        `/nieruchomosci/${createdProject.projectId}`
       ) {
         throw new Error('STUDIO_PROPERTY_URL_INVALID')
       }
@@ -227,31 +327,18 @@ export async function runStudioScenarios(
         'fact',
         'STUDIO_FACT_RESPONSE_INVALID',
       )
-      const nextFactId = readUuid(
-        fact.id,
-        'STUDIO_FACT_RESPONSE_INVALID',
+      const createdFact = await journalAndValidateCreatedFact(
+        fact,
+        {
+          projectId: createdProjectId,
+          subjectA: nextSubjectA,
+        },
+        runtime.recordFactId,
       )
-      if (
-        fact.propertyProjectId !== createdProjectId ||
-        fact.key !== 'area.usable' ||
-        fact.label !== 'Powierzchnia użytkowa' ||
-        fact.valueType !== 'number' ||
-        fact.value !== 80 ||
-        fact.unit !== 'm²' ||
-        fact.status !== 'confirmed' ||
-        fact.visibility !== 'internal' ||
-        fact.confirmedByUserId !== nextSubjectA ||
-        fact.confirmedByUserId === 'current-session-user' ||
-        !Number.isSafeInteger(fact.version) ||
-        (fact.version as number) < 1
-      ) {
-        throw new Error('STUDIO_FACT_RESPONSE_INVALID')
-      }
-
-      await runtime.recordFactId(nextFactId)
+      const nextFactId = createdFact.factId
       const updatePath =
         `/api/properties/${createdProjectId}/facts/${nextFactId}`
-      const createdVersion = fact.version as number
+      const createdVersion = createdFact.version
       for (const update of [
         { value: 81, version: createdVersion + 1 },
         { value: 80, version: createdVersion + 2 },
@@ -368,30 +455,19 @@ export async function runStudioScenarios(
             'source',
             'STUDIO_SOURCE_REGISTRATION_INVALID',
           )
-          const nextSourceId = readUuid(
-            source.id,
-            'STUDIO_SOURCE_REGISTRATION_INVALID',
-          )
-          if (
-            source.organizationId !== createdOrganizationId ||
-            source.propertyProjectId !== createdProjectId ||
-            typeof source.storageKey !== 'string' ||
-            source.storageKey.length === 0 ||
-            source.mediaType !== 'application/pdf' ||
-            source.sizeBytes !== pdf.sizeBytes ||
-            source.checksumSha256 !== pdf.checksumSha256
-          ) {
-            throw new Error(
-              'STUDIO_SOURCE_REGISTRATION_INVALID',
+          const registeredSource =
+            await journalAndValidateRegisteredSource(
+              source,
+              {
+                organizationId: createdOrganizationId,
+                projectId: createdProjectId,
+                sizeBytes: pdf.sizeBytes,
+                checksumSha256: pdf.checksumSha256,
+              },
+              runtime.recordResources,
             )
-          }
-          const nextStorageKey = source.storageKey
-
-          await runtime.recordResources({
-            organizationId: createdOrganizationId,
-            sourceId: nextSourceId,
-            storageKey: nextStorageKey,
-          })
+          const nextSourceId = registeredSource.sourceId
+          const nextStorageKey = registeredSource.storageKey
           sourceId = nextSourceId
           storageKey = nextStorageKey
 
@@ -954,6 +1030,23 @@ function readNestedRecord(
 
 function readUuid(value: unknown, errorCode: string): string {
   if (typeof value !== 'string' || !uuidPattern.test(value)) {
+    throw new Error(errorCode)
+  }
+  return value
+}
+
+function readCleanupStorageKey(
+  value: unknown,
+  organizationId: string,
+  errorCode: string,
+): string {
+  const prefix = `originals/organizations/${organizationId}/`
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > 1024 ||
+    !value.startsWith(prefix)
+  ) {
     throw new Error(errorCode)
   }
   return value
