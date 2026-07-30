@@ -23,6 +23,15 @@ const mocks = vi.hoisted(() => ({
   anthropicStream: vi.fn(),
 }))
 
+const validPersonaTypes = {
+  types: Array.from({ length: 3 }, (_, index) => ({
+    name: `Synthetic type ${index + 1}`,
+    who: `Synthetic audience ${index + 1}`,
+    problem: `Synthetic problem ${index + 1}`,
+    match: `Synthetic match ${index + 1}`,
+  })),
+}
+
 vi.mock('@/lib/request-auth', () => ({
   resolveApiUser: mocks.resolveApiUser,
 }))
@@ -253,7 +262,7 @@ describe('onboarding model observability', () => {
       content: [
         {
           type: 'text',
-          text: '{"types":[]}',
+          text: JSON.stringify(validPersonaTypes),
         },
       ],
     })
@@ -326,4 +335,105 @@ describe('onboarding model observability', () => {
       )
     },
   )
+
+  it('requests a strict supported persona schema with a bounded provider call', async () => {
+    const route = await import('./persona/types/route')
+    const request = new Request(
+      'https://example.test/api/onboarding/persona/types',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'buyer' }),
+      },
+    )
+
+    const response = await route.POST(request)
+
+    expect(response.status).toBe(200)
+    const [parameters, requestOptions] =
+      mocks.anthropicCreate.mock.calls[0]!
+    expect(parameters.output_config).toMatchObject({
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['types'],
+          properties: {
+            types: {
+              type: 'array',
+              items: expect.any(Object),
+              description: expect.stringContaining('maxItems: 3'),
+            },
+          },
+        },
+      },
+    })
+    expect(parameters.output_config.format.schema.properties.types)
+      .not.toHaveProperty('minItems')
+    expect(parameters.output_config.format.schema.properties.types)
+      .not.toHaveProperty('maxItems')
+    expect(requestOptions).toEqual({
+      timeout: 25_000,
+      maxRetries: 0,
+    })
+  })
+
+  it('rejects unusable persona output without returning raw model text', async () => {
+    mocks.anthropicCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            types: [
+              {
+                name: 'Only one type',
+                who: 'Synthetic audience',
+                problem: 'Synthetic problem',
+                match: 'Synthetic match',
+              },
+            ],
+          }),
+        },
+      ],
+    })
+    const route = await import('./persona/types/route')
+    const request = new Request(
+      'https://example.test/api/onboarding/persona/types',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'buyer' }),
+      },
+    )
+
+    const response = await route.POST(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(502)
+    expect(body).toEqual({ error: 'invalid AI response' })
+    expect(JSON.stringify(body)).not.toContain('Only one type')
+  })
+
+  it('returns a stable error without exposing provider failures', async () => {
+    mocks.anthropicCreate.mockRejectedValueOnce(
+      new Error('provider request included sensitive diagnostics'),
+    )
+    const route = await import('./persona/types/route')
+    const request = new Request(
+      'https://example.test/api/onboarding/persona/types',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'seller' }),
+      },
+    )
+
+    const response = await route.POST(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(body).toEqual({ error: 'AI service unavailable' })
+    expect(JSON.stringify(body)).not.toContain('sensitive diagnostics')
+  })
 })

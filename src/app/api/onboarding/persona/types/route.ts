@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
+import { z } from 'zod'
 import { anthropic, DEFAULT_MODEL } from '@/lib/anthropic'
 import { buildProposeTypesPrompt } from '@/lib/onboarding/persona-prompts'
 import { getProfilMd } from '@/lib/onboarding/state'
@@ -9,6 +11,21 @@ import { observableModelHeaders } from '@/lib/model-id'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
+
+const personaTypeSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    who: z.string().trim().min(1).max(500),
+    problem: z.string().trim().min(1).max(500),
+    match: z.string().trim().min(1).max(500),
+  })
+  .strict()
+
+const personaTypesSchema = z
+  .object({
+    types: z.array(personaTypeSchema).length(3),
+  })
+  .strict()
 
 export async function POST(req: Request) {
   const auth = await resolveApiUser()
@@ -37,12 +54,21 @@ export async function POST(req: Request) {
   const { system, user } = buildProposeTypesPrompt(type, profilMd)
 
   try {
-    const msg = await anthropic.messages.create({
-      model: DEFAULT_MODEL,
-      max_tokens: 1500,
-      system,
-      messages: [{ role: 'user', content: user }],
-    })
+    const msg = await anthropic.messages.create(
+      {
+        model: DEFAULT_MODEL,
+        max_tokens: 1500,
+        system,
+        messages: [{ role: 'user', content: user }],
+        output_config: {
+          format: zodOutputFormat(personaTypesSchema),
+        },
+      },
+      {
+        timeout: 25_000,
+        maxRetries: 0,
+      },
+    )
 
     const text =
       msg.content
@@ -50,20 +76,31 @@ export async function POST(req: Request) {
         .join('')
         .trim()
 
-    // Wyciagnij JSON (czasami AI dorzuci coś przed/po)
-    const start = text.indexOf('{')
-    const end = text.lastIndexOf('}')
-    if (start === -1 || end === -1) {
-      return NextResponse.json({ error: 'invalid AI response', raw: text }, { status: 500 })
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      return NextResponse.json(
+        { error: 'invalid AI response' },
+        { status: 502 },
+      )
     }
-    const json = JSON.parse(text.slice(start, end + 1))
-    return NextResponse.json(json, {
+
+    const result = personaTypesSchema.safeParse(parsed)
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'invalid AI response' },
+        { status: 502 },
+      )
+    }
+
+    return NextResponse.json(result.data, {
       headers: observableModelHeaders(DEFAULT_MODEL),
     })
-  } catch (err) {
+  } catch {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'unknown' },
-      { status: 500 },
+      { error: 'AI service unavailable' },
+      { status: 503 },
     )
   }
 }
