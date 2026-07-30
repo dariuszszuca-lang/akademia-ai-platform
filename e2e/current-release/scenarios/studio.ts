@@ -146,10 +146,12 @@ export async function journalAndValidateRegisteredSource(
     projectId: string
     sizeBytes: number
     checksumSha256: string
-    pipelineCalls: number
-    budgetSourcePipelineCalls: number
   },
   recordResources: Task9Runtime['recordResources'],
+  pipelineEvidenceReaders: {
+    readPipelineCalls(): number
+    readBudgetSourcePipelineCalls(): number
+  },
 ): Promise<{
   sourceId: string
   storageKey: string
@@ -171,6 +173,10 @@ export async function journalAndValidateRegisteredSource(
     organizationId: expected.organizationId,
     storageKey,
   })
+  const pipelineCalls =
+    pipelineEvidenceReaders.readPipelineCalls()
+  const budgetSourcePipelineCalls =
+    pipelineEvidenceReaders.readBudgetSourcePipelineCalls()
 
   if (
     source.organizationId !== expected.organizationId ||
@@ -178,8 +184,8 @@ export async function journalAndValidateRegisteredSource(
     source.mediaType !== 'application/pdf' ||
     source.sizeBytes !== expected.sizeBytes ||
     source.checksumSha256 !== expected.checksumSha256 ||
-    expected.pipelineCalls !== 1 ||
-    expected.budgetSourcePipelineCalls !== 1
+    pipelineCalls !== 1 ||
+    budgetSourcePipelineCalls !== 1
   ) {
     throw new Error('STUDIO_SOURCE_REGISTRATION_INVALID')
   }
@@ -463,11 +469,13 @@ export async function runStudioScenarios(
                 projectId: createdProjectId,
                 sizeBytes: pdf.sizeBytes,
                 checksumSha256: pdf.checksumSha256,
-                pipelineCalls: pipeline.calls(),
-                budgetSourcePipelineCalls:
-                  runtime.budget.snapshot().sourcePipelineCalls,
               },
               runtime.recordResources,
+              {
+                readPipelineCalls: () => pipeline.calls(),
+                readBudgetSourcePipelineCalls: () =>
+                  runtime.budget.snapshot().sourcePipelineCalls,
+              },
             )
           const nextSourceId = registeredSource.sourceId
           const nextStorageKey = registeredSource.storageKey
