@@ -3,6 +3,7 @@ import type { SyntheticCleanupRegistry } from '../synthetic-acceptance/cleanup-r
 import {
   finalizeCurrentReleaseBrowserRun,
   projectBrowserRegistryUpdate,
+  runCurrentReleaseScenarioFlow,
 } from '../../../e2e/current-release/orchestrator'
 
 const runId = 'syn-20260729T220000Z-deadbeef'
@@ -270,5 +271,41 @@ describe('current release browser finalization', () => {
     )
 
     expect(writeResult).not.toHaveBeenCalled()
+  })
+})
+
+describe('current release scenario flow', () => {
+  it('runs Task 8, agents, Studio and account scenarios in one serial order', async () => {
+    const order: string[] = []
+
+    const usage = await runCurrentReleaseScenarioFlow({
+      runAuthOnboarding: async () => {
+        order.push('auth-onboarding')
+        return { handoff: true }
+      },
+      runAgents: async (handoff) => {
+        expect(handoff).toEqual({ handoff: true })
+        order.push('agents')
+      },
+      runStudio: async (handoff) => {
+        expect(handoff).toEqual({ handoff: true })
+        order.push('studio')
+        return { studio: true }
+      },
+      runAdminAccountMobile: async (handoff, studio) => {
+        expect(handoff).toEqual({ handoff: true })
+        expect(studio).toEqual({ studio: true })
+        order.push('admin-export-mobile-delete')
+        return { observedPipelineCostUsd: 0.12 }
+      },
+    })
+
+    expect(order).toEqual([
+      'auth-onboarding',
+      'agents',
+      'studio',
+      'admin-export-mobile-delete',
+    ])
+    expect(usage).toEqual({ observedPipelineCostUsd: 0.12 })
   })
 })

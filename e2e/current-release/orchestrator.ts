@@ -27,6 +27,29 @@ type FinalizeCurrentReleaseBrowserRunInput = {
   forbiddenValues: readonly string[]
 }
 
+type CurrentReleaseScenarioFlowInput<Handoff, Studio, Usage> = {
+  runAuthOnboarding(): Promise<Handoff>
+  runAgents(handoff: Handoff): Promise<void>
+  runStudio(handoff: Handoff): Promise<Studio>
+  runAdminAccountMobile(
+    handoff: Handoff,
+    studio: Studio,
+  ): Promise<Usage>
+}
+
+export async function runCurrentReleaseScenarioFlow<
+  Handoff,
+  Studio,
+  Usage,
+>(
+  input: CurrentReleaseScenarioFlowInput<Handoff, Studio, Usage>,
+): Promise<Usage> {
+  const handoff = await input.runAuthOnboarding()
+  await input.runAgents(handoff)
+  const studio = await input.runStudio(handoff)
+  return input.runAdminAccountMobile(handoff, studio)
+}
+
 export function projectBrowserRegistryUpdate(
   registry: SyntheticCleanupRegistry,
 ): BrowserRegistryUpdate {
