@@ -11,7 +11,7 @@ export default defineConfig({
   timeout: 10 * 60_000,
   globalTimeout: 45 * 60_000,
   reporter: 'line',
-  outputDir: 'Temp/current-release-playwright',
+  outputDir: 'Temp/current-release-playwright-artifacts',
   use: {
     baseURL:
       process.env.CURRENT_RELEASE_BASE_URL ??

@@ -1,6 +1,12 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import {
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assertPlaywrightLaunchAllowed,
@@ -28,6 +34,38 @@ describe('direct Playwright production guard', () => {
         CURRENT_RELEASE_BASE_URL: 'http://127.0.0.1:3000',
       }),
     ).not.toThrow()
+  })
+
+  it('keeps Playwright output cleanup outside the guarded run directory', async () => {
+    vi.stubEnv(
+      'CURRENT_RELEASE_BASE_URL',
+      'http://127.0.0.1:3000',
+    )
+    const { default: config } =
+      await import('../../../playwright.config')
+    const guardedRoot = resolve(
+      process.cwd(),
+      'Temp',
+      'current-release-playwright',
+    )
+    const outputDirectory = resolve(
+      process.cwd(),
+      config.outputDir ?? '',
+    )
+    const containsPath = (parent: string, candidate: string) => {
+      const child = relative(parent, candidate)
+      return (
+        child === '' ||
+        (!isAbsolute(child) &&
+          child !== '..' &&
+          !child.startsWith(`..${sep}`))
+      )
+    }
+
+    expect(
+      containsPath(outputDirectory, guardedRoot) ||
+        containsPath(guardedRoot, outputDirectory),
+    ).toBe(false)
   })
 
   it('rejects production before test discovery without the runner-only guard', async () => {
