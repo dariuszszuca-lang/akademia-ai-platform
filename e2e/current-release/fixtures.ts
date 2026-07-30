@@ -23,6 +23,11 @@ const strongPasswordSchema = z
   .regex(/[^A-Za-z0-9]/)
   .regex(/^\S+$/)
 
+const adminPasswordSchema = z
+  .string()
+  .min(20)
+  .max(200)
+
 const environmentSchema = z
   .object({
     CURRENT_RELEASE_RUN_ID: currentReleaseRunIdSchema,
@@ -31,7 +36,7 @@ const environmentSchema = z
     CURRENT_RELEASE_USER_A_PASSWORD: strongPasswordSchema,
     CURRENT_RELEASE_USER_B: z.string().max(180),
     CURRENT_RELEASE_USER_B_PASSWORD: strongPasswordSchema,
-    ADMIN_PASSWORD: strongPasswordSchema,
+    ADMIN_PASSWORD: adminPasswordSchema,
     CURRENT_RELEASE_ACCEPTANCE_SECRET:
       currentReleaseAcceptanceSecretSchema,
     AWS_PROFILE: z.literal('akademia-ai'),

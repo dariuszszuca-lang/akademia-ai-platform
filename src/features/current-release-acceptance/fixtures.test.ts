@@ -67,13 +67,24 @@ describe('current release Playwright fixtures', () => {
     })
   })
 
+  it('accepts an existing nonblank admin password without synthetic-user complexity rules', () => {
+    expect(
+      parseCurrentReleaseFixtures({
+        ...validEnvironment(),
+        ADMIN_PASSWORD: 'ExistingAdmin2026abc',
+      }).adminPassword,
+    ).toBe('ExistingAdmin2026abc')
+  })
+
   it.each([
     ['CURRENT_RELEASE_BASE_URL', 'http://akademia-ai-platform.vercel.app'],
     ['CURRENT_RELEASE_BASE_URL', 'https://akademia-ai-platform.vercel.app/'],
     ['CURRENT_RELEASE_USER_A', `synthetic-release-${runId}-b@example.invalid`],
     ['CURRENT_RELEASE_USER_B', `synthetic-release-${runId}-a@example.invalid`],
     ['CURRENT_RELEASE_USER_A_PASSWORD', 'weak'],
+    ['CURRENT_RELEASE_USER_A_PASSWORD', 'ExistingAdmin2026abc'],
     ['CURRENT_RELEASE_USER_B_PASSWORD', 'alllowercasebutlongenough'],
+    ['ADMIN_PASSWORD', 'ExistingAdmin2026ab'],
     ['ADMIN_PASSWORD', '   '],
     ['CURRENT_RELEASE_ACCEPTANCE_SECRET', 'weak'],
     ['AWS_PROFILE', 'ai-team'],
