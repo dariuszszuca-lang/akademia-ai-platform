@@ -15,6 +15,8 @@ type CognitoResponse = {
   ChallengeName?: string;
   Session?: string;
   UserAttributes?: Array<{ Name: string; Value: string }>;
+  __type?: string;
+  message?: string;
 };
 
 async function cognitoRequest(action: string, body: Record<string, unknown>): Promise<CognitoResponse> {
@@ -27,7 +29,10 @@ async function cognitoRequest(action: string, body: Record<string, unknown>): Pr
     body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const responseText = await res.text();
+  const data: CognitoResponse = responseText.trim()
+    ? JSON.parse(responseText)
+    : {};
 
   if (!res.ok) {
     const error = data.__type?.split("#").pop() || "UnknownError";

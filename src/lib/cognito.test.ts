@@ -38,4 +38,14 @@ describe('Cognito account identity deletion', () => {
       AccessToken: 'synthetic-access-token',
     })
   })
+
+  it('accepts the empty successful response returned by Cognito DeleteUser', async () => {
+    const request = vi.fn(async () => new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', request)
+    const { deleteUser } = await import('./cognito')
+
+    await expect(
+      deleteUser('synthetic-access-token'),
+    ).resolves.toEqual({})
+  })
 })
