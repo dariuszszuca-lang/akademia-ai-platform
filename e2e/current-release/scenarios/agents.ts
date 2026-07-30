@@ -5,10 +5,9 @@ import {
 import {
   assertLegalNegativeSummary,
   assertLegalPositiveSummary,
-  calculateEphemeralStateExpiresAt,
   collectObservableModelId,
   isCanonicalProductionPost,
-  markAgentRequestEphemeralState,
+  persistEphemeralStateBeforeRequest,
   summarizeAgentBody,
   type Task8BrowserHandoff,
 } from '../ui-helpers'
@@ -26,7 +25,6 @@ export async function runAgentScenarios(
   runtime: Task8BrowserHandoff,
 ): Promise<void> {
   const foreignMarkers = runtime.foreignUserMarkers
-  let legalReplayExpiresAt = 0
 
   await runtime.runScenario(
     'agents.six',
@@ -93,7 +91,6 @@ export async function runAgentScenarios(
     async () => {
       const nonce = createLegalNoHitProbeNonce()
       const expiresAt = Math.floor(Date.now() / 1000) + 45
-      legalReplayExpiresAt = expiresAt
       const signature = signLegalNoHitProbe({
         acceptanceSecret: runtime.fixtures.acceptanceSecret,
         runId: runtime.fixtures.runId,
@@ -144,13 +141,6 @@ export async function runAgentScenarios(
     throw new Error('CURRENT_RELEASE_TASK8_USAGE_INVALID')
   }
   runtime.networkLedger.reconcile(usage)
-  runtime.ephemeralStateExpiresAt = Math.max(
-    runtime.ephemeralStateExpiresAt,
-    calculateEphemeralStateExpiresAt(
-      Date.now(),
-      legalReplayExpiresAt,
-    ),
-  )
 }
 
 async function callAgent(
@@ -166,45 +156,49 @@ async function callAgent(
   body: string
   headers: Record<string, string>
 }> {
-  markAgentRequestEphemeralState(runtime)
-  const networkResponse = runtime.pageA.waitForResponse(
-    (response) =>
-      isCanonicalProductionPost({
-        url: response.url(),
-        method: response.request().method(),
-        pathname: '/api/agents/run',
-        baseUrl: runtime.fixtures.baseUrl,
-      }),
-  )
-  const browserResult = runtime.pageA.evaluate(
-    async ({ requestData, requestHeaders }) => {
-      const response = await fetch('/api/agents/run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...requestHeaders,
+  return persistEphemeralStateBeforeRequest(
+    runtime,
+    async () => {
+      const networkResponse = runtime.pageA.waitForResponse(
+        (response) =>
+          isCanonicalProductionPost({
+            url: response.url(),
+            method: response.request().method(),
+            pathname: '/api/agents/run',
+            baseUrl: runtime.fixtures.baseUrl,
+          }),
+      )
+      const browserResult = runtime.pageA.evaluate(
+        async ({ requestData, requestHeaders }) => {
+          const response = await fetch('/api/agents/run', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...requestHeaders,
+            },
+            body: JSON.stringify(requestData),
+          })
+          return {
+            status: response.status,
+            body: await response.text(),
+          }
         },
-        body: JSON.stringify(requestData),
-      })
+        { requestData: data, requestHeaders: headers ?? {} },
+      )
+      const [observedResponse, result] = await Promise.all([
+        networkResponse,
+        browserResult,
+      ])
+      if (
+        observedResponse.status() !== 200 ||
+        result.status !== 200
+      ) {
+        throw new Error('AGENT_RESPONSE_INVALID')
+      }
       return {
-        status: response.status,
-        body: await response.text(),
+        body: result.body,
+        headers: observedResponse.headers(),
       }
     },
-    { requestData: data, requestHeaders: headers ?? {} },
   )
-  const [observedResponse, result] = await Promise.all([
-    networkResponse,
-    browserResult,
-  ])
-  if (
-    observedResponse.status() !== 200 ||
-    result.status !== 200
-  ) {
-    throw new Error('AGENT_RESPONSE_INVALID')
-  }
-  return {
-    body: result.body,
-    headers: observedResponse.headers(),
-  }
 }

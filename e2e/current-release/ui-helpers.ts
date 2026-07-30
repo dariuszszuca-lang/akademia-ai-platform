@@ -46,6 +46,13 @@ export type Task8ScenarioRunner = (
   action: () => Promise<void>,
 ) => Promise<void>
 
+export type Task8EphemeralStateRuntime = {
+  ephemeralStateExpiresAt: number
+  recordEphemeralStateExpiresAt(
+    expiresAt: number,
+  ): Promise<void>
+}
+
 export type Task8BrowserHandoff = {
   fixtures: CurrentReleaseFixtures
   contextA: BrowserContext
@@ -58,10 +65,9 @@ export type Task8BrowserHandoff = {
   networkLedger: Task8NetworkLedger
   runScenario: Task8ScenarioRunner
   foreignUserMarkers: readonly string[]
-  ephemeralStateExpiresAt: number
   userASubject: string
   userBSubject: string
-}
+} & Task8EphemeralStateRuntime
 
 const PRODUCTION_ORIGIN =
   'https://akademia-ai-platform.vercel.app'
@@ -478,6 +484,9 @@ export function buildTask8BrowserHandoff<
     userBSubject: string
     foreignUserMarkers: readonly string[]
     ephemeralStateExpiresAt: number
+    recordEphemeralStateExpiresAt(
+      expiresAt: number,
+    ): Promise<void>
   },
 >(input: T): T {
   cognitoSubjectSchema.parse(input.userASubject)
@@ -490,7 +499,8 @@ export function buildTask8BrowserHandoff<
     new Set(input.foreignUserMarkers).size !==
       input.foreignUserMarkers.length ||
     !Number.isSafeInteger(input.ephemeralStateExpiresAt) ||
-    input.ephemeralStateExpiresAt <= 0
+    input.ephemeralStateExpiresAt <= 0 ||
+    typeof input.recordEphemeralStateExpiresAt !== 'function'
   ) {
     throw new Error('CURRENT_RELEASE_HANDOFF_INVALID')
   }
@@ -537,6 +547,19 @@ export function markAgentRequestEphemeralState(
     expiresAt,
   )
   return target.ephemeralStateExpiresAt
+}
+
+export async function persistEphemeralStateBeforeRequest<T>(
+  target: Task8EphemeralStateRuntime,
+  action: () => Promise<T>,
+  observedAtMs: number = Date.now(),
+): Promise<T> {
+  const expiresAt = markAgentRequestEphemeralState(
+    target,
+    observedAtMs,
+  )
+  await target.recordEphemeralStateExpiresAt(expiresAt)
+  return action()
 }
 
 export function isCanonicalProductionPost(input: {

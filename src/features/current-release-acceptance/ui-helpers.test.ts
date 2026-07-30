@@ -11,6 +11,7 @@ import {
   expectedTask8ModelCallSequence,
   isCanonicalProductionPost,
   markAgentRequestEphemeralState,
+  persistEphemeralStateBeforeRequest,
   summarizeAgentBody,
   syntheticAnswer,
   task8BrowserScenarios,
@@ -385,6 +386,95 @@ describe('current release UI helpers', () => {
     )
   })
 
+  it('persists crash-safe expiry before all 9 onboarding and 8 agent model actions', async () => {
+    const events: string[] = []
+    const target = {
+      ephemeralStateExpiresAt: 1,
+      recordEphemeralStateExpiresAt: vi.fn(
+        async (expiresAt: number) => {
+          events.push(`persist:${expiresAt}`)
+        },
+      ),
+    }
+    const modelActions = [
+      ...onboardingGenerationPlan,
+      ...agentCallMatrix,
+      'legal-positive',
+      'legal-negative',
+    ]
+
+    for (const [index, action] of modelActions.entries()) {
+      const observedAtMs =
+        Date.UTC(2026, 6, 29, 22, 0, 1) + index * 70_000
+      await persistEphemeralStateBeforeRequest(
+        target,
+        async () => {
+          events.push(`request:${String(action)}`)
+        },
+        observedAtMs,
+      )
+    }
+
+    expect(modelActions).toHaveLength(17)
+    expect(
+      target.recordEphemeralStateExpiresAt,
+    ).toHaveBeenCalledTimes(17)
+    for (let index = 0; index < modelActions.length; index += 1) {
+      expect(events[index * 2]).toMatch(/^persist:\d+$/)
+      expect(events[index * 2 + 1]).toBe(
+        `request:${String(modelActions[index])}`,
+      )
+    }
+  })
+
+  it('does not start the model action when expiry persistence fails', async () => {
+    const action = vi.fn(async () => undefined)
+    const target = {
+      ephemeralStateExpiresAt: 1,
+      recordEphemeralStateExpiresAt: vi.fn(async () => {
+        throw new Error('journal write failed')
+      }),
+    }
+
+    await expect(
+      persistEphemeralStateBeforeRequest(
+        target,
+        action,
+        Date.UTC(2026, 6, 29, 22, 0, 1),
+      ),
+    ).rejects.toThrow('journal write failed')
+    expect(action).not.toHaveBeenCalled()
+  })
+
+  it('keeps the persisted deadline when the model action fails', async () => {
+    const target = {
+      ephemeralStateExpiresAt: 1,
+      recordEphemeralStateExpiresAt: vi.fn(
+        async () => undefined,
+      ),
+    }
+    const observedAtMs = Date.UTC(2026, 6, 29, 22, 0, 1)
+
+    await expect(
+      persistEphemeralStateBeforeRequest(
+        target,
+        async () => {
+          throw new Error('model request failed')
+        },
+        observedAtMs,
+      ),
+    ).rejects.toThrow('model request failed')
+    expect(
+      target.recordEphemeralStateExpiresAt,
+    ).toHaveBeenCalledWith(target.ephemeralStateExpiresAt)
+    expect(target.ephemeralStateExpiresAt).toBe(
+      calculateEphemeralStateExpiresAt(
+        observedAtMs,
+        Math.floor(observedAtMs / 1000) + 60,
+      ),
+    )
+  })
+
   it('matches only the exact canonical production agent response', () => {
     const input = {
       method: 'POST',
@@ -436,6 +526,9 @@ describe('current release UI helpers', () => {
     const modelIds = new Set(['claude-haiku-4-5-20251001'])
     const runScenario = vi.fn()
     const networkLedger = createTask8NetworkLedger()
+    const recordEphemeralStateExpiresAt = vi.fn(
+      async () => undefined,
+    )
     const foreignUserMarkers = buildForeignUserMarkers({
       runId,
       userB:
@@ -457,6 +550,7 @@ describe('current release UI helpers', () => {
         modelIds,
         runScenario,
         networkLedger,
+        recordEphemeralStateExpiresAt,
         foreignUserMarkers,
         ephemeralStateExpiresAt,
         userASubject: '11111111-1111-4111-8111-111111111111',
@@ -473,6 +567,7 @@ describe('current release UI helpers', () => {
       modelIds,
       runScenario,
       networkLedger,
+      recordEphemeralStateExpiresAt,
       foreignUserMarkers,
       ephemeralStateExpiresAt,
       userASubject: '11111111-1111-4111-8111-111111111111',

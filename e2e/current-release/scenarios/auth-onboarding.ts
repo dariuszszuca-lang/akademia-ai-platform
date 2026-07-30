@@ -20,10 +20,11 @@ import type { createCurrentReleaseJournal } from '../journal'
 import {
   buildTask8BrowserHandoff,
   buildForeignUserMarkers,
-  calculateEphemeralStateExpiresAt,
   collectObservableModelId,
+  persistEphemeralStateBeforeRequest,
   syntheticAnswer,
   type Task8BrowserHandoff,
+  type Task8EphemeralStateRuntime,
   type Task8NetworkLedger,
   type Task8ScenarioRunner,
 } from '../ui-helpers'
@@ -61,11 +62,37 @@ export type Task8AuthOnboardingRuntime = {
   runScenario: Task8ScenarioRunner
   lifecycle: Task8BrowserLifecycle
   networkLedger: Task8NetworkLedger
+  recordEphemeralStateExpiresAt(
+    expiresAt: number,
+  ): Promise<void>
 }
 
+type Task8AuthOnboardingInput = Omit<
+  Task8AuthOnboardingRuntime,
+  'recordEphemeralStateExpiresAt'
+> &
+  Partial<
+    Pick<
+      Task8AuthOnboardingRuntime,
+      'recordEphemeralStateExpiresAt'
+    >
+  >
+
 export async function runAuthOnboardingScenarios(
-  runtime: Task8AuthOnboardingRuntime,
+  input: Task8AuthOnboardingInput,
 ): Promise<Task8BrowserHandoff> {
+  const runtime: Task8AuthOnboardingRuntime = {
+    ...input,
+    recordEphemeralStateExpiresAt:
+      input.recordEphemeralStateExpiresAt ??
+      ((expiresAt) =>
+        input.journal.recordEphemeralStateExpiresAt(expiresAt)),
+  }
+  const ephemeralState: Task8EphemeralStateRuntime = {
+    ephemeralStateExpiresAt: 1,
+    recordEphemeralStateExpiresAt:
+      runtime.recordEphemeralStateExpiresAt,
+  }
   const contextA = await runtime.browser.newContext({
     baseURL: runtime.fixtures.baseUrl,
   })
@@ -231,6 +258,7 @@ export async function runAuthOnboardingScenarios(
         startPath: '/onboarding/express',
         budget: runtime.budget,
         modelIds: runtime.modelIds,
+        ephemeralState,
       })
       await assertProfileFiles(pageA, ['profil.md'])
     },
@@ -246,6 +274,7 @@ export async function runAuthOnboardingScenarios(
           type,
           budget: runtime.budget,
           modelIds: runtime.modelIds,
+          ephemeralState,
         })
       }
       await assertProfileFiles(pageA, [
@@ -296,6 +325,7 @@ export async function runAuthOnboardingScenarios(
         startPath: '/onboarding/express',
         budget: runtime.budget,
         modelIds: runtime.modelIds,
+        ephemeralState,
       })
       for (const type of ['buyer', 'seller'] as const) {
         await completePersonaPathB({
@@ -304,6 +334,7 @@ export async function runAuthOnboardingScenarios(
           runId: runtime.fixtures.runId,
           budget: runtime.budget,
           modelIds: runtime.modelIds,
+          ephemeralState,
         })
       }
       await assertProfileFiles(pageB, [
@@ -330,6 +361,7 @@ export async function runAuthOnboardingScenarios(
         startPath: '/onboarding/deep',
         budget: runtime.budget,
         modelIds: runtime.modelIds,
+        ephemeralState,
       })
       const complete = await requireContext(contextB).request.post(
         '/api/onboarding/complete',
@@ -372,16 +404,15 @@ export async function runAuthOnboardingScenarios(
     modelIds: runtime.modelIds,
     networkLedger: runtime.networkLedger,
     runScenario: runtime.runScenario,
+    recordEphemeralStateExpiresAt:
+      runtime.recordEphemeralStateExpiresAt,
     foreignUserMarkers: buildForeignUserMarkers({
       runId: runtime.fixtures.runId,
       userB: runtime.fixtures.userB,
       userBSubject: requireSubject(userBSubject),
     }),
     ephemeralStateExpiresAt:
-      calculateEphemeralStateExpiresAt(
-        Date.now(),
-        Math.floor(Date.now() / 1000) + 60,
-      ),
+      ephemeralState.ephemeralStateExpiresAt,
     userASubject: requireSubject(userASubject),
     userBSubject: requireSubject(userBSubject),
   })
@@ -398,6 +429,7 @@ async function completeWizard(input: {
   startPath: string
   budget: ReturnType<typeof createChildCostBudget>
   modelIds: Set<string>
+  ephemeralState: Task8EphemeralStateRuntime
 }): Promise<void> {
   await input.page.goto(input.startPath)
 
@@ -409,9 +441,12 @@ async function completeWizard(input: {
       }),
     ).toBeVisible()
     const isLast = index === input.questions.length - 1
-    const saveResponse = waitForPost(input.page, input.savePath)
 
     if (question.type === 'select') {
+      const saveResponse = waitForPost(
+        input.page,
+        input.savePath,
+      )
       const option = question.options?.[0]
       if (!option) throw new Error('ONBOARDING_OPTION_MISSING')
       await input.page
@@ -439,31 +474,43 @@ async function completeWizard(input: {
         exact: true,
       })
       if (isLast) {
-        const generationResponse = waitForPost(
-          input.page,
-          input.generationPath,
-        )
         await input.budget.runBefore(
           'onboardingGeneration',
-          async () => {
-            await button.click()
-            requireOk(
-              await saveResponse,
-              'ONBOARDING_SAVE_RESPONSE_INVALID',
-            )
-            const generated = await generationResponse
-            requireOk(
-              generated,
-              'ONBOARDING_GENERATION_RESPONSE_INVALID',
-            )
-            collectObservableModelId(
-              generated.headers(),
-              input.modelIds,
-            )
-            await generated.finished()
-          },
+          () =>
+            persistEphemeralStateBeforeRequest(
+              input.ephemeralState,
+              async () => {
+                const saveResponse = waitForPost(
+                  input.page,
+                  input.savePath,
+                )
+                const generationResponse = waitForPost(
+                  input.page,
+                  input.generationPath,
+                )
+                await button.click()
+                requireOk(
+                  await saveResponse,
+                  'ONBOARDING_SAVE_RESPONSE_INVALID',
+                )
+                const generated = await generationResponse
+                requireOk(
+                  generated,
+                  'ONBOARDING_GENERATION_RESPONSE_INVALID',
+                )
+                collectObservableModelId(
+                  generated.headers(),
+                  input.modelIds,
+                )
+                await generated.finished()
+              },
+            ),
         )
       } else {
+        const saveResponse = waitForPost(
+          input.page,
+          input.savePath,
+        )
         await button.click()
         requireOk(
           await saveResponse,
@@ -492,53 +539,71 @@ async function completePersonaPathA(input: {
   type: 'buyer' | 'seller'
   budget: ReturnType<typeof createChildCostBudget>
   modelIds: Set<string>
+  ephemeralState: Task8EphemeralStateRuntime
 }): Promise<void> {
   const basePath = `/onboarding/persona/${input.type}`
   await input.page.goto(basePath)
-  const pathResponse = waitForPost(
-    input.page,
-    '/api/onboarding/persona/path',
-  )
-  const typesResponse = waitForPost(
-    input.page,
-    '/api/onboarding/persona/types',
-  )
   await input.budget.runBefore(
     'onboardingGeneration',
-    async () => {
-      await input.page
-        .getByRole('button', {
-          name: /Dopiero zaczynam, AI niech zaproponuje/,
-        })
-        .click()
-      requireOk(
-        await pathResponse,
-        'ONBOARDING_PERSONA_PATH_INVALID',
-      )
-      const types = await typesResponse
-      requireOk(types, 'ONBOARDING_PERSONA_TYPES_INVALID')
-      collectObservableModelId(types.headers(), input.modelIds)
-      await types.finished()
-    },
+    () =>
+      persistEphemeralStateBeforeRequest(
+        input.ephemeralState,
+        async () => {
+          const pathResponse = waitForPost(
+            input.page,
+            '/api/onboarding/persona/path',
+          )
+          const typesResponse = waitForPost(
+            input.page,
+            '/api/onboarding/persona/types',
+          )
+          await input.page
+            .getByRole('button', {
+              name: /Dopiero zaczynam, AI niech zaproponuje/,
+            })
+            .click()
+          requireOk(
+            await pathResponse,
+            'ONBOARDING_PERSONA_PATH_INVALID',
+          )
+          const types = await typesResponse
+          requireOk(types, 'ONBOARDING_PERSONA_TYPES_INVALID')
+          collectObservableModelId(
+            types.headers(),
+            input.modelIds,
+          )
+          await types.finished()
+        },
+      ),
   )
 
   const choices = input.page
     .locator('button')
     .filter({ hasText: 'Wybierz →' })
   await expect(choices).toHaveCount(3)
-  const expandResponse = waitForPost(
-    input.page,
-    '/api/onboarding/persona/expand',
-  )
   await input.budget.runBefore(
     'onboardingGeneration',
-    async () => {
-      await choices.first().click()
-      const expanded = await expandResponse
-      requireOk(expanded, 'ONBOARDING_PERSONA_EXPAND_INVALID')
-      collectObservableModelId(expanded.headers(), input.modelIds)
-      await expanded.finished()
-    },
+    () =>
+      persistEphemeralStateBeforeRequest(
+        input.ephemeralState,
+        async () => {
+          const expandResponse = waitForPost(
+            input.page,
+            '/api/onboarding/persona/expand',
+          )
+          await choices.first().click()
+          const expanded = await expandResponse
+          requireOk(
+            expanded,
+            'ONBOARDING_PERSONA_EXPAND_INVALID',
+          )
+          collectObservableModelId(
+            expanded.headers(),
+            input.modelIds,
+          )
+          await expanded.finished()
+        },
+      ),
   )
   await input.page.waitForURL(
     (url) => url.pathname === `${basePath}/result`,
@@ -558,6 +623,7 @@ async function completePersonaPathB(input: {
   runId: string
   budget: ReturnType<typeof createChildCostBudget>
   modelIds: Set<string>
+  ephemeralState: Task8EphemeralStateRuntime
 }): Promise<void> {
   const basePath = `/onboarding/persona/${input.type}`
   await input.page.goto(basePath)
@@ -580,17 +646,7 @@ async function completePersonaPathB(input: {
     await expect(
       input.page.getByText(question.prompt, { exact: true }),
     ).toBeVisible()
-    const answerResponse = waitForPost(
-      input.page,
-      '/api/onboarding/persona/answer',
-    )
     const finalQuestion = index === questions.length - 1
-    const generationResponse = finalQuestion
-      ? waitForPost(
-          input.page,
-          '/api/onboarding/persona/generate',
-        )
-      : undefined
     await input.page
       .getByPlaceholder(question.placeholder!, { exact: true })
       .fill(
@@ -600,30 +656,46 @@ async function completePersonaPathB(input: {
     if (finalQuestion) {
       await input.budget.runBefore(
         'onboardingGeneration',
-        async () => {
-          await input.page
-            .getByRole('button', {
-              name: 'Wyślij →',
-              exact: true,
-            })
-            .click()
-          requireOk(
-            await answerResponse,
-            'ONBOARDING_PERSONA_ANSWER_INVALID',
-          )
-          const generated = await generationResponse!
-          requireOk(
-            generated,
-            'ONBOARDING_PERSONA_GENERATE_INVALID',
-          )
-          collectObservableModelId(
-            generated.headers(),
-            input.modelIds,
-          )
-          await generated.finished()
-        },
+        () =>
+          persistEphemeralStateBeforeRequest(
+            input.ephemeralState,
+            async () => {
+              const answerResponse = waitForPost(
+                input.page,
+                '/api/onboarding/persona/answer',
+              )
+              const generationResponse = waitForPost(
+                input.page,
+                '/api/onboarding/persona/generate',
+              )
+              await input.page
+                .getByRole('button', {
+                  name: 'Wyślij →',
+                  exact: true,
+                })
+                .click()
+              requireOk(
+                await answerResponse,
+                'ONBOARDING_PERSONA_ANSWER_INVALID',
+              )
+              const generated = await generationResponse
+              requireOk(
+                generated,
+                'ONBOARDING_PERSONA_GENERATE_INVALID',
+              )
+              collectObservableModelId(
+                generated.headers(),
+                input.modelIds,
+              )
+              await generated.finished()
+            },
+          ),
       )
     } else {
+      const answerResponse = waitForPost(
+        input.page,
+        '/api/onboarding/persona/answer',
+      )
       await input.page
         .getByRole('button', {
           name: 'Wyślij →',
