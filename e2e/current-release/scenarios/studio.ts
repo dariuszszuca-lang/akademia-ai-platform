@@ -424,6 +424,18 @@ export async function runStudioScenarios(
       if (selected.area.sourceId !== createdSourceId) {
         throw new Error('STUDIO_PROPOSAL_SCOPE_INVALID')
       }
+      await runtime.recordResources({
+        organizationId: createdOrganizationId,
+        sourceJobId: selected.area.jobId,
+      })
+      await runtime.recordResources({
+        organizationId: createdOrganizationId,
+        proposalId: selected.area.id,
+      })
+      await runtime.recordResources({
+        organizationId: createdOrganizationId,
+        proposalId: selected.price.id,
+      })
       selectedProposals = selected
 
       await runtime.pageA.goto(
