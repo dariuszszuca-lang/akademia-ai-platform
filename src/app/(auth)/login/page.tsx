@@ -54,8 +54,14 @@ function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-foreground/70 mb-1.5">Email</label>
+              <label
+                htmlFor="login-email"
+                className="block text-sm font-medium text-foreground/70 mb-1.5"
+              >
+                Email
+              </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => { clearError(); setEmail(e.target.value); }}
@@ -65,8 +71,14 @@ function LoginForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground/70 mb-1.5">Hasło</label>
+              <label
+                htmlFor="login-password"
+                className="block text-sm font-medium text-foreground/70 mb-1.5"
+              >
+                Hasło
+              </label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => { clearError(); setPassword(e.target.value); }}
