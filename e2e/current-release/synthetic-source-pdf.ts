@@ -1,10 +1,11 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { constants } from 'node:fs'
 import {
-  chmod,
   lstat,
   mkdir,
-  rm,
-  writeFile,
+  open,
+  unlink,
+  type FileHandle,
 } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import {
@@ -15,6 +16,9 @@ import {
 import { currentReleaseRunIdSchema } from '../../src/features/current-release-acceptance/domain'
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024
+const MODE_MASK = BigInt(0o777)
+const MODE_DIRECTORY_PRIVATE = BigInt(0o700)
+const MODE_FILE_PRIVATE = BigInt(0o600)
 
 export type SyntheticSourcePdf = {
   path: string
@@ -22,17 +26,63 @@ export type SyntheticSourcePdf = {
   checksumSha256: string
 }
 
-export async function createSyntheticSourcePdf(input: {
-  browserDirectory: string
-  runId: string
-}): Promise<SyntheticSourcePdf> {
+type FileIdentity = {
+  dev: bigint
+  ino: bigint
+}
+
+type SyntheticSourcePdfIdentity = {
+  parent: FileIdentity
+  file: FileIdentity
+}
+
+export type SyntheticSourcePdfCreateDependencies = {
+  createArtifactId?(): string
+  afterWrite?(): Promise<void>
+}
+
+const syntheticSourcePdfIdentities =
+  new WeakMap<SyntheticSourcePdf, SyntheticSourcePdfIdentity>()
+
+const artifactIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+export async function createSyntheticSourcePdf(
+  input: {
+    browserDirectory: string
+    runId: string
+  },
+  dependencies: SyntheticSourcePdfCreateDependencies = {},
+): Promise<SyntheticSourcePdf> {
+  try {
+    return await createSyntheticSourcePdfUnsafe(
+      input,
+      dependencies,
+    )
+  } catch {
+    throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+  }
+}
+
+async function createSyntheticSourcePdfUnsafe(
+  input: {
+    browserDirectory: string
+    runId: string
+  },
+  dependencies: SyntheticSourcePdfCreateDependencies,
+): Promise<SyntheticSourcePdf> {
   const runId = currentReleaseRunIdSchema.parse(input.runId)
   const browserDirectory = resolve(input.browserDirectory)
+  const artifactId =
+    dependencies.createArtifactId?.() ?? randomUUID()
+  if (!artifactIdPattern.test(artifactId)) {
+    throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+  }
   const path = resolve(
     browserDirectory,
-    `task9-source-${runId}.pdf`,
+    `task9-source-${runId}-${artifactId}.pdf`,
   )
-  if (!path.startsWith(`${browserDirectory}/`)) {
+  if (dirname(path) !== browserDirectory) {
     throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
   }
 
@@ -85,55 +135,191 @@ export async function createSyntheticSourcePdf(input: {
     throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
   }
 
-  await mkdir(browserDirectory, { recursive: true, mode: 0o700 })
-  await rejectSymlink(path)
-  await writeFile(path, bytes, { mode: 0o600 })
-  await chmod(path, 0o600)
-
-  return {
+  const pdf: SyntheticSourcePdf = {
     path,
     sizeBytes: bytes.byteLength,
     checksumSha256: createHash('sha256')
       .update(bytes)
       .digest('hex'),
   }
+  let handle: FileHandle | null = null
+  let directoryHandle: FileHandle | null = null
+
+  try {
+    await mkdir(browserDirectory, {
+      recursive: true,
+      mode: 0o700,
+    })
+    directoryHandle = await open(
+      browserDirectory,
+      constants.O_RDONLY |
+        constants.O_DIRECTORY |
+        constants.O_NOFOLLOW,
+    )
+    const originalParentStat = await directoryHandle.stat({
+      bigint: true,
+    })
+    if (!originalParentStat.isDirectory()) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+    }
+    await directoryHandle.chmod(0o700)
+    const parentStat = await directoryHandle.stat({
+      bigint: true,
+    })
+    if (
+      !parentStat.isDirectory() ||
+      (parentStat.mode & MODE_MASK) !==
+        MODE_DIRECTORY_PRIVATE ||
+      !identitiesMatch(
+        readIdentity(originalParentStat),
+        readIdentity(parentStat),
+      )
+    ) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+    }
+
+    handle = await open(path, 'wx', 0o600)
+    const openedStat = await handle.stat({ bigint: true })
+    if (!openedStat.isFile()) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+    }
+    const identity = {
+      parent: readIdentity(parentStat),
+      file: readIdentity(openedStat),
+    }
+    syntheticSourcePdfIdentities.set(pdf, identity)
+
+    await handle.writeFile(bytes)
+    await dependencies.afterWrite?.()
+    await handle.chmod(0o600)
+    await handle.sync()
+    const writtenStat = await handle.stat({ bigint: true })
+    if (
+      !writtenStat.isFile() ||
+      !identitiesMatch(
+        identity.file,
+        readIdentity(writtenStat),
+      ) ||
+      writtenStat.size !== BigInt(bytes.byteLength) ||
+      (writtenStat.mode & MODE_MASK) !== MODE_FILE_PRIVATE
+    ) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+    }
+
+    await handle.close()
+    handle = null
+    await directoryHandle.close()
+    directoryHandle = null
+    await assertSyntheticSourcePdfIdentity(
+      pdf,
+      browserDirectory,
+      identity,
+    )
+    return pdf
+  } catch (error) {
+    await closeIgnoringErrors(handle)
+    await closeIgnoringErrors(directoryHandle)
+    if (syntheticSourcePdfIdentities.has(pdf)) {
+      await removeSyntheticSourcePdf(
+        pdf,
+        browserDirectory,
+      ).catch(() => {})
+    }
+    throw error
+  }
 }
 
 export async function removeSyntheticSourcePdf(
-  path: string,
+  pdf: SyntheticSourcePdf,
   browserDirectory: string,
 ): Promise<void> {
+  try {
+    await removeSyntheticSourcePdfUnsafe(pdf, browserDirectory)
+  } catch {
+    throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+  }
+}
+
+async function removeSyntheticSourcePdfUnsafe(
+  pdf: SyntheticSourcePdf,
+  browserDirectory: string,
+): Promise<void> {
+  const identity = syntheticSourcePdfIdentities.get(pdf)
+  if (!identity || typeof pdf.path !== 'string') {
+    throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+  }
   const directory = resolve(browserDirectory)
-  const artifactPath = resolve(path)
+  const artifactPath = resolve(pdf.path)
   if (dirname(artifactPath) !== directory) {
     throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
   }
 
+  let parentStat
   try {
-    const directoryStat = await lstat(directory)
-    if (
-      directoryStat.isSymbolicLink() ||
-      !directoryStat.isDirectory()
-    ) {
-      throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
-    }
+    parentStat = await lstat(directory, { bigint: true })
   } catch (error) {
     if (isMissingFile(error)) return
     throw error
   }
+  if (
+    parentStat.isSymbolicLink() ||
+    !parentStat.isDirectory() ||
+    (parentStat.mode & MODE_MASK) !== MODE_DIRECTORY_PRIVATE ||
+    !identitiesMatch(identity.parent, readIdentity(parentStat))
+  ) {
+    throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+  }
 
+  let artifactStat
   try {
-    const artifactStat = await lstat(artifactPath)
-    if (
-      artifactStat.isSymbolicLink() ||
-      !artifactStat.isFile()
-    ) {
-      throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
-    }
-    await rm(artifactPath)
+    artifactStat = await lstat(artifactPath, { bigint: true })
   } catch (error) {
     if (isMissingFile(error)) return
     throw error
+  }
+  if (
+    artifactStat.isSymbolicLink() ||
+    !artifactStat.isFile() ||
+    !identitiesMatch(identity.file, readIdentity(artifactStat))
+  ) {
+    throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+  }
+
+  let handle: FileHandle | null = null
+  try {
+    handle = await open(
+      artifactPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW,
+    )
+    const openedStat = await handle.stat({ bigint: true })
+    if (
+      !openedStat.isFile() ||
+      !identitiesMatch(
+        identity.file,
+        readIdentity(openedStat),
+      )
+    ) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+    }
+    const finalPathStat = await lstat(artifactPath, {
+      bigint: true,
+    })
+    if (
+      finalPathStat.isSymbolicLink() ||
+      !finalPathStat.isFile() ||
+      !identitiesMatch(
+        identity.file,
+        readIdentity(finalPathStat),
+      )
+    ) {
+      throw new Error('SYNTHETIC_SOURCE_PDF_REMOVE_INVALID')
+    }
+    await unlink(artifactPath)
+  } catch (error) {
+    if (isMissingFile(error)) return
+    throw error
+  } finally {
+    await closeIgnoringErrors(handle)
   }
 }
 
@@ -149,28 +335,64 @@ export async function usingSyntheticSourcePdf<T>(
     return await action(pdf)
   } finally {
     await removeSyntheticSourcePdf(
-      pdf.path,
+      pdf,
       input.browserDirectory,
     )
   }
 }
 
-async function rejectSymlink(path: string): Promise<void> {
-  try {
-    const file = await lstat(path)
-    if (file.isSymbolicLink() || !file.isFile()) {
-      throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
-    }
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      error.code === 'ENOENT'
-    ) {
-      return
-    }
-    throw error
+async function assertSyntheticSourcePdfIdentity(
+  pdf: SyntheticSourcePdf,
+  browserDirectory: string,
+  identity: SyntheticSourcePdfIdentity,
+): Promise<void> {
+  const directory = resolve(browserDirectory)
+  const artifactPath = resolve(pdf.path)
+  if (dirname(artifactPath) !== directory) {
+    throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
   }
+  const [parentStat, artifactStat] = await Promise.all([
+    lstat(directory, { bigint: true }),
+    lstat(artifactPath, { bigint: true }),
+  ])
+  if (
+    parentStat.isSymbolicLink() ||
+    !parentStat.isDirectory() ||
+    (parentStat.mode & MODE_MASK) !== MODE_DIRECTORY_PRIVATE ||
+    !identitiesMatch(identity.parent, readIdentity(parentStat)) ||
+    artifactStat.isSymbolicLink() ||
+    !artifactStat.isFile() ||
+    !identitiesMatch(identity.file, readIdentity(artifactStat))
+  ) {
+    throw new Error('SYNTHETIC_SOURCE_PDF_INVALID')
+  }
+}
+
+function readIdentity(value: {
+  dev: bigint
+  ino: bigint
+}): FileIdentity {
+  return {
+    dev: value.dev,
+    ino: value.ino,
+  }
+}
+
+function identitiesMatch(
+  expected: FileIdentity,
+  actual: FileIdentity,
+): boolean {
+  return (
+    actual.dev === expected.dev &&
+    actual.ino === expected.ino
+  )
+}
+
+async function closeIgnoringErrors(
+  handle: FileHandle | null,
+): Promise<void> {
+  if (handle === null) return
+  await handle.close().catch(() => {})
 }
 
 function isMissingFile(error: unknown): boolean {

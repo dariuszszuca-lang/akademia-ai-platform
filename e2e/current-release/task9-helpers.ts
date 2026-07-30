@@ -93,6 +93,22 @@ export type Task9SelectedProposals = {
 const safeTask9ModelIdPattern =
   /^(?:claude-[a-z0-9]+(?:-[a-z0-9]+)*|eu\.anthropic\.claude-[a-z0-9]+(?:-[a-z0-9]+)*(?::[0-9]+)?)$/
 
+function usdToTask9Microunits(usd: number): number | null {
+  if (!Number.isFinite(usd)) return null
+  const scaled = usd * 1_000_000
+  if (!Number.isFinite(scaled)) return null
+  const nearestMicrounit = Math.round(scaled)
+  const tolerance =
+    Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4
+  if (
+    !Number.isSafeInteger(nearestMicrounit) ||
+    Math.abs(scaled - nearestMicrounit) > tolerance
+  ) {
+    return null
+  }
+  return nearestMicrounit
+}
+
 export async function recordTask9Usage(
   input: unknown,
   recordUsage: (usage: Task9BrowserUsage) => Promise<void>,
@@ -105,9 +121,7 @@ export async function recordTask9Usage(
     input.observedPipelineCostUsd <= 0 ||
     input.observedPipelineCostUsd >
       CURRENT_RELEASE_MAX_COST_USD ||
-    !Number.isSafeInteger(
-      input.observedPipelineCostUsd * 1_000_000,
-    ) ||
+    usdToTask9Microunits(input.observedPipelineCostUsd) === null ||
     !Array.isArray(input.modelIds) ||
     input.modelIds.length === 0 ||
     input.modelIds.length > 20
