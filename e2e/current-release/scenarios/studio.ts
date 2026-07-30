@@ -48,6 +48,25 @@ const proposalStatuses = new Set<
   'needs_review',
 ])
 
+export async function journalSelectedProposalResources(
+  recordResources: Task9Runtime['recordResources'],
+  organizationId: string,
+  selected: Task9SelectedProposals,
+): Promise<void> {
+  await recordResources({
+    organizationId,
+    sourceJobId: selected.area.jobId,
+  })
+  await recordResources({
+    organizationId,
+    proposalId: selected.area.id,
+  })
+  await recordResources({
+    organizationId,
+    proposalId: selected.price.id,
+  })
+}
+
 export async function runStudioScenarios(
   runtime: Task9Runtime,
 ): Promise<Task9StudioState> {
@@ -421,21 +440,14 @@ export async function runStudioScenarios(
       )
       const candidates = readProposalCandidates(payload)
       const selected = selectTargetProposals(candidates)
+      await journalSelectedProposalResources(
+        runtime.recordResources,
+        createdOrganizationId,
+        selected,
+      )
       if (selected.area.sourceId !== createdSourceId) {
         throw new Error('STUDIO_PROPOSAL_SCOPE_INVALID')
       }
-      await runtime.recordResources({
-        organizationId: createdOrganizationId,
-        sourceJobId: selected.area.jobId,
-      })
-      await runtime.recordResources({
-        organizationId: createdOrganizationId,
-        proposalId: selected.area.id,
-      })
-      await runtime.recordResources({
-        organizationId: createdOrganizationId,
-        proposalId: selected.price.id,
-      })
       selectedProposals = selected
 
       await runtime.pageA.goto(

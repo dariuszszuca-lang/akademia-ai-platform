@@ -47,7 +47,6 @@ export type Task9Runtime = {
   recordResources(input: {
     organizationId: string
     projectId?: string
-    factId?: string
     sourceId?: string
     sourceJobId?: string
     proposalId?: string
