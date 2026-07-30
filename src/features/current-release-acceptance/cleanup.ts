@@ -57,6 +57,7 @@ export type CurrentReleaseCleanupDependencies = {
     >
   }): Promise<boolean>
   verifyS3Empty(input: {
+    organizationId: string
     organizationPrefix: string
     storageKeys: string[]
   }): Promise<number>
@@ -103,8 +104,9 @@ async function cleanupValidatedCurrentRelease(
     try {
       const credential = credentials.get(user.role)
       if (!credential) throw new Error('missing credential')
-      let subject = await dependencies.getUserSubject(
-        user.username,
+      let subject = await getBoundUserSubject(
+        user,
+        dependencies,
       )
       let receipt = registry.accountDeletionReceipts.find(
         (candidate) => candidate.role === user.role,
@@ -112,48 +114,68 @@ async function cleanupValidatedCurrentRelease(
 
       if (!receipt && subject !== null) {
         await dependencies.assertIdentity()
-        const safeReceipt = safeDeletionReceiptSchema.parse(
-          await dependencies.deleteAccount({
+        subject = await getBoundUserSubject(user, dependencies)
+        if (subject !== null) {
+          const safeReceipt = safeDeletionReceiptSchema.parse(
+            await dependencies.deleteAccount({
+              role: user.role,
+              baseUrl: input.baseUrl,
+              username: user.username,
+              password: credential.password,
+            }),
+          )
+          receipt = {
             role: user.role,
-            baseUrl: input.baseUrl,
-            username: user.username,
-            password: credential.password,
-          }),
-        )
-        receipt = {
-          role: user.role,
-          ...safeReceipt,
+            ...safeReceipt,
+          }
+          registry.accountDeletionReceipts.push(receipt)
+          input.registry.accountDeletionReceipts =
+            registry.accountDeletionReceipts.map((value) => ({
+              ...value,
+            }))
+          await dependencies.persistRegistry(registry)
+          subject = await getBoundUserSubject(user, dependencies)
         }
-        registry.accountDeletionReceipts.push(receipt)
-        input.registry.accountDeletionReceipts =
-          registry.accountDeletionReceipts.map((value) => ({
-            ...value,
-          }))
-        await dependencies.persistRegistry(registry)
-        subject = await dependencies.getUserSubject(user.username)
       }
 
       if (receipt && subject !== null) {
         await dependencies.assertIdentity()
-        await dependencies.deleteIdentity(user.username)
+        subject = await getBoundUserSubject(user, dependencies)
+        if (subject !== null) {
+          await dependencies.deleteIdentity(user.username)
+        }
       }
       finalSubjects.set(
         user.role,
-        await dependencies.getUserSubject(user.username),
+        await getBoundUserSubject(user, dependencies),
       )
-    } catch {
-      failedPhases.push(`ACCOUNT_${user.role.toUpperCase()}`)
+    } catch (error) {
+      failedPhases.push(
+        error instanceof Error &&
+          error.message ===
+            'CURRENT_RELEASE_COGNITO_SUBJECT_MISMATCH'
+          ? `ACCOUNT_${user.role.toUpperCase()}_SUBJECT_MISMATCH`
+          : `ACCOUNT_${user.role.toUpperCase()}`,
+      )
     }
   }
 
   let s3VersionsRemaining = 0
   try {
-    if (registry.storageKeys.length > 0) {
-      if (!registry.organizationPrefix) {
-        throw new Error('missing organization prefix')
+    const hasOrganizationScope =
+      registry.organizationId !== null ||
+      registry.organizationPrefix !== null ||
+      registry.storageKeys.length > 0
+    if (hasOrganizationScope) {
+      if (
+        !registry.organizationId ||
+        !registry.organizationPrefix
+      ) {
+        throw new Error('missing organization scope')
       }
       s3VersionsRemaining =
         await dependencies.verifyS3Empty({
+          organizationId: registry.organizationId,
           organizationPrefix: registry.organizationPrefix,
           storageKeys: [...registry.storageKeys],
         })
@@ -229,6 +251,23 @@ async function cleanupValidatedCurrentRelease(
     dlqMessagesVisible,
     alarmsNotOk,
   }
+}
+
+async function getBoundUserSubject(
+  user: SyntheticCleanupRegistry['releaseUsers'][number],
+  dependencies: CurrentReleaseCleanupDependencies,
+): Promise<string | null> {
+  const currentSubject = await dependencies.getUserSubject(
+    user.username,
+  )
+  if (currentSubject === null) return null
+  if (
+    user.cognitoSub === null ||
+    currentSubject !== user.cognitoSub
+  ) {
+    throw new Error('CURRENT_RELEASE_COGNITO_SUBJECT_MISMATCH')
+  }
+  return currentSubject
 }
 
 function assertCleanupCount(value: number): void {

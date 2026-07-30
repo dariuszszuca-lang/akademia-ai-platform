@@ -791,6 +791,58 @@ describe('current release execution boundary', () => {
     expect(dependencies.saveRegistry).toHaveBeenCalledTimes(2)
   })
 
+  it('rejects a known secret embedded in a registry update before merge and acceptance', async () => {
+    const organizationId =
+      '33333333-3333-4333-8333-333333333333'
+    const organizationPrefix =
+      `originals/organizations/${organizationId}/`
+    const dependencies = validDependencies({
+      executeBrowser: vi.fn(async () => ({
+        scenarios: passingScenarios(),
+        modelIds: ['claude-sonnet-4-6'],
+        usage: {
+          onboardingGenerationCalls: 9,
+          agentCalls: 8,
+          sourcePipelineCalls: 1 as const,
+          observedPipelineCostUsd: 0.11,
+        },
+        registryUpdate: {
+          releaseUsers: [
+            {
+              role: 'a' as const,
+              username:
+                `synthetic-release-${runId}-a@example.invalid`,
+              cognitoSub: null,
+            },
+            {
+              role: 'b' as const,
+              username:
+                `synthetic-release-${runId}-b@example.invalid`,
+              cognitoSub: null,
+            },
+          ],
+          organizationId,
+          organizationPrefix,
+          projectIds: [],
+          sourceIds: [],
+          storageKeys: [
+            `${organizationPrefix}${adminPassword}.pdf`,
+          ],
+          kvKeys: [],
+          adminAgentState: null,
+        },
+      })),
+    })
+
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
+
+    expect(dependencies.cleanup).toHaveBeenCalledTimes(1)
+    expect(dependencies.writeReport).not.toHaveBeenCalled()
+    expect(dependencies.saveRegistry).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a browser snapshot that conflicts with newer atomic journal evidence', async () => {
     let diskRegistry:
       | Parameters<CurrentReleaseRunnerDependencies['saveRegistry']>[0]

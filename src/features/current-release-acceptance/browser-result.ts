@@ -204,19 +204,40 @@ const forbiddenSecretValuePatterns = [
 
 export function parseBrowserExecutionResult(
   value: unknown,
+  forbiddenValues: readonly string[] = [],
 ): BrowserExecutionResult {
-  assertSafeBrowserResultValues(value)
+  assertSafeBrowserResultValues(value, forbiddenValues)
   return browserExecutionResultSchema.parse(
     value,
   ) as BrowserExecutionResult
 }
 
-function assertSafeBrowserResultValues(input: unknown): void {
+function assertSafeBrowserResultValues(
+  input: unknown,
+  forbiddenValues: readonly string[],
+): void {
+  if (
+    forbiddenValues.length > 16 ||
+    forbiddenValues.some(
+      (value) =>
+        typeof value !== 'string' ||
+        value.length < 1 ||
+        value.length > 1024,
+    )
+  ) {
+    throw new Error(
+      'CURRENT_RELEASE_BROWSER_RESULT_FORBIDDEN_VALUES_INVALID',
+    )
+  }
+  const uniqueForbiddenValues = [...new Set(forbiddenValues)]
   const visited = new WeakSet<object>()
 
   function inspect(value: unknown): void {
     if (typeof value === 'string') {
       if (
+        uniqueForbiddenValues.some((secret) =>
+          value.includes(secret),
+        ) ||
         forbiddenSecretValuePatterns.some((pattern) =>
           pattern.test(value),
         )

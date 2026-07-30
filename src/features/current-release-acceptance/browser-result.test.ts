@@ -123,6 +123,73 @@ describe('browser execution result contract', () => {
     ).toThrow('CURRENT_RELEASE_BROWSER_RESULT_SECRET_VALUE')
   })
 
+  it('rejects a known secret embedded inside an otherwise valid storage key without echoing it', () => {
+    const secret = 'Known-user-password-123!'
+    const result = validBrowserResult()
+    result.registryUpdate = {
+      releaseUsers: [
+        {
+          role: 'a',
+          username: `synthetic-release-${runId}-a@example.invalid`,
+          cognitoSub: null,
+        },
+        {
+          role: 'b',
+          username: `synthetic-release-${runId}-b@example.invalid`,
+          cognitoSub: null,
+        },
+      ],
+      organizationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      organizationPrefix:
+        'originals/organizations/cccccccc-cccc-4ccc-8ccc-cccccccccccc/',
+      projectIds: [],
+      sourceIds: [],
+      storageKeys: [
+        `originals/organizations/cccccccc-cccc-4ccc-8ccc-cccccccccccc/${secret}.pdf`,
+      ],
+      kvKeys: [],
+      adminAgentState: null,
+    }
+
+    let message = ''
+    try {
+      parseBrowserExecutionResult(result, [secret])
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error)
+    }
+
+    expect(message).toBe('CURRENT_RELEASE_BROWSER_RESULT_SECRET_VALUE')
+    expect(message).not.toContain(secret)
+  })
+
+  it('rejects a known secret embedded in a receipt error field before schema parsing', () => {
+    const secret = 'Known-acceptance-secret-456!'
+    const result = {
+      ...validBrowserResult(),
+      registryUpdate: {
+        releaseUsers: [],
+        organizationId: null,
+        organizationPrefix: null,
+        projectIds: [],
+        sourceIds: [],
+        storageKeys: [],
+        kvKeys: [],
+        adminAgentState: null,
+        accountDeletionReceipts: [
+          {
+            role: 'a',
+            ok: false,
+            error: `provider rejected ${secret} during cleanup`,
+          },
+        ],
+      },
+    }
+
+    expect(() =>
+      parseBrowserExecutionResult(result, [secret]),
+    ).toThrow('CURRENT_RELEASE_BROWSER_RESULT_SECRET_VALUE')
+  })
+
   it('preserves only strict fact, deletion and ephemeral cleanup evidence', () => {
     const result = validBrowserResult()
     result.registryUpdate = {
@@ -264,6 +331,7 @@ describe('atomic browser result writer', () => {
       paths,
       runId,
       validBrowserResult(),
+      [],
     )
 
     expect((await lstat(paths.resultPath)).mode & 0o777).toBe(0o600)
@@ -282,7 +350,7 @@ describe('atomic browser result writer', () => {
     invalid.scenarios = invalid.scenarios.slice(0, -1)
 
     await expect(
-      writeCurrentReleaseResult(paths, runId, invalid),
+      writeCurrentReleaseResult(paths, runId, invalid, []),
     ).rejects.toThrow()
     await expect(lstat(paths.resultPath)).rejects.toMatchObject({
       code: 'ENOENT',
@@ -293,6 +361,7 @@ describe('atomic browser result writer', () => {
         { ...paths, resultPath: join(workspace, 'outside.json') },
         runId,
         validBrowserResult(),
+        [],
       ),
     ).rejects.toThrow('CURRENT_RELEASE_PATH_INVALID')
 
@@ -303,7 +372,25 @@ describe('atomic browser result writer', () => {
         paths,
         runId,
         validBrowserResult(),
+        [],
       ),
     ).rejects.toThrow('CURRENT_RELEASE_PATH_INVALID')
+  })
+
+  it('rejects embedded known secrets before atomic persistence', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'release-result-'))
+    const paths = getCurrentReleasePaths(workspace, runId)
+    const secret = 'Known-admin-password-789!'
+    const result = {
+      ...validBrowserResult(),
+      modelIds: [`claude-sonnet-4-6-${secret}`],
+    }
+
+    await expect(
+      writeCurrentReleaseResult(paths, runId, result, [secret]),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_RESULT_SECRET_VALUE')
+    await expect(lstat(paths.resultPath)).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
   })
 })

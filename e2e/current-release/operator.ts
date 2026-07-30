@@ -510,12 +510,17 @@ export async function checkAlarms(
 export async function verifyRunS3Empty(
   context: ResolvedOperatorContext,
   input: {
+    organizationId: string
     organizationPrefix: string
     storageKeys: string[]
   },
   executor: AwsCommandExecutor = createAwsCommandExecutor(),
 ): Promise<number> {
   validateResolvedContext(context)
+  const organizationId = z
+    .string()
+    .uuid()
+    .safeParse(input.organizationId)
   const organizationPrefix = z
     .string()
     .regex(
@@ -523,7 +528,10 @@ export async function verifyRunS3Empty(
     )
     .safeParse(input.organizationPrefix)
   if (
+    !organizationId.success ||
     !organizationPrefix.success ||
+    organizationPrefix.data !==
+      `originals/organizations/${organizationId.data}/` ||
     input.storageKeys.length > 40 ||
     new Set(input.storageKeys).size !== input.storageKeys.length ||
     input.storageKeys.some(
@@ -538,50 +546,55 @@ export async function verifyRunS3Empty(
   }
 
   await assertCallerIdentity(context, executor)
-  let remaining = 0
-  for (const key of input.storageKeys) {
-    const result = await executeWithAttempts(
-      [
-        's3api',
-        'list-object-versions',
-        '--bucket',
-        context.resources.bucketName,
-        '--prefix',
-        key,
-        '--profile',
-        context.profile,
-        '--region',
-        context.region,
-        '--output',
-        'json',
-      ],
-      executor,
-      2,
-    )
-    if (!result.ok) throw operatorError('READ_FAILED', context.runId)
-    const parsed = z
-      .object({
-        Versions: z
-          .array(z.object({ Key: z.string() }).passthrough())
-          .optional(),
-        DeleteMarkers: z
-          .array(z.object({ Key: z.string() }).passthrough())
-          .optional(),
-      })
-      .passthrough()
-      .safeParse(parseJson(result.stdout, context.runId))
-    if (
-      !parsed.success ||
-      [...(parsed.data.Versions ?? []), ...(parsed.data.DeleteMarkers ?? [])]
-        .some((entry) => entry.Key !== key)
-    ) {
-      throw operatorError('S3_RESPONSE_INVALID', context.runId)
-    }
-    remaining +=
-      (parsed.data.Versions?.length ?? 0) +
-      (parsed.data.DeleteMarkers?.length ?? 0)
+  const result = await executeWithAttempts(
+    [
+      's3api',
+      'list-object-versions',
+      '--bucket',
+      context.resources.bucketName,
+      '--prefix',
+      organizationPrefix.data,
+      '--profile',
+      context.profile,
+      '--region',
+      context.region,
+      '--output',
+      'json',
+    ],
+    executor,
+    2,
+  )
+  if (!result.ok) throw operatorError('READ_FAILED', context.runId)
+  const parsed = z
+    .object({
+      Versions: z
+        .array(z.object({ Key: z.string() }).passthrough())
+        .optional(),
+      DeleteMarkers: z
+        .array(z.object({ Key: z.string() }).passthrough())
+        .optional(),
+    })
+    .passthrough()
+    .safeParse(parseJson(result.stdout, context.runId))
+  if (!parsed.success) {
+    throw operatorError('S3_RESPONSE_INVALID', context.runId)
   }
-  return remaining
+  const entries = [
+    ...(parsed.data.Versions ?? []),
+    ...(parsed.data.DeleteMarkers ?? []),
+  ]
+  if (
+    entries.some(
+      (entry) => !entry.Key.startsWith(organizationPrefix.data),
+    )
+  ) {
+    throw operatorError('S3_RESPONSE_INVALID', context.runId)
+  }
+  const registeredKeys = new Set(input.storageKeys)
+  if (entries.some((entry) => !registeredKeys.has(entry.Key))) {
+    throw operatorError('S3_UNREGISTERED_RESIDUE', context.runId)
+  }
+  return entries.length
 }
 
 export async function readOperatorJson(

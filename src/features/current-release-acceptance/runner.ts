@@ -189,6 +189,12 @@ export async function runCurrentReleaseAcceptance(
     CURRENT_RELEASE_RUNNER_GUARD: guardNonce,
     CURRENT_RELEASE_BUDGET: JSON.stringify(childBudget),
   }
+  const forbiddenBrowserResultValues = [
+    passwordA,
+    passwordB,
+    options.adminPassword!.trim(),
+    options.acceptanceSecret!,
+  ] as const
 
   let browserResult: BrowserExecutionResult | null = null
   let executionErrorCode: string | null = null
@@ -219,7 +225,10 @@ export async function runCurrentReleaseAcceptance(
       activeRegistry,
     )
     try {
-      browserResult = parseBrowserExecutionResult(candidate)
+      browserResult = parseBrowserExecutionResult(
+        candidate,
+        forbiddenBrowserResultValues,
+      )
     } catch {
       executionErrorCode =
         'CURRENT_RELEASE_BROWSER_RESULT_INVALID'
@@ -294,7 +303,10 @@ export async function runCurrentReleaseAcceptance(
 
   let parsedBrowser: BrowserExecutionResult
   try {
-    parsedBrowser = parseBrowserExecutionResult(browserResult)
+    parsedBrowser = parseBrowserExecutionResult(
+      browserResult,
+      forbiddenBrowserResultValues,
+    )
   } catch {
     throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
   }
@@ -474,7 +486,10 @@ export function createDefaultBrowserExecutor(
       }
       let result: BrowserExecutionResult
       try {
-        result = parseBrowserExecutionResult(JSON.parse(raw))
+        result = parseBrowserExecutionResult(
+          JSON.parse(raw),
+          browserResultForbiddenValues(input.childEnv),
+        )
       } catch {
         throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
       }
@@ -494,6 +509,20 @@ export function createDefaultBrowserExecutor(
       )
     }
   }
+}
+
+function browserResultForbiddenValues(
+  childEnv: Readonly<Record<string, string>>,
+): string[] {
+  return [
+    childEnv.CURRENT_RELEASE_USER_A_PASSWORD,
+    childEnv.CURRENT_RELEASE_USER_B_PASSWORD,
+    childEnv.ADMIN_PASSWORD,
+    childEnv.CURRENT_RELEASE_ACCEPTANCE_SECRET,
+  ].filter(
+    (value): value is string =>
+      typeof value === 'string' && value.length > 0,
+  )
 }
 
 export async function saveCurrentReleaseRegistry(

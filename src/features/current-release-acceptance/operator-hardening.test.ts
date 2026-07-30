@@ -464,6 +464,7 @@ describe('operator execution policies', () => {
       verifyRunS3Empty(
         context,
         {
+          organizationId,
           organizationPrefix:
             `originals/organizations/${organizationId}/`,
           storageKeys: [storageKey],
@@ -475,6 +476,7 @@ describe('operator execution policies', () => {
       verifyRunS3Empty(
         context,
         {
+          organizationId,
           organizationPrefix: `wrong/${runId}/`,
           storageKeys: [`wrong/${runId}/source.pdf`],
         },
@@ -482,6 +484,88 @@ describe('operator execution policies', () => {
       ),
     ).rejects.toThrow(
       `CURRENT_RELEASE_OPERATOR_S3_PREFIX_INVALID:${runId}`,
+    )
+  })
+
+  it('lists the entire exact organization prefix even when no storage keys were registered', async () => {
+    const context = await resolveOperatorContext(
+      baseContext(),
+      fakeExecutor(resolverResponses()),
+    )
+    const organizationId =
+      '33333333-3333-4333-8333-333333333333'
+    const organizationPrefix =
+      `originals/organizations/${organizationId}/`
+    const executor = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({
+          Versions: [],
+          DeleteMarkers: [],
+        }),
+      },
+    ])
+
+    await expect(
+      verifyRunS3Empty(
+        context,
+        {
+          organizationId,
+          organizationPrefix,
+          storageKeys: [],
+        },
+        executor,
+      ),
+    ).resolves.toBe(0)
+
+    const listCall = executor.calls.find((call) =>
+      call.args.includes('list-object-versions'),
+    )
+    expect(listCall?.args).toContain(organizationPrefix)
+    expect(
+      executor.calls.filter((call) =>
+        call.args.includes('list-object-versions'),
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('fails closed on unregistered residue anywhere under the organization prefix', async () => {
+    const context = await resolveOperatorContext(
+      baseContext(),
+      fakeExecutor(resolverResponses()),
+    )
+    const organizationId =
+      '33333333-3333-4333-8333-333333333333'
+    const organizationPrefix =
+      `originals/organizations/${organizationId}/`
+    const registeredKey = `${organizationPrefix}source.pdf`
+    const executor = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({
+          Versions: [
+            { Key: registeredKey },
+            { Key: `${organizationPrefix}unregistered.pdf` },
+          ],
+          DeleteMarkers: [],
+        }),
+      },
+    ])
+
+    await expect(
+      verifyRunS3Empty(
+        context,
+        {
+          organizationId,
+          organizationPrefix,
+          storageKeys: [registeredKey],
+        },
+        executor,
+      ),
+    ).rejects.toThrow(
+      `CURRENT_RELEASE_OPERATOR_S3_UNREGISTERED_RESIDUE:${runId}`,
     )
   })
 

@@ -131,6 +131,7 @@ describe('current release real cleanup', () => {
     expect(deps.deleteAccount).not.toHaveBeenCalled()
     expect(deps.deleteIdentity).not.toHaveBeenCalled()
     expect(deps.verifyS3Empty).toHaveBeenCalledWith({
+      organizationId: input.registry.organizationId,
       organizationPrefix: input.registry.organizationPrefix,
       storageKeys: input.registry.storageKeys,
     })
@@ -166,7 +167,7 @@ describe('current release real cleanup', () => {
       getUserSubject: vi.fn(async (username) => {
         if (username.endsWith('-b@example.invalid')) return null
         readsA += 1
-        return readsA < 3 ? subjectA : null
+        return readsA < 5 ? subjectA : null
       }),
       assertIdentity: vi.fn(async () => {
         events.push('identity')
@@ -268,6 +269,94 @@ describe('current release real cleanup', () => {
     expect(deps.deleteAccount).toHaveBeenCalledTimes(1)
     expect(deps.deleteIdentity).not.toHaveBeenCalled()
     expect(input.registry.accountDeletionReceipts).toHaveLength(2)
+  })
+
+  it('never deletes a re-created username whose current subject differs from the journal', async () => {
+    const input = cleanupInput()
+    const recreatedSubject =
+      'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+    const deps = dependencies({
+      getUserSubject: vi.fn(async (username) =>
+        username.endsWith('-b@example.invalid')
+          ? recreatedSubject
+          : null,
+      ),
+    })
+
+    await expect(
+      cleanupCurrentRelease(input, deps),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_CLEANUP_FAILED:ACCOUNT_B_SUBJECT_MISMATCH',
+    )
+
+    expect(deps.deleteAccount).not.toHaveBeenCalled()
+    expect(deps.deleteIdentity).not.toHaveBeenCalled()
+  })
+
+  it('re-checks the exact journal subject immediately before application deletion', async () => {
+    const input = cleanupInput()
+    input.registry.accountDeletionReceipts =
+      input.registry.accountDeletionReceipts.filter(
+        (receipt) => receipt.role === 'b',
+      )
+    const recreatedSubject =
+      'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+    let readsA = 0
+    const deps = dependencies({
+      getUserSubject: vi.fn(async (username) => {
+        if (username.endsWith('-b@example.invalid')) return null
+        readsA += 1
+        return readsA === 1 ? subjectA : recreatedSubject
+      }),
+    })
+
+    await expect(
+      cleanupCurrentRelease(input, deps),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_CLEANUP_FAILED:ACCOUNT_A_SUBJECT_MISMATCH',
+    )
+
+    expect(deps.assertIdentity).toHaveBeenCalledTimes(2)
+    expect(deps.deleteAccount).not.toHaveBeenCalled()
+    expect(deps.deleteIdentity).not.toHaveBeenCalled()
+  })
+
+  it('re-checks the exact journal subject immediately before identity deletion', async () => {
+    const input = cleanupInput()
+    const recreatedSubject =
+      'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+    let readsB = 0
+    const deps = dependencies({
+      getUserSubject: vi.fn(async (username) => {
+        if (username.endsWith('-a@example.invalid')) return null
+        readsB += 1
+        return readsB === 1 ? subjectB : recreatedSubject
+      }),
+    })
+
+    await expect(
+      cleanupCurrentRelease(input, deps),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_CLEANUP_FAILED:ACCOUNT_B_SUBJECT_MISMATCH',
+    )
+
+    expect(deps.assertIdentity).toHaveBeenCalledTimes(2)
+    expect(deps.deleteAccount).not.toHaveBeenCalled()
+    expect(deps.deleteIdentity).not.toHaveBeenCalled()
+  })
+
+  it('always verifies the exact organization S3 prefix even without registered storage keys', async () => {
+    const input = cleanupInput()
+    input.registry.storageKeys = []
+    const deps = dependencies()
+
+    await cleanupCurrentRelease(input, deps)
+
+    expect(deps.verifyS3Empty).toHaveBeenCalledWith({
+      organizationId: input.registry.organizationId,
+      organizationPrefix: input.registry.organizationPrefix,
+      storageKeys: [],
+    })
   })
 
   it('returns truthful DLQ and alarm residue instead of hiding it', async () => {

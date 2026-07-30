@@ -198,10 +198,11 @@ export async function writeCurrentReleaseResult(
   paths: CurrentReleasePaths,
   runId: string,
   value: unknown,
+  forbiddenValues: readonly string[],
 ): Promise<void> {
   const expected = getCurrentReleasePaths(paths.workspaceRoot, runId)
   assertPathsEqual(paths, expected)
-  const result = parseBrowserExecutionResult(value)
+  const result = parseBrowserExecutionResult(value, forbiddenValues)
   await ensureSafeDirectory(
     paths.workspaceRoot,
     paths.browserDirectory,
