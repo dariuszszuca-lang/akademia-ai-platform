@@ -1,4 +1,14 @@
 import { execFileSync } from 'node:child_process'
+import {
+  chmodSync,
+  mkdtempSync,
+  rmdirSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 import { currentReleaseRunIdSchema } from '../../src/features/current-release-acceptance/domain'
 
@@ -13,6 +23,7 @@ const STACK_NAME = 'PropertySourceStorage-prod'
 const COGNITO_PARAMETER_NAME =
   '/property-intelligence-studio/prod/cognito-user-pool-id'
 const RESOLVED_CONTEXT = Symbol('resolved-operator-context')
+const SECURE_INPUT_SENTINEL = 'file:///dev/stdin'
 
 export type AwsCommandResult = {
   ok: boolean
@@ -115,14 +126,15 @@ export function createAwsCommandExecutor(
   )
   return {
     async execute(args, options) {
+      let secureInput: SecureAwsInput | undefined
       try {
-        const stdout = executeFile('aws', args, {
+        secureInput = prepareSecureAwsInput(args, options.input)
+        const stdout = executeFile('aws', secureInput.args, {
           encoding: 'utf8',
           stdio: ['pipe', 'pipe', 'pipe'],
           timeout: options.timeoutMs,
           maxBuffer: 10 * 1024 * 1024,
           env: environment,
-          input: options.input,
         })
         return { ok: true, stdout }
       } catch (error) {
@@ -132,6 +144,8 @@ export function createAwsCommandExecutor(
           stdout: '',
           errorKind: classifyAwsFailure(stderr, error),
         }
+      } finally {
+        secureInput?.cleanup()
       }
     },
     waitBeforeRetry:
@@ -141,6 +155,92 @@ export function createAwsCommandExecutor(
           setTimeout(resolve, milliseconds)
         })),
   }
+}
+
+type SecureAwsInput = {
+  args: string[]
+  cleanup: () => void
+}
+
+function prepareSecureAwsInput(
+  args: string[],
+  input: string | undefined,
+): SecureAwsInput {
+  if (input === undefined) {
+    return {
+      args: [...args],
+      cleanup: () => undefined,
+    }
+  }
+
+  const sentinelIndexes = args.flatMap((argument, index) =>
+    argument === SECURE_INPUT_SENTINEL ? [index] : [],
+  )
+  const sentinelIndex = sentinelIndexes[0]
+  if (
+    sentinelIndexes.length !== 1 ||
+    sentinelIndex === undefined ||
+    sentinelIndex === 0 ||
+    args[sentinelIndex - 1] !== '--cli-input-json'
+  ) {
+    throw new Error('CURRENT_RELEASE_SECURE_INPUT_INVALID')
+  }
+
+  let directoryPath: string | undefined
+  let parameterPath: string | undefined
+  try {
+    directoryPath = mkdtempSync(
+      join(tmpdir(), 'current-release-aws-'),
+    )
+    chmodSync(directoryPath, 0o700)
+    parameterPath = join(directoryPath, 'input.json')
+    writeFileSync(parameterPath, input, {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    })
+    chmodSync(parameterPath, 0o600)
+
+    const secureArgs = [...args]
+    secureArgs[sentinelIndex] = pathToFileURL(parameterPath).href
+    return {
+      args: secureArgs,
+      cleanup: () =>
+        cleanupSecureAwsInput(parameterPath!, directoryPath!),
+    }
+  } catch {
+    if (directoryPath) {
+      cleanupSecureAwsInput(parameterPath, directoryPath)
+    }
+    throw new Error('CURRENT_RELEASE_SECURE_INPUT_FAILED')
+  }
+}
+
+function cleanupSecureAwsInput(
+  parameterPath: string | undefined,
+  directoryPath: string,
+): void {
+  try {
+    if (parameterPath) {
+      try {
+        unlinkSync(parameterPath)
+      } catch (error) {
+        if (!isMissingFileError(error)) throw error
+      }
+    }
+    rmdirSync(directoryPath)
+  } catch {
+    throw new Error('CURRENT_RELEASE_SECURE_INPUT_CLEANUP_FAILED')
+  }
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  )
 }
 
 export async function assertCallerIdentity(

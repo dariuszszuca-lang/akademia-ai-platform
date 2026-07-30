@@ -1,3 +1,10 @@
+import {
+  existsSync,
+  readFileSync,
+  statSync,
+} from 'node:fs'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import {
   assertCallerIdentity,
@@ -211,6 +218,87 @@ describe('AWS execution environment', () => {
     expect(capturedEnvironment?.AWS_ACCESS_KEY_ID).toBeUndefined()
     expect(capturedEnvironment?.AWS_PROFILE).toBe('akademia-ai')
   })
+
+  it.each([
+    { label: 'success', shouldThrow: false },
+    { label: 'process failure', shouldThrow: true },
+  ])(
+    'uses and removes a private JSON parameter file after $label',
+    async ({ shouldThrow }) => {
+      const secret = 'synthetic-private-password-123!'
+      const payload = JSON.stringify({ Password: secret })
+      let capturedArgs: string[] = []
+      let capturedInput: string | undefined
+      let parameterUri: string | undefined
+      let parameterPath: string | undefined
+      let directoryPath: string | undefined
+      let parameterMode: number | undefined
+      let directoryMode: number | undefined
+      let parameterContents: string | undefined
+
+      const executor = createAwsCommandExecutor({
+        environment: {
+          PATH: '/usr/bin',
+          HOME: '/synthetic/home',
+        },
+        executeFile: (_file, args, options) => {
+          capturedArgs = [...args]
+          capturedInput = options.input
+          const parameterIndex = args.indexOf('--cli-input-json')
+          parameterUri = args[parameterIndex + 1]
+
+          if (
+            parameterUri &&
+            parameterUri !== 'file:///dev/stdin' &&
+            parameterUri.startsWith('file:')
+          ) {
+            parameterPath = fileURLToPath(parameterUri)
+            directoryPath = dirname(parameterPath)
+            parameterMode =
+              statSync(parameterPath).mode & 0o777
+            directoryMode =
+              statSync(directoryPath).mode & 0o777
+            parameterContents = readFileSync(
+              parameterPath,
+              'utf8',
+            )
+          }
+
+          if (shouldThrow) {
+            throw Object.assign(new Error('synthetic failure'), {
+              stderr: 'synthetic failure',
+            })
+          }
+          return '{}'
+        },
+      })
+
+      const result = await executor.execute(
+        [
+          'cognito-idp',
+          'admin-create-user',
+          '--cli-input-json',
+          'file:///dev/stdin',
+        ],
+        {
+          timeoutMs: 30_000,
+          input: payload,
+        },
+      )
+
+      expect(capturedArgs.join('\0')).not.toContain(secret)
+      expect(parameterUri).not.toBe('file:///dev/stdin')
+      expect(capturedInput).toBeUndefined()
+      expect(parameterMode).toBe(0o600)
+      expect(directoryMode).toBe(0o700)
+      expect(parameterContents).toBe(payload)
+      expect(parameterPath).toBeDefined()
+      expect(directoryPath).toBeDefined()
+      expect(existsSync(parameterPath!)).toBe(false)
+      expect(existsSync(directoryPath!)).toBe(false)
+      expect(result.ok).toBe(!shouldThrow)
+    },
+  )
 })
 
 describe('exact operator resource resolution', () => {
@@ -289,7 +377,7 @@ describe('exact operator resource resolution', () => {
 })
 
 describe('operator execution policies', () => {
-  it('keeps passwords out of argv and sends each JSON payload through stdin once', async () => {
+  it('keeps passwords out of argv and sends each JSON payload through the secure executor channel once', async () => {
     const resolverExecutor = fakeExecutor(resolverResponses())
     const context = await resolveOperatorContext(
       baseContext(),
