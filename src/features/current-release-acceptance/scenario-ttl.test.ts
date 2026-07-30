@@ -485,7 +485,7 @@ class FakeContext {
   ) {}
 
   async newPage(): Promise<FakePage> {
-    const page = new FakePage(this.requests)
+    const page = new FakePage(this.requests, this.role)
     this.recordPage(page)
     return page
   }
@@ -498,7 +498,10 @@ class FakePage {
   private lastFilledValue = ''
   reloadCount = 0
 
-  constructor(private readonly requests: RequestCounter) {}
+  constructor(
+    private readonly requests: RequestCounter,
+    private readonly role: string,
+  ) {}
 
   async goto(): Promise<void> {}
 
@@ -546,7 +549,9 @@ class FakePage {
     const waiters = this.waiters.splice(0)
     let startedModelRequest = false
     for (const waiter of waiters) {
-      const response = responseCandidates().find(
+      const response = responseCandidates(
+        this.role === 'b' ? profileMarkerB : profileMarkerA,
+      ).find(
         waiter.predicate,
       )
       if (!response) {
@@ -658,7 +663,9 @@ class FakeAgentPage {
   }
 }
 
-function responseCandidates(): FakeResponse[] {
+function responseCandidates(
+  profileMarker = profileMarkerA,
+): FakeResponse[] {
   const candidates: FakeResponse[] = []
   for (const method of ['POST', 'DELETE']) {
     for (const pathname of [
@@ -673,7 +680,9 @@ function responseCandidates(): FakeResponse[] {
       '/api/onboarding/save-deep-answer',
       '/api/onboarding/generate-deep',
     ]) {
-      candidates.push(fakeBrowserResponse(pathname, method))
+      candidates.push(
+        fakeBrowserResponse(pathname, method, profileMarker),
+      )
     }
   }
   return candidates
@@ -682,6 +691,7 @@ function responseCandidates(): FakeResponse[] {
 function fakeBrowserResponse(
   pathname: string,
   method: string,
+  profileMarker = profileMarkerA,
 ): FakeResponse {
   return {
     request: () => ({
@@ -690,7 +700,11 @@ function fakeBrowserResponse(
     url: () => `${productionOrigin}${pathname}`,
     ok: () => true,
     status: () => 200,
-    text: async () => '',
+    text: async () =>
+      pathname === '/api/onboarding/generate-profil' ||
+      pathname === '/api/onboarding/generate-deep'
+        ? `# Profil syntetyczny\n\n${profileMarker}`
+        : '',
     headers: () => ({
       'x-ai-model-id': 'claude-haiku-4-5-20251001',
     }),

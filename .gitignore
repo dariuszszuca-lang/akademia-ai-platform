@@ -13,6 +13,7 @@
 /reports/synthetic-acceptance/*.json
 /reports/synthetic-acceptance/*.run.json
 /Temp/current-release-playwright/
+/Temp/current-release-playwright-artifacts/
 /reports/current-release-acceptance/*.json
 /reports/current-release-acceptance/*.md
 /reports/current-release-acceptance/*.run.json

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   assertLegalNegativeSummary,
   assertLegalPositiveSummary,
+  assertOnboardingGenerationBody,
   buildTask8BrowserHandoff,
   buildForeignUserMarkers,
   calculateEphemeralStateExpiresAt,
@@ -225,20 +226,75 @@ describe('current release UI helpers', () => {
       25,
     )
 
-    await expect(
-      runScenario(
-        'auth.session',
-        'AUTH_SESSION_FAILED',
-        async () => {
-          throw new Error('sensitive provider detail')
-        },
-      ),
-    ).rejects.toThrow('AUTH_SESSION_FAILED')
+    const providerFailure = await runScenario(
+      'auth.session',
+      'AUTH_SESSION_FAILED',
+      async () => {
+        throw new Error('sensitive provider detail')
+      },
+    ).catch((error: unknown) => error)
+    expect(providerFailure).toBeInstanceOf(Error)
+    expect((providerFailure as Error).message).toBe(
+      'AUTH_SESSION_FAILED',
+    )
+    expect((providerFailure as Error).cause).toMatchObject({
+      message: 'CURRENT_RELEASE_SCENARIO_ACTION_FAILED',
+    })
     expect(recorder.fail).toHaveBeenCalledWith(
       'auth.session',
       25,
       'AUTH_SESSION_FAILED',
     )
+  })
+
+  it('preserves only a safe nested scenario error code', async () => {
+    const recorder = {
+      pass: vi.fn(),
+      fail: vi.fn(),
+      finalize: vi.fn(),
+    }
+    const runScenario = createScenarioRunner(recorder)
+
+    const failure = await runScenario(
+      'onboarding.express',
+      'ONBOARDING_EXPRESS_FAILED',
+      async () => {
+        throw new Error('ONBOARDING_GENERATION_MARKER_MISSING')
+      },
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).cause).toMatchObject({
+      message: 'ONBOARDING_GENERATION_MARKER_MISSING',
+    })
+  })
+
+  it('accepts generated onboarding content only with its profile marker', () => {
+    expect(
+      assertOnboardingGenerationBody(
+        `# Profil\n\n${profileMarkerA}`,
+        profileMarkerA,
+      ),
+    ).toEqual({
+      nonEmpty: true,
+      hasProfileMarker: true,
+      hasGenerationError: false,
+    })
+    expect(() =>
+      assertOnboardingGenerationBody(
+        '[Blad generowania: provider failed]',
+        profileMarkerA,
+      ),
+    ).toThrow('ONBOARDING_GENERATION_PROVIDER_FAILED')
+    expect(() =>
+      assertOnboardingGenerationBody(
+        '# Profil bez znacznika',
+        profileMarkerA,
+      ),
+    ).toThrow('ONBOARDING_GENERATION_MARKER_MISSING')
+    expect(() =>
+      assertOnboardingGenerationBody('', profileMarkerA),
+    ).toThrow('ONBOARDING_GENERATION_EMPTY')
   })
 
   it('owns exactly the nine Task 8 functional scenarios', () => {

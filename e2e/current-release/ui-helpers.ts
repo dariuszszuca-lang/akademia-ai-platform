@@ -295,6 +295,35 @@ export function buildTask8ProfileMarker(
   )
 }
 
+export function assertOnboardingGenerationBody(
+  body: string,
+  profileMarker: string,
+): {
+  nonEmpty: boolean
+  hasProfileMarker: boolean
+  hasGenerationError: boolean
+} {
+  const parsedProfileMarker =
+    task8ProfileMarkerSchema.parse(profileMarker)
+  const summary = {
+    nonEmpty: body.trim().length > 0,
+    hasProfileMarker: body.includes(parsedProfileMarker),
+    hasGenerationError:
+      body.includes('[Blad generowania:') ||
+      body.includes('[Błąd generowania:'),
+  }
+  if (!summary.nonEmpty) {
+    throw new Error('ONBOARDING_GENERATION_EMPTY')
+  }
+  if (summary.hasGenerationError) {
+    throw new Error('ONBOARDING_GENERATION_PROVIDER_FAILED')
+  }
+  if (!summary.hasProfileMarker) {
+    throw new Error('ONBOARDING_GENERATION_MARKER_MISSING')
+  }
+  return summary
+}
+
 export function buildForeignUserMarkers(
   input: {
     runId: string
@@ -498,16 +527,37 @@ export function createScenarioRunner(
         parsedName,
         normalizeDuration(now() - startedAt),
       )
-    } catch {
+    } catch (error) {
       recorder.fail(
         parsedName,
         normalizeDuration(now() - startedAt),
         errorCode,
       )
-      throw new Error(errorCode)
+      throw new Error(errorCode, {
+        cause: new Error(safeScenarioActionErrorCode(error)),
+      })
     }
   }
 }
+
+function safeScenarioActionErrorCode(error: unknown): string {
+  if (
+    error instanceof Error &&
+    SAFE_SCENARIO_ACTION_ERROR_CODES.has(error.message)
+  ) {
+    return error.message
+  }
+  return 'CURRENT_RELEASE_SCENARIO_ACTION_FAILED'
+}
+
+const SAFE_SCENARIO_ACTION_ERROR_CODES = new Set([
+  'ONBOARDING_GENERATION_EMPTY',
+  'ONBOARDING_GENERATION_PROVIDER_FAILED',
+  'ONBOARDING_GENERATION_MARKER_MISSING',
+  'ONBOARDING_RESULT_NAVIGATION_FAILED',
+  'ONBOARDING_PROFILE_MARKER_NOT_VISIBLE',
+  'ONBOARDING_PROFILE_FILE_MISSING',
+])
 
 export function buildTask8BrowserHandoff<
   T extends {

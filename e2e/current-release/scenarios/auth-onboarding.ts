@@ -19,6 +19,7 @@ import { createChildCostBudget } from '../budget'
 import type { createCurrentReleaseJournal } from '../journal'
 import { verifyWizardResume } from '../onboarding-evidence'
 import {
+  assertOnboardingGenerationBody,
   buildTask8BrowserHandoff,
   buildForeignUserMarkers,
   buildTask8ProfileMarker,
@@ -271,10 +272,18 @@ export async function runAuthOnboardingScenarios(
         ephemeralState,
         verifyReloadResume: true,
       })
-      await expect(
-        pageA.getByText(userAProfileMarker, { exact: false }),
-      ).toBeVisible()
-      await assertProfileFiles(pageA, ['profil.md'])
+      try {
+        await expect(
+          pageA.getByText(userAProfileMarker, { exact: false }),
+        ).toBeVisible()
+      } catch {
+        throw new Error('ONBOARDING_PROFILE_MARKER_NOT_VISIBLE')
+      }
+      try {
+        await assertProfileFiles(pageA, ['profil.md'])
+      } catch {
+        throw new Error('ONBOARDING_PROFILE_FILE_MISSING')
+      }
     },
   )
 
@@ -528,6 +537,13 @@ async function completeWizard(input: {
                   input.modelIds,
                 )
                 await generated.finished()
+                assertOnboardingGenerationBody(
+                  await generated.text(),
+                  buildTask8ProfileMarker(
+                    input.runId,
+                    input.actor,
+                  ),
+                )
               },
             ),
         )
@@ -618,9 +634,13 @@ async function completeWizard(input: {
     }
   }
 
-  await input.page.waitForURL(
-    (url) => url.pathname === input.resultPath,
-  )
+  try {
+    await input.page.waitForURL(
+      (url) => url.pathname === input.resultPath,
+    )
+  } catch {
+    throw new Error('ONBOARDING_RESULT_NAVIGATION_FAILED')
+  }
 }
 
 async function completePersonaPathA(input: {
