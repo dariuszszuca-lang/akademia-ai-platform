@@ -18,12 +18,7 @@ import {
 } from '../../src/lib/model-id'
 import { LEGAL_NO_SOURCE_MESSAGE } from '../../src/lib/legal/fallback'
 import { CURRENT_RELEASE_LEGAL_PROBE_MAX_TTL_SECONDS } from '../../src/features/current-release-acceptance/legal-probe'
-
-const cognitoSubjectSchema = z
-  .string()
-  .regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-  )
+import { cognitoSubjectSchema } from '../../src/features/synthetic-acceptance/cognito-subject'
 
 export const task8BrowserScenarios = [
   'auth.registration',

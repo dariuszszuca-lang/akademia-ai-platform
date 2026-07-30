@@ -3,6 +3,7 @@ import {
   accountDeletionReceiptSchema,
   type SyntheticCleanupRegistry,
 } from '../synthetic-acceptance/cleanup-registry'
+import { cognitoSubjectSchema } from '../synthetic-acceptance/cognito-subject'
 import { safeModelIdSchema } from '../../lib/model-id'
 import {
   currentReleaseScenarioResultSchema,
@@ -20,11 +21,6 @@ export const currentReleaseBrowserScenarioSchema = z.enum(
 )
 
 const uuidSchema = z.string().uuid()
-const cognitoSubjectSchema = z
-  .string()
-  .regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-  )
 
 export const browserRegistryUpdateSchema = z
   .object({

@@ -7,7 +7,7 @@ import {
 
 const acceptanceSecret = 's'.repeat(43)
 const runId = 'syn-20260729T220000Z-deadbeef'
-const userId = '11111111-1111-4111-8111-111111111111'
+const userId = 'b3e4d882-2071-700e-4b23-0551e29214b6'
 const nonce = 'n'.repeat(43)
 const nowEpochSeconds = Math.floor(
   new Date('2026-07-29T22:00:00.000Z').getTime() / 1000,

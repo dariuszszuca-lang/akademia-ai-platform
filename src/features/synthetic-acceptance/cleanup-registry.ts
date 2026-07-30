@@ -7,14 +7,11 @@ import {
 import { basename, join, resolve } from 'node:path'
 import { z } from 'zod'
 import { runIdSchema } from './domain'
+import { cognitoSubjectSchema } from './cognito-subject'
+
+export { cognitoSubjectSchema } from './cognito-subject'
 
 const uuidSchema = z.string().uuid()
-export const cognitoSubjectSchema = z
-  .string()
-  .regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    'SYNTHETIC_COGNITO_SUB_INVALID',
-  )
 
 const releaseUserSchema = z
   .object({

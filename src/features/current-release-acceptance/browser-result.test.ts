@@ -21,6 +21,10 @@ import {
 } from './browser-result'
 
 const runId = 'syn-20260729T220000Z-deadbeef'
+const cognitoV7SubjectA =
+  'b3e4d882-2071-700e-4b23-0551e29214b6'
+const cognitoV7SubjectB =
+  'c4f5e993-3182-700f-5c34-1662f3a325c7'
 
 function validBrowserResult(): BrowserExecutionResult {
   return {
@@ -197,12 +201,12 @@ describe('browser execution result contract', () => {
         {
           role: 'a',
           username: `synthetic-release-${runId}-a@example.invalid`,
-          cognitoSub: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          cognitoSub: cognitoV7SubjectA,
         },
         {
           role: 'b',
           username: `synthetic-release-${runId}-b@example.invalid`,
-          cognitoSub: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          cognitoSub: cognitoV7SubjectB,
         },
       ],
       organizationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',

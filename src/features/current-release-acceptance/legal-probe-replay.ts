@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { storeIncrementWithExpiry } from '@/lib/store'
+import { cognitoSubjectSchema } from '../synthetic-acceptance/cognito-subject'
 import { currentReleaseRunIdSchema } from './domain'
 import {
   CURRENT_RELEASE_LEGAL_PROBE_MAX_TTL_SECONDS,
@@ -11,11 +12,7 @@ import {
 const replayInputSchema = z
   .object({
     runId: currentReleaseRunIdSchema,
-    userId: z
-      .string()
-      .regex(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-      ),
+    userId: cognitoSubjectSchema,
     nonce: legalProbeNonceSchema,
     expiresAt: legalProbeExpiresAtSchema,
   })

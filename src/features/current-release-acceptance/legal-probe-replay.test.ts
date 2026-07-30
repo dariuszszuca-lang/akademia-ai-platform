@@ -3,7 +3,7 @@ import { consumeLegalNoHitProbeNonce } from './legal-probe-replay'
 
 const input = {
   runId: 'syn-20260729T220000Z-deadbeef',
-  userId: '11111111-1111-4111-8111-111111111111',
+  userId: 'b3e4d882-2071-700e-4b23-0551e29214b6',
   nonce: 'n'.repeat(43),
   expiresAt: 1_785_362_430,
 }

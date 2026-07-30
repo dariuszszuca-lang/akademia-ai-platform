@@ -574,7 +574,7 @@ describe('current release UI helpers', () => {
       userB:
         `synthetic-release-${runId}-b@example.invalid`,
       userBSubject:
-        '22222222-2222-4222-8222-222222222222',
+        'c4f5e993-3182-700f-5c34-1662f3a325c7',
     })
     const ephemeralStateExpiresAt = 1_785_363_670
 
@@ -594,8 +594,8 @@ describe('current release UI helpers', () => {
         foreignUserMarkers,
         profileMarker: profileMarkerA,
         ephemeralStateExpiresAt,
-        userASubject: '11111111-1111-4111-8111-111111111111',
-        userBSubject: '22222222-2222-4222-8222-222222222222',
+        userASubject: 'b3e4d882-2071-700e-4b23-0551e29214b6',
+        userBSubject: 'c4f5e993-3182-700f-5c34-1662f3a325c7',
       }),
     ).toEqual({
       fixtures,
@@ -612,8 +612,8 @@ describe('current release UI helpers', () => {
       foreignUserMarkers,
       profileMarker: profileMarkerA,
       ephemeralStateExpiresAt,
-      userASubject: '11111111-1111-4111-8111-111111111111',
-      userBSubject: '22222222-2222-4222-8222-222222222222',
+      userASubject: 'b3e4d882-2071-700e-4b23-0551e29214b6',
+      userBSubject: 'c4f5e993-3182-700f-5c34-1662f3a325c7',
     })
   })
 })
