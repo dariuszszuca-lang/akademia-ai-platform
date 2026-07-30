@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   createSyntheticCleanupRegistry,
+  parseSyntheticCleanupRegistry,
   removeSyntheticCleanupRegistry,
   saveSyntheticCleanupRegistry,
 } from './cleanup-registry'
@@ -138,7 +139,7 @@ describe('synthetic cleanup registry', () => {
       `user:${subjectB}:subscription`,
     )
     registry.adminAgentState = {
-      agentId: 'prawny',
+      agentId: 'publikacja',
       enabled: true,
     }
     registry.factIds.push(
@@ -321,7 +322,7 @@ describe('synthetic cleanup registry', () => {
       saveSyntheticCleanupRegistry('/tmp', {
         ...registry,
         adminAgentState: {
-          agentId: 'a'.repeat(81),
+          agentId: 'a'.repeat(81) as 'publikacja',
           enabled: true,
         },
       }),
@@ -408,6 +409,22 @@ describe('synthetic cleanup registry', () => {
     ]
     expect(() =>
       saveSyntheticCleanupRegistry('/tmp', registry),
+    ).toThrow()
+  })
+
+  it('allows cleanup to restore only the explicitly approved admin agent', () => {
+    const registry = createSyntheticCleanupRegistry({
+      runId: 'syn-20260728T210000Z-deadbeef',
+      startedAt: '2026-07-28T21:00:00.000Z',
+    })
+    expect(() =>
+      parseSyntheticCleanupRegistry({
+        ...registry,
+        adminAgentState: {
+          agentId: 'prawny',
+          enabled: true,
+        },
+      }),
     ).toThrow()
   })
 

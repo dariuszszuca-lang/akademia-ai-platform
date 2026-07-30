@@ -406,6 +406,8 @@ export async function checkDlq(
       context.resources.queueUrl,
       '--attribute-names',
       'ApproximateNumberOfMessages',
+      'ApproximateNumberOfMessagesNotVisible',
+      'ApproximateNumberOfMessagesDelayed',
       '--profile',
       context.profile,
       '--region',
@@ -417,18 +419,33 @@ export async function checkDlq(
   )
   const parsed = z
     .object({
-      Attributes: z
-        .object({ ApproximateNumberOfMessages: z.string().optional() })
-        .optional(),
+      Attributes: z.object({
+        ApproximateNumberOfMessages: z.string().regex(/^\d+$/),
+        ApproximateNumberOfMessagesNotVisible: z
+          .string()
+          .regex(/^\d+$/),
+        ApproximateNumberOfMessagesDelayed: z
+          .string()
+          .regex(/^\d+$/),
+      }),
     })
     .passthrough()
     .safeParse(parseJson(raw, context.runId))
-  const count = Number(
-    parsed.success
-      ? parsed.data.Attributes?.ApproximateNumberOfMessages ?? '0'
-      : Number.NaN,
-  )
-  if (!Number.isInteger(count) || count < 0) {
+  const counts = parsed.success
+    ? [
+        parsed.data.Attributes.ApproximateNumberOfMessages,
+        parsed.data.Attributes
+          .ApproximateNumberOfMessagesNotVisible,
+        parsed.data.Attributes.ApproximateNumberOfMessagesDelayed,
+      ].map(Number)
+    : [Number.NaN]
+  const count = counts.reduce((sum, value) => sum + value, 0)
+  if (
+    counts.some(
+      (value) => !Number.isSafeInteger(value) || value < 0,
+    ) ||
+    !Number.isSafeInteger(count)
+  ) {
     throw operatorError('DLQ_RESPONSE_INVALID', context.runId)
   }
   return count
@@ -445,8 +462,6 @@ export async function checkAlarms(
     [
       'cloudwatch',
       'describe-alarms',
-      '--state-value',
-      'ALARM',
       '--alarm-names',
       ...context.resources.alarmNames,
       '--profile',
@@ -459,13 +474,37 @@ export async function checkAlarms(
     executor,
   )
   const parsed = z
-    .object({ MetricAlarms: z.array(z.unknown()).optional() })
+    .object({
+      MetricAlarms: z.array(
+        z
+          .object({
+            AlarmName: z.string().min(1),
+            StateValue: z.enum([
+              'OK',
+              'ALARM',
+              'INSUFFICIENT_DATA',
+            ]),
+          })
+          .passthrough(),
+      ),
+    })
     .passthrough()
     .safeParse(parseJson(raw, context.runId))
-  if (!parsed.success) {
+  const alarmNames = parsed.success
+    ? parsed.data.MetricAlarms.map((alarm) => alarm.AlarmName)
+    : []
+  const expectedNames = new Set(context.resources.alarmNames)
+  if (
+    !parsed.success ||
+    alarmNames.length !== expectedNames.size ||
+    new Set(alarmNames).size !== alarmNames.length ||
+    alarmNames.some((name) => !expectedNames.has(name))
+  ) {
     throw operatorError('ALARMS_RESPONSE_INVALID', context.runId)
   }
-  return parsed.data.MetricAlarms?.length ?? 0
+  return parsed.data.MetricAlarms.filter(
+    (alarm) => alarm.StateValue !== 'OK',
+  ).length
 }
 
 export async function verifyRunS3Empty(

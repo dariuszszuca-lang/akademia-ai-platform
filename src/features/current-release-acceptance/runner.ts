@@ -226,7 +226,7 @@ export async function runCurrentReleaseAcceptance(
     }
     if (browserResult) {
       if (browserResult.registryUpdate) {
-        applyBrowserRegistryUpdate(
+        activeRegistry = applyBrowserRegistryUpdate(
           activeRegistry,
           browserResult.registryUpdate,
         )
@@ -434,6 +434,7 @@ export function createDefaultBrowserExecutor(
         expectedPaths,
         input.runId,
       )
+      let browserProcessFailed = false
       try {
         executeFile(
           'npx',
@@ -457,6 +458,7 @@ export function createDefaultBrowserExecutor(
           },
         )
       } catch {
+        browserProcessFailed = true
         // A failing scenario makes Playwright exit nonzero, but afterAll
         // still persists the safe, partial result. Read it below.
       }
@@ -470,11 +472,21 @@ export function createDefaultBrowserExecutor(
       } catch {
         throw new Error('CURRENT_RELEASE_BROWSER_RESULT_MISSING')
       }
+      let result: BrowserExecutionResult
       try {
-        return parseBrowserExecutionResult(JSON.parse(raw))
+        result = parseBrowserExecutionResult(JSON.parse(raw))
       } catch {
         throw new Error('CURRENT_RELEASE_BROWSER_RESULT_INVALID')
       }
+      if (
+        browserProcessFailed &&
+        result.scenarios.every(
+          (scenario) => scenario.status === 'passed',
+        )
+      ) {
+        throw new Error('CURRENT_RELEASE_BROWSER_PROCESS_FAILED')
+      }
+      return result
     } finally {
       await removeCurrentReleaseEphemeralArtifacts(
         expectedPaths,
@@ -756,7 +768,7 @@ export function validateBrowserUsage(
 function applyBrowserRegistryUpdate(
   registry: SyntheticCleanupRegistry,
   update: BrowserRegistryUpdate,
-): void {
+): SyntheticCleanupRegistry {
   const parsed = browserRegistryUpdateSchema.safeParse(update)
   if (!parsed.success) {
     throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_INVALID')
@@ -814,11 +826,148 @@ function applyBrowserRegistryUpdate(
     throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_INVALID')
   }
 
+  const releaseUsers = registry.releaseUsers.map((existing) => {
+    const incoming = parsed.data.releaseUsers.find(
+      (user) => user.role === existing.role,
+    )
+    if (
+      !incoming ||
+      incoming.username !== existing.username ||
+      (existing.cognitoSub !== null &&
+        incoming.cognitoSub !== null &&
+        existing.cognitoSub !== incoming.cognitoSub)
+    ) {
+      throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_CONFLICT')
+    }
+    return {
+      ...existing,
+      cognitoSub: existing.cognitoSub ?? incoming.cognitoSub,
+    }
+  })
+  const organizationId = mergeNullableEvidence(
+    registry.organizationId,
+    parsed.data.organizationId,
+  )
+  const organizationPrefix = mergeNullableEvidence(
+    registry.organizationPrefix,
+    parsed.data.organizationPrefix,
+  )
+  const adminAgentState = mergeAdminEvidence(
+    registry.adminAgentState,
+    parsed.data.adminAgentState,
+  )
+  const accountDeletionReceipts = mergeDeletionReceipts(
+    registry.accountDeletionReceipts,
+    parsed.data.accountDeletionReceipts ?? [],
+  )
   const candidate = parseSyntheticCleanupRegistry({
     ...registry,
-    ...parsed.data,
+    releaseUsers,
+    organizationId,
+    organizationPrefix,
+    projectIds: mergeUnique(
+      registry.projectIds,
+      parsed.data.projectIds,
+    ),
+    factIds: mergeUnique(
+      registry.factIds,
+      parsed.data.factIds ?? [],
+    ),
+    sourceJobIds: mergeUnique(
+      registry.sourceJobIds,
+      parsed.data.sourceJobIds ?? [],
+    ),
+    proposalIds: mergeUnique(
+      registry.proposalIds,
+      parsed.data.proposalIds ?? [],
+    ),
+    sourceIds: mergeUnique(
+      registry.sourceIds,
+      parsed.data.sourceIds,
+    ),
+    storageKeys: mergeUnique(
+      registry.storageKeys,
+      parsed.data.storageKeys,
+    ),
+    kvKeys: mergeUnique(registry.kvKeys, parsed.data.kvKeys),
+    adminAgentState,
+    accountDeletionReceipts,
+    ephemeralStateExpiresAt: mergeExpiryEvidence(
+      registry.ephemeralStateExpiresAt,
+      parsed.data.ephemeralStateExpiresAt,
+    ),
   })
-  Object.assign(registry, candidate)
+  return candidate
+}
+
+function mergeNullableEvidence<T>(
+  existing: T | null,
+  incoming: T | null,
+): T | null {
+  if (
+    existing !== null &&
+    incoming !== null &&
+    existing !== incoming
+  ) {
+    throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_CONFLICT')
+  }
+  return existing ?? incoming
+}
+
+function mergeAdminEvidence(
+  existing: SyntheticCleanupRegistry['adminAgentState'],
+  incoming: SyntheticCleanupRegistry['adminAgentState'],
+): SyntheticCleanupRegistry['adminAgentState'] {
+  if (
+    existing !== null &&
+    incoming !== null &&
+    (existing.agentId !== incoming.agentId ||
+      existing.enabled !== incoming.enabled)
+  ) {
+    throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_CONFLICT')
+  }
+  return existing ?? incoming
+}
+
+function mergeDeletionReceipts(
+  existing: SyntheticCleanupRegistry['accountDeletionReceipts'],
+  incoming: SyntheticCleanupRegistry['accountDeletionReceipts'],
+): SyntheticCleanupRegistry['accountDeletionReceipts'] {
+  const merged = existing.map((receipt) => ({ ...receipt }))
+  for (const receipt of incoming) {
+    const prior = merged.find(
+      (candidate) => candidate.role === receipt.role,
+    )
+    if (!prior) {
+      merged.push({ ...receipt })
+      continue
+    }
+    if (
+      prior.ok !== receipt.ok ||
+      prior.sourceObjects !== receipt.sourceObjects ||
+      prior.propertyStudio !== receipt.propertyStudio ||
+      prior.accountKeys !== receipt.accountKeys
+    ) {
+      throw new Error('CURRENT_RELEASE_REGISTRY_UPDATE_CONFLICT')
+    }
+  }
+  return merged
+}
+
+function mergeExpiryEvidence(
+  existing: number | null,
+  incoming: number | null | undefined,
+): number | null {
+  if (existing === null) return incoming ?? null
+  if (incoming === null || incoming === undefined) return existing
+  return Math.max(existing, incoming)
+}
+
+function mergeUnique(
+  existing: string[],
+  incoming: string[],
+): string[] {
+  return [...new Set([...existing, ...incoming])]
 }
 
 function cleanupChecksPass(cleanup: CurrentReleaseCleanup): boolean {

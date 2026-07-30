@@ -70,18 +70,37 @@ export async function cleanupCurrentRelease(
   dependencies: CurrentReleaseCleanupDependencies,
 ): Promise<CurrentReleaseCleanup> {
   try {
+    return await cleanupValidatedCurrentRelease(input, dependencies)
+  } catch (error) {
     if (
-      input.baseUrl !== PRODUCTION_URL ||
-      !input.adminPassword.trim()
+      error instanceof Error &&
+      /^CURRENT_RELEASE_CLEANUP_FAILED(?::[A-Z_]+)+$/.test(
+        error.message,
+      )
     ) {
-      throw new Error('invalid process context')
+      throw error
     }
-    const registry = parseSyntheticCleanupRegistry(input.registry)
-    Object.assign(input.registry, registry)
-    const credentials = validateCredentials(input, registry)
-    const finalSubjects = new Map<'a' | 'b', string | null>()
+    throw new Error('CURRENT_RELEASE_CLEANUP_FAILED')
+  }
+}
 
-    for (const user of [...registry.releaseUsers].reverse()) {
+async function cleanupValidatedCurrentRelease(
+  input: CurrentReleaseCleanupInput,
+  dependencies: CurrentReleaseCleanupDependencies,
+): Promise<CurrentReleaseCleanup> {
+  if (
+    input.baseUrl !== PRODUCTION_URL ||
+    !input.adminPassword.trim()
+  ) {
+    throw new Error('invalid process context')
+  }
+  const registry = parseSyntheticCleanupRegistry(input.registry)
+  const credentials = validateCredentials(input, registry)
+  const finalSubjects = new Map<'a' | 'b', string | null>()
+  const failedPhases: string[] = []
+
+  for (const user of [...registry.releaseUsers].reverse()) {
+    try {
       const credential = credentials.get(user.role)
       if (!credential) throw new Error('missing credential')
       let subject = await dependencies.getUserSubject(
@@ -107,8 +126,10 @@ export async function cleanupCurrentRelease(
         }
         registry.accountDeletionReceipts.push(receipt)
         input.registry.accountDeletionReceipts =
-          registry.accountDeletionReceipts
-        await dependencies.persistRegistry(input.registry)
+          registry.accountDeletionReceipts.map((value) => ({
+            ...value,
+          }))
+        await dependencies.persistRegistry(registry)
         subject = await dependencies.getUserSubject(user.username)
       }
 
@@ -116,23 +137,17 @@ export async function cleanupCurrentRelease(
         await dependencies.assertIdentity()
         await dependencies.deleteIdentity(user.username)
       }
-      const verifiedSubject =
-        await dependencies.getUserSubject(user.username)
-      finalSubjects.set(user.role, verifiedSubject)
-    }
-
-    const databaseEmpty = hasBothDeletionReceipts(registry)
-    const kvKeysAbsent =
-      databaseEmpty &&
-      registry.ephemeralStateExpiresAt !== null &&
-      hasExactAccountKeyEvidence(registry)
-    const cognitoUsersAbsent =
-      registry.releaseUsers.length === 2 &&
-      registry.releaseUsers.every(
-        (user) => finalSubjects.get(user.role) === null,
+      finalSubjects.set(
+        user.role,
+        await dependencies.getUserSubject(user.username),
       )
+    } catch {
+      failedPhases.push(`ACCOUNT_${user.role.toUpperCase()}`)
+    }
+  }
 
-    let s3VersionsRemaining = 0
+  let s3VersionsRemaining = 0
+  try {
     if (registry.storageKeys.length > 0) {
       if (!registry.organizationPrefix) {
         throw new Error('missing organization prefix')
@@ -143,8 +158,13 @@ export async function cleanupCurrentRelease(
           storageKeys: [...registry.storageKeys],
         })
     }
+    assertCleanupCount(s3VersionsRemaining)
+  } catch {
+    failedPhases.push('S3')
+  }
 
-    let adminStateRestored = true
+  let adminStateRestored = registry.adminAgentState === null
+  try {
     if (registry.adminAgentState !== null) {
       await dependencies.assertIdentity()
       adminStateRestored =
@@ -153,38 +173,67 @@ export async function cleanupCurrentRelease(
           adminPassword: input.adminPassword,
           previousState: registry.adminAgentState,
         })) === true
+      if (!adminStateRestored) throw new Error('restore rejected')
     }
+  } catch {
+    adminStateRestored = false
+    failedPhases.push('ADMIN')
+  }
 
+  try {
     if (registry.ephemeralStateExpiresAt !== null) {
       await dependencies.waitUntilEpochSeconds(
         registry.ephemeralStateExpiresAt,
       )
     }
-
-    const dlqMessagesVisible = await dependencies.checkDlq()
-    const alarmsNotOk = await dependencies.checkAlarms()
-    if (
-      !Number.isInteger(s3VersionsRemaining) ||
-      s3VersionsRemaining < 0 ||
-      !Number.isInteger(dlqMessagesVisible) ||
-      dlqMessagesVisible < 0 ||
-      !Number.isInteger(alarmsNotOk) ||
-      alarmsNotOk < 0
-    ) {
-      throw new Error('invalid cleanup count')
-    }
-
-    return {
-      databaseEmpty,
-      cognitoUsersAbsent,
-      kvKeysAbsent,
-      s3VersionsRemaining,
-      adminStateRestored,
-      dlqMessagesVisible,
-      alarmsNotOk,
-    }
   } catch {
-    throw new Error('CURRENT_RELEASE_CLEANUP_FAILED')
+    failedPhases.push('TTL')
+  }
+
+  let dlqMessagesVisible = 0
+  try {
+    dlqMessagesVisible = await dependencies.checkDlq()
+    assertCleanupCount(dlqMessagesVisible)
+  } catch {
+    failedPhases.push('DLQ')
+  }
+
+  let alarmsNotOk = 0
+  try {
+    alarmsNotOk = await dependencies.checkAlarms()
+    assertCleanupCount(alarmsNotOk)
+  } catch {
+    failedPhases.push('ALARMS')
+  }
+
+  if (failedPhases.length > 0) {
+    throw new Error(
+      `CURRENT_RELEASE_CLEANUP_FAILED:${failedPhases.join(':')}`,
+    )
+  }
+
+  const databaseEmpty = hasBothDeletionReceipts(registry)
+  return {
+    databaseEmpty,
+    cognitoUsersAbsent:
+      registry.releaseUsers.length === 2 &&
+      registry.releaseUsers.every(
+        (user) => finalSubjects.get(user.role) === null,
+      ),
+    kvKeysAbsent:
+      databaseEmpty &&
+      registry.ephemeralStateExpiresAt !== null &&
+      hasExactAccountKeyEvidence(registry),
+    s3VersionsRemaining,
+    adminStateRestored,
+    dlqMessagesVisible,
+    alarmsNotOk,
+  }
+}
+
+function assertCleanupCount(value: number): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error('invalid cleanup count')
   }
 }
 

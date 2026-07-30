@@ -283,6 +283,76 @@ describe('current release real cleanup', () => {
     expect(result.alarmsNotOk).toBe(1)
   })
 
+  it('attempts every independent cleanup phase after account deletion failures and reports ordered phases', async () => {
+    const input = cleanupInput()
+    input.registry.accountDeletionReceipts = []
+    const userExists = new Map([
+      [input.registry.releaseUsers[0]!.username, true],
+      [input.registry.releaseUsers[1]!.username, true],
+    ])
+    const events: string[] = []
+    const deps = dependencies({
+      getUserSubject: vi.fn(async (username) =>
+        userExists.get(username)
+          ? username.endsWith('-a@example.invalid')
+            ? subjectA
+            : subjectB
+          : null,
+      ),
+      deleteAccount: vi.fn(async ({ role, username }) => {
+        events.push(`account-${role}`)
+        if (role === 'b') {
+          throw new Error('raw secret-bearing failure')
+        }
+        userExists.set(username, false)
+        return {
+          ok: true,
+          sourceObjects: 1,
+          propertyStudio: 1,
+          accountKeys: 5,
+        } as const
+      }),
+      restoreAdmin: vi.fn(async () => {
+        events.push('admin')
+        throw new Error('admin failed')
+      }),
+      verifyS3Empty: vi.fn(async () => {
+        events.push('s3')
+        return 0
+      }),
+      waitUntilEpochSeconds: vi.fn(async () => {
+        events.push('ttl')
+      }),
+      checkDlq: vi.fn(async () => {
+        events.push('dlq')
+        return 0
+      }),
+      checkAlarms: vi.fn(async () => {
+        events.push('alarms')
+        return 0
+      }),
+    })
+
+    await expect(
+      cleanupCurrentRelease(input, deps),
+    ).rejects.toThrow(
+      'CURRENT_RELEASE_CLEANUP_FAILED:ACCOUNT_B:ADMIN',
+    )
+
+    expect(events).toEqual([
+      'account-b',
+      'account-a',
+      's3',
+      'admin',
+      'ttl',
+      'dlq',
+      'alarms',
+    ])
+    expect(input.registry.accountDeletionReceipts).toEqual([
+      expect.objectContaining({ role: 'a', ok: true }),
+    ])
+  })
+
   it('maps secret-bearing dependency failures to one stable code', async () => {
     const secret = 'Synthetic-user-A-password-123!'
 

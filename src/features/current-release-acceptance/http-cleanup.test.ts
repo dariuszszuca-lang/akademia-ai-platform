@@ -169,6 +169,25 @@ describe('authenticated account cleanup contract', () => {
 })
 
 describe('administrator restoration contract', () => {
+  it('rejects an admin agent outside the exact release scope before HTTP', async () => {
+    const fetcher = vi.fn<typeof fetch>()
+
+    await expect(
+      restoreAdminAgentByContract(
+        {
+          baseUrl,
+          adminPassword: password,
+          previousState: {
+            agentId: 'prawny',
+            enabled: true,
+          },
+        },
+        { fetcher },
+      ),
+    ).rejects.toThrow('CURRENT_RELEASE_ADMIN_RESTORE_FAILED')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
   it('patches the original value, verifies exact readback and logs out', async () => {
     const calls: Array<{
       url: string

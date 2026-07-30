@@ -531,6 +531,53 @@ describe('current release execution boundary', () => {
     ).resolves.toMatchObject({ scenarios })
   })
 
+  it('rejects an all-passed result when Playwright exits nonzero', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'release-browser-process-'),
+    )
+    const paths = getCurrentReleasePaths(workspaceRoot, runId)
+    const registry = createSyntheticCleanupRegistry({
+      runId,
+      startedAt: '2026-07-29T22:00:00.000Z',
+    })
+    const executeBrowser = createDefaultBrowserExecutor(
+      workspaceRoot,
+      {
+        executeFile: () => {
+          writeFileSync(
+            paths.resultPath,
+            JSON.stringify({
+              scenarios: passingScenarios(),
+              modelIds: [],
+              usage: {
+                onboardingGenerationCalls: 9,
+                agentCalls: 8,
+                sourcePipelineCalls: 1 as const,
+                observedPipelineCostUsd: 0.1,
+              },
+            }),
+          )
+          throw new Error('synthetic playwright process failure')
+        },
+      },
+    )
+
+    await expect(
+      executeBrowser({
+        runId,
+        baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+        childEnv: {
+          CURRENT_RELEASE_RUN_ID: runId,
+        },
+        costReservations: CURRENT_RELEASE_COST_RESERVATIONS,
+        resultPath: paths.resultPath,
+        registryPath: paths.registryPath,
+        paths,
+        registry,
+      }),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_PROCESS_FAILED')
+  })
+
   it('removes a secret-bearing invalid result and guard marker on every exit', async () => {
     const workspaceRoot = await mkdtemp(
       join(tmpdir(), 'release-browser-cleanup-'),
@@ -703,7 +750,7 @@ describe('current release execution boundary', () => {
           ],
           kvKeys: [`user:${subjectA}:profil`],
           adminAgentState: {
-            agentId: 'publikacja',
+            agentId: 'publikacja' as const,
             enabled: true,
           },
           accountDeletionReceipts: [
@@ -742,6 +789,63 @@ describe('current release execution boundary', () => {
       1_785_362_465,
     )
     expect(dependencies.saveRegistry).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects a browser snapshot that conflicts with newer atomic journal evidence', async () => {
+    let diskRegistry:
+      | Parameters<CurrentReleaseRunnerDependencies['saveRegistry']>[0]
+      | null = null
+    const dependencies = validDependencies({
+      saveRegistry: vi.fn(async (value) => {
+        diskRegistry = structuredClone(value)
+      }),
+      loadRegistry: vi.fn(async () =>
+        diskRegistry ? structuredClone(diskRegistry) : null,
+      ),
+      executeBrowser: vi.fn(async (input) => {
+        const journal = structuredClone(input.registry)
+        journal.adminAgentState = {
+          agentId: 'publikacja',
+          enabled: true,
+        }
+        await dependencies.saveRegistry(journal)
+        return {
+          scenarios: passingScenarios(),
+          modelIds: ['claude-sonnet-4-6'],
+          usage: {
+            onboardingGenerationCalls: 9,
+            agentCalls: 8,
+            sourcePipelineCalls: 1 as const,
+            observedPipelineCostUsd: 0.11,
+          },
+          registryUpdate: {
+            releaseUsers: structuredClone(journal.releaseUsers),
+            organizationId: null,
+            organizationPrefix: null,
+            projectIds: [],
+            sourceIds: [],
+            storageKeys: [],
+            kvKeys: [],
+            adminAgentState: {
+              agentId: 'publikacja' as const,
+              enabled: false,
+            },
+          },
+        }
+      }),
+    })
+
+    await expect(
+      runCurrentReleaseAcceptance(validOptions(), dependencies),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_FAILED')
+
+    expect(
+      vi.mocked(dependencies.cleanup).mock.calls[0]![0].registry
+        .adminAgentState,
+    ).toEqual({
+      agentId: 'publikacja',
+      enabled: true,
+    })
   })
 
   it('measures cleanup duration for the runner-owned final scenario', async () => {

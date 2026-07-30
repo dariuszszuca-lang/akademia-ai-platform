@@ -331,7 +331,7 @@ export function createCurrentReleaseJournal(
     },
 
     recordAdminPreviousState(
-      agentId: string,
+      agentId: 'publikacja',
       enabled: boolean,
     ): Promise<void> {
       return update((registry) => {

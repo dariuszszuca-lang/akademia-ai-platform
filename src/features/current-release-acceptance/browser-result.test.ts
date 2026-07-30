@@ -172,6 +172,36 @@ describe('browser execution result contract', () => {
     )
     expect(() => parseBrowserExecutionResult(result)).toThrow()
   })
+
+  it('rejects cleanup evidence for an admin agent outside the exact release scope', () => {
+    const result = validBrowserResult()
+    result.registryUpdate = {
+      releaseUsers: [
+        {
+          role: 'a',
+          username: `synthetic-release-${runId}-a@example.invalid`,
+          cognitoSub: null,
+        },
+        {
+          role: 'b',
+          username: `synthetic-release-${runId}-b@example.invalid`,
+          cognitoSub: null,
+        },
+      ],
+      organizationId: null,
+      organizationPrefix: null,
+      projectIds: [],
+      sourceIds: [],
+      storageKeys: [],
+      kvKeys: [],
+      adminAgentState: {
+        agentId: 'prawny' as 'publikacja',
+        enabled: true,
+      },
+    }
+
+    expect(() => parseBrowserExecutionResult(result)).toThrow()
+  })
 })
 
 describe('current release scenario recorder', () => {

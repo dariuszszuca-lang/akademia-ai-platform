@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   assertCallerIdentity,
   buildAwsExecutionEnvironment,
+  checkAlarms,
+  checkDlq,
   createAwsCommandExecutor,
   createUser,
   deleteUser,
@@ -480,6 +482,82 @@ describe('operator execution policies', () => {
       ),
     ).rejects.toThrow(
       `CURRENT_RELEASE_OPERATOR_S3_PREFIX_INVALID:${runId}`,
+    )
+  })
+
+  it('counts visible, in-flight and delayed DLQ messages and rejects partial evidence', async () => {
+    const context = await resolveOperatorContext(
+      baseContext(),
+      fakeExecutor(resolverResponses()),
+    )
+    const complete = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({
+          Attributes: {
+            ApproximateNumberOfMessages: '0',
+            ApproximateNumberOfMessagesNotVisible: '1',
+            ApproximateNumberOfMessagesDelayed: '2',
+          },
+        }),
+      },
+    ])
+
+    await expect(checkDlq(context, complete)).resolves.toBe(3)
+
+    const partial = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({
+          Attributes: {
+            ApproximateNumberOfMessages: '0',
+          },
+        }),
+      },
+    ])
+    await expect(checkDlq(context, partial)).rejects.toThrow(
+      `CURRENT_RELEASE_OPERATOR_DLQ_RESPONSE_INVALID:${runId}`,
+    )
+  })
+
+  it('requires the exact alarm set and counts every state other than OK', async () => {
+    const context = await resolveOperatorContext(
+      baseContext(),
+      fakeExecutor(resolverResponses()),
+    )
+    const complete = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({
+          MetricAlarms: [
+            {
+              AlarmName: 'property-source-pipeline-alarm',
+              StateValue: 'OK',
+            },
+          ],
+        }),
+      },
+    ])
+
+    await expect(checkAlarms(context, complete)).resolves.toBe(0)
+    expect(
+      complete.calls.find((call) =>
+        call.args.includes('describe-alarms'),
+      )?.args,
+    ).not.toContain('--state-value')
+
+    const missing = fakeExecutor([
+      { ok: true, stdout: validIdentity },
+      {
+        ok: true,
+        stdout: JSON.stringify({ MetricAlarms: [] }),
+      },
+    ])
+    await expect(checkAlarms(context, missing)).rejects.toThrow(
+      `CURRENT_RELEASE_OPERATOR_ALARMS_RESPONSE_INVALID:${runId}`,
     )
   })
 })

@@ -26,12 +26,7 @@ const releaseUserSchema = z
 
 const adminAgentStateSchema = z
   .object({
-    agentId: z
-      .string()
-      .trim()
-      .min(1)
-      .max(80)
-      .regex(/^[a-z][a-z0-9-]*$/),
+    agentId: z.literal('publikacja'),
     enabled: z.boolean(),
   })
   .strict()

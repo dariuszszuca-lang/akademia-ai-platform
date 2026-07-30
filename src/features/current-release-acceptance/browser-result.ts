@@ -50,10 +50,7 @@ export const browserRegistryUpdateSchema = z
     kvKeys: z.array(z.string().min(1).max(512)).max(20),
     adminAgentState: z
       .object({
-        agentId: z
-          .string()
-          .regex(/^[a-z][a-z0-9-]*$/)
-          .max(80),
+        agentId: z.literal('publikacja'),
         enabled: z.boolean(),
       })
       .strict()
