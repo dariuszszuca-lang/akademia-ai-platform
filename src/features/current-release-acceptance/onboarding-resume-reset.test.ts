@@ -288,7 +288,7 @@ describe('current release onboarding reset scenario', () => {
 })
 
 describe('current release post-Studio scenario order', () => {
-  it('runs reset only after the full A export and before mobile and deletion', async () => {
+  it('runs reset after full A export and mobile, immediately before deletion', async () => {
     const order: string[] = []
 
     const result = await runAdminAccountScenarioFlow({
@@ -313,8 +313,8 @@ describe('current release post-Studio scenario order', () => {
     expect(order).toEqual([
       'admin-toggle',
       'account-export',
-      'onboarding-reset',
       'mobile',
+      'onboarding-reset',
       'account-delete',
     ])
     expect(result).toEqual({ observedPipelineCostUsd: 0.12 })

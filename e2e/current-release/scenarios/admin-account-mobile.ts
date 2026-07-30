@@ -65,8 +65,8 @@ export async function runAdminAccountScenarioFlow<Usage>(input: {
 }): Promise<Usage> {
   await input.runAdminToggle()
   const usage = await input.runAccountExport()
-  await input.runOnboardingReset()
   await input.runMobile()
+  await input.runOnboardingReset()
   await input.runAccountDelete()
   return usage
 }
