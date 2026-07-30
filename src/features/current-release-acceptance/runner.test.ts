@@ -265,7 +265,7 @@ describe('current release execution boundary', () => {
     expect(serializedReport).not.toContain(
       'Synthetic-user-A-password-123!',
     )
-    expect(report.scenarios).toHaveLength(20)
+    expect(report.scenarios).toHaveLength(21)
     expect(report.scenarios.at(-1)).toEqual({
       name: 'cleanup.complete',
       status: 'passed',

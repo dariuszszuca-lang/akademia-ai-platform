@@ -17,6 +17,7 @@ import {
 } from '../operator'
 import { createChildCostBudget } from '../budget'
 import type { createCurrentReleaseJournal } from '../journal'
+import { verifyWizardResume } from '../onboarding-evidence'
 import {
   buildTask8BrowserHandoff,
   buildForeignUserMarkers,
@@ -268,6 +269,7 @@ export async function runAuthOnboardingScenarios(
         budget: runtime.budget,
         modelIds: runtime.modelIds,
         ephemeralState,
+        verifyReloadResume: true,
       })
       await expect(
         pageA.getByText(userAProfileMarker, { exact: false }),
@@ -446,6 +448,7 @@ async function completeWizard(input: {
   budget: ReturnType<typeof createChildCostBudget>
   modelIds: Set<string>
   ephemeralState: Task8EphemeralStateRuntime
+  verifyReloadResume?: boolean
 }): Promise<void> {
   await input.page.goto(input.startPath)
 
@@ -482,9 +485,15 @@ async function completeWizard(input: {
       if (!question.placeholder) {
         throw new Error('ONBOARDING_PLACEHOLDER_MISSING')
       }
+      const placeholder = question.placeholder
+      const answer = syntheticAnswer(
+        input.runId,
+        index,
+        input.actor,
+      )
       await input.page
-        .getByPlaceholder(question.placeholder, { exact: true })
-        .fill(syntheticAnswer(input.runId, index, input.actor))
+        .getByPlaceholder(placeholder, { exact: true })
+        .fill(answer)
       const button = input.page.getByRole('button', {
         name: isLast ? 'Wygeneruj profil →' : 'Dalej →',
         exact: true,
@@ -531,6 +540,70 @@ async function completeWizard(input: {
         requireOk(
           await saveResponse,
           'ONBOARDING_SAVE_RESPONSE_INVALID',
+        )
+      }
+
+      if (
+        input.verifyReloadResume === true &&
+        index === 0 &&
+        !isLast
+      ) {
+        const nextQuestion = input.questions[index + 1]
+        if (!nextQuestion) {
+          throw new Error('ONBOARDING_RESUME_QUESTION_MISSING')
+        }
+        await verifyWizardResume(
+          {
+            reload: async () => {
+              await input.page.reload()
+            },
+            assertNextQuestion: async () => {
+              await expect(
+                input.page.getByRole('heading', {
+                  name: nextQuestion.prompt,
+                  exact: true,
+                }),
+              ).toBeVisible()
+            },
+            goBack: () =>
+              input.page
+                .getByRole('button', {
+                  name: '← Wstecz',
+                  exact: true,
+                })
+                .click(),
+            assertSavedQuestion: async () => {
+              await expect(
+                input.page.getByRole('heading', {
+                  name: question.prompt,
+                  exact: true,
+                }),
+              ).toBeVisible()
+            },
+            readSavedAnswer: () =>
+              input.page
+                .getByPlaceholder(placeholder, {
+                  exact: true,
+                })
+                .inputValue(),
+            goForwardAndAwaitSave: async () => {
+              const saveResponse = waitForPost(
+                input.page,
+                input.savePath,
+              )
+              await input.page
+                .getByRole('button', {
+                  name: 'Dalej →',
+                  exact: true,
+                })
+                .click()
+              requireOk(
+                await saveResponse,
+                'ONBOARDING_SAVE_RESPONSE_INVALID',
+              )
+            },
+          },
+          answer,
         )
       }
     }

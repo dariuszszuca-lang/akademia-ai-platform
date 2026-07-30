@@ -26,8 +26,9 @@ const requiredScenarios = [
   'isolation.cross-user',
   'admin.agent-toggle',
   'account.export',
-  'account.delete',
+  'onboarding.reset',
   'ui.mobile',
+  'account.delete',
   'cleanup.complete',
 ] as const
 
@@ -41,7 +42,7 @@ function passingScenarios(): ScenarioResult[] {
 
 describe('current release scenario contract', () => {
   it('keeps runner-owned cleanup outside the exact browser catalog', () => {
-    expect(currentReleaseBrowserScenarios).toHaveLength(19)
+    expect(currentReleaseBrowserScenarios).toHaveLength(20)
     expect(currentReleaseBrowserScenarios).not.toContain(
       'cleanup.complete',
     )

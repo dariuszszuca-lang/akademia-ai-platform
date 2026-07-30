@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test'
 import { getUserSubject } from '../operator'
+import { runOnboardingResetScenario } from './onboarding-reset'
 import {
   assertAccountExportSummary,
   assertMobileFocusBorderEvidence,
@@ -26,16 +27,55 @@ export async function runAdminAccountMobileScenarios(
   runtime: Task9Runtime,
   studio: Task9StudioState,
 ): Promise<Task9BrowserUsage> {
+  return runAdminAccountScenarioFlow({
+    runAdminToggle: () =>
+      runtime.runScenario(
+        'admin.agent-toggle',
+        'ADMIN_AGENT_TOGGLE_FAILED',
+        () => runAdminToggle(runtime),
+      ),
+    runAccountExport: () =>
+      runAccountExportScenario(runtime, studio),
+    runOnboardingReset: () =>
+      runOnboardingResetScenario(runtime),
+    runMobile: () =>
+      runtime.runScenario(
+        'ui.mobile',
+        'UI_MOBILE_FAILED',
+        () => runMobileChecks(runtime, studio),
+      ),
+    runAccountDelete: () =>
+      runtime.runScenario(
+        'account.delete',
+        'ACCOUNT_DELETE_FAILED',
+        async () => {
+          await deleteAccountA(runtime)
+          await deleteAccountB(runtime)
+        },
+      ),
+  })
+}
+
+export async function runAdminAccountScenarioFlow<Usage>(input: {
+  runAdminToggle(): Promise<void>
+  runAccountExport(): Promise<Usage>
+  runOnboardingReset(): Promise<void>
+  runMobile(): Promise<void>
+  runAccountDelete(): Promise<void>
+}): Promise<Usage> {
+  await input.runAdminToggle()
+  const usage = await input.runAccountExport()
+  await input.runOnboardingReset()
+  await input.runMobile()
+  await input.runAccountDelete()
+  return usage
+}
+
+async function runAccountExportScenario(
+  runtime: Task9Runtime,
+  studio: Task9StudioState,
+): Promise<Task9BrowserUsage> {
   let exportUsage: Task9BrowserUsage | null = null
-
-  await runtime.runScenario(
-    'admin.agent-toggle',
-    'ADMIN_AGENT_TOGGLE_FAILED',
-    async () => {
-      await runAdminToggle(runtime)
-    },
-  )
-
   await runtime.runScenario(
     'account.export',
     'ACCOUNT_EXPORT_FAILED',
@@ -133,23 +173,6 @@ export async function runAdminAccountMobileScenarios(
       } finally {
         await cleanupDownload(download)
       }
-    },
-  )
-
-  await runtime.runScenario(
-    'ui.mobile',
-    'UI_MOBILE_FAILED',
-    async () => {
-      await runMobileChecks(runtime, studio)
-    },
-  )
-
-  await runtime.runScenario(
-    'account.delete',
-    'ACCOUNT_DELETE_FAILED',
-    async () => {
-      await deleteAccountA(runtime)
-      await deleteAccountB(runtime)
     },
   )
 

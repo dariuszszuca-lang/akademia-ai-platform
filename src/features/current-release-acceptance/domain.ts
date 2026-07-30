@@ -26,8 +26,9 @@ export const currentReleaseBrowserScenarios = [
   'isolation.cross-user',
   'admin.agent-toggle',
   'account.export',
-  'account.delete',
+  'onboarding.reset',
   'ui.mobile',
+  'account.delete',
 ] as const
 
 export const currentReleaseScenarios = [

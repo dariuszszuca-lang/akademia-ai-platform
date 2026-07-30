@@ -43,10 +43,10 @@ function validBrowserResult(): BrowserExecutionResult {
 }
 
 describe('browser execution result contract', () => {
-  it('accepts exactly 19 unique canonical browser scenarios without cleanup', () => {
+  it('accepts exactly 20 unique canonical browser scenarios without cleanup', () => {
     const parsed = parseBrowserExecutionResult(validBrowserResult())
 
-    expect(currentReleaseBrowserScenarios).toHaveLength(19)
+    expect(currentReleaseBrowserScenarios).toHaveLength(20)
     expect(currentReleaseBrowserScenarios).not.toContain(
       'cleanup.complete',
     )

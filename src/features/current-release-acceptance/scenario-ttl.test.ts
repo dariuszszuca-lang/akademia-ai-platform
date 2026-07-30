@@ -77,6 +77,29 @@ type RequestCounter = {
 }
 
 describe('current release scenario TTL call sites', () => {
+  it('executes a second real page reload to prove Express wizard resume', async () => {
+    const persistence = createPersistenceController(9)
+    const requests: RequestCounter = {
+      count: 0,
+      failNextModelAction: false,
+    }
+    const browser = new FakeBrowser(requests)
+    const execution = runAuthOnboardingScenarios(
+      createAuthRuntime(persistence, requests, browser),
+    )
+
+    for (const gate of persistence.gates) {
+      await waitForCount(
+        () => persistence.persisted.length,
+        persistence.gates.indexOf(gate) + 1,
+      )
+      gate.resolve()
+    }
+    await execution
+
+    expect(browser.pageFor('a').reloadCount).toBe(2)
+  })
+
   it('blocks and then releases each of the 9 real onboarding model actions', async () => {
     const persistence = createPersistenceController(9)
     const requests: RequestCounter = {
@@ -304,8 +327,8 @@ function createDeferred(): Deferred {
 function createAuthRuntime(
   persistence: PersistenceController,
   requests: RequestCounter,
+  browser = new FakeBrowser(requests),
 ): Parameters<typeof runAuthOnboardingScenarios>[0] {
-  const browser = new FakeBrowser(requests)
   const budget = createFakeBudget()
   const journal = {
     recordUserSubject: async () => undefined,
@@ -409,6 +432,7 @@ function createFakeBudget(initialOnboardingCalls = 0) {
 
 class FakeBrowser {
   private contextIndex = 0
+  private readonly pages = new Map<string, FakePage>()
 
   constructor(private readonly requests: RequestCounter) {}
 
@@ -420,7 +444,15 @@ class FakeBrowser {
           ? 'wrong-password'
           : 'b'
     this.contextIndex += 1
-    return new FakeContext(role, this.requests)
+    return new FakeContext(role, this.requests, (page) => {
+      this.pages.set(role, page)
+    })
+  }
+
+  pageFor(role: string): FakePage {
+    const page = this.pages.get(role)
+    if (!page) throw new Error('fake page missing')
+    return page
   }
 }
 
@@ -449,10 +481,13 @@ class FakeContext {
   constructor(
     private readonly role: string,
     private readonly requests: RequestCounter,
+    private readonly recordPage: (page: FakePage) => void,
   ) {}
 
   async newPage(): Promise<FakePage> {
-    return new FakePage(this.requests)
+    const page = new FakePage(this.requests)
+    this.recordPage(page)
+    return page
   }
 
   async close(): Promise<void> {}
@@ -460,12 +495,16 @@ class FakeContext {
 
 class FakePage {
   private readonly waiters: ResponseWaiter[] = []
+  private lastFilledValue = ''
+  reloadCount = 0
 
   constructor(private readonly requests: RequestCounter) {}
 
   async goto(): Promise<void> {}
 
-  async reload(): Promise<void> {}
+  async reload(): Promise<void> {
+    this.reloadCount += 1
+  }
 
   async waitForURL(): Promise<void> {}
 
@@ -527,6 +566,14 @@ class FakePage {
       throw new Error('model action failed')
     }
   }
+
+  fill(value: string): void {
+    this.lastFilledValue = value
+  }
+
+  inputValue(): string {
+    return this.lastFilledValue
+  }
 }
 
 class FakeLocator {
@@ -543,7 +590,13 @@ class FakeLocator {
     return this.locatorCount
   }
 
-  async fill(): Promise<void> {}
+  async fill(value: string): Promise<void> {
+    this.page.fill(value)
+  }
+
+  async inputValue(): Promise<string> {
+    return this.page.inputValue()
+  }
 
   filter(): FakeLocator {
     return this
