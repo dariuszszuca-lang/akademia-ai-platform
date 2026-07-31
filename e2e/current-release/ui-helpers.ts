@@ -594,13 +594,13 @@ function safeScenarioActionErrorCode(error: unknown): string {
   if (
     error instanceof Error &&
     (SAFE_SCENARIO_ACTION_ERROR_CODES.has(error.message) ||
-      // Agent failure codes are built exclusively from constant
-      // tokens: agent ids from the call matrix, HTTP status digits
-      // and fixed check names. Never from response content.
-      /^AGENT_RESPONSE_INVALID(_[A-Z0-9_]+)?$/.test(error.message) ||
-      /^CURRENT_RELEASE_LEGAL_NEGATIVE_INVALID(_[A-Z0-9_]+)?$/.test(
-        error.message,
-      ))
+      // Internal failure codes are constant ALL-CAPS underscore
+      // tokens (scenario checks, agent ids, HTTP status digits).
+      // Anything carrying dynamic content - lowercase, spaces,
+      // punctuation, provider details - stays masked behind the
+      // generic code.
+      (error.message.length <= 80 &&
+        /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(error.message)))
   ) {
     return error.message
   }

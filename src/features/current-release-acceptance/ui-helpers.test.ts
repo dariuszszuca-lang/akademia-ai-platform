@@ -269,6 +269,17 @@ describe('current release UI helpers', () => {
     expect((providerFailure as Error).cause).toMatchObject({
       message: 'CURRENT_RELEASE_SCENARIO_ACTION_FAILED',
     })
+
+    const internalFailure = await runScenario(
+      'studio.proposals',
+      'STUDIO_PROPOSALS_FAILED',
+      async () => {
+        throw new Error('STUDIO_PRICE_PENDING_MISSING')
+      },
+    ).catch((error: unknown) => error)
+    expect((internalFailure as Error).message).toBe(
+      'STUDIO_PROPOSALS_FAILED:STUDIO_PRICE_PENDING_MISSING',
+    )
     expect(recorder.fail).toHaveBeenCalledWith(
       'auth.session',
       25,
