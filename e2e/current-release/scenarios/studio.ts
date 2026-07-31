@@ -302,14 +302,18 @@ export async function runStudioScenarios(
       await pageA
         .locator('input[name="label"]')
         .fill('Powierzchnia użytkowa')
-      await pageA
-        .locator('select[name="category"]')
-        .selectOption('areas')
-      await pageA
-        .locator('select[name="valueType"]')
-        .selectOption('number')
+      // Etykieta katalogowa (area.usable) blokuje metadane w AddFactForm:
+      // category/valueType/unit są disabled i wypełnione z katalogu.
+      const categorySelect = pageA.locator('select[name="category"]')
+      const valueTypeSelect = pageA.locator('select[name="valueType"]')
+      const unitInput = pageA.locator('input[name="unit"]')
+      await expect(categorySelect).toBeDisabled()
+      await expect(categorySelect).toHaveValue('Powierzchnia')
+      await expect(valueTypeSelect).toBeDisabled()
+      await expect(valueTypeSelect).toHaveValue('number')
+      await expect(unitInput).toBeDisabled()
+      await expect(unitInput).toHaveValue('m²')
       await pageA.locator('input[name="value"]').fill('80')
-      await pageA.locator('input[name="unit"]').fill('m²')
       await pageA
         .locator('select[name="status"]')
         .selectOption('confirmed')

@@ -202,7 +202,7 @@ export function selectTargetProposals(
     throw new Error('STUDIO_PRICE_PENDING_MISSING')
   }
   if (
-    price.valueType !== 'number' ||
+    price.valueType !== 'money' ||
     typeof price.value !== 'number' ||
     !Number.isSafeInteger(price.value) ||
     price.value !== 750_000
@@ -290,7 +290,7 @@ export function parseProposalDecisionReadback(
     rejected.length !== 1 ||
     rejected[0]!.id !== expected.rejectedId ||
     rejected[0]!.factKey !== 'price.asking' ||
-    rejected[0]!.valueType !== 'number' ||
+    rejected[0]!.valueType !== 'money' ||
     rejected[0]!.value !== 750_000
   ) {
     throw new Error('STUDIO_PROPOSAL_READBACK_INVALID')
@@ -383,7 +383,7 @@ export function parseRejectedPriceDecisionResponse(
     payload.proposal.status !== 'rejected' ||
     payload.proposal.sourceId !== expected.sourceId ||
     payload.proposal.jobId !== expected.jobId ||
-    payload.proposal.valueType !== 'number' ||
+    payload.proposal.valueType !== 'money' ||
     payload.proposal.value !== 750_000
   ) {
     throw new Error('STUDIO_REJECTED_PRICE_INVALID')
