@@ -206,7 +206,10 @@ async function callAgent(
         observedResponse.status() !== 200 ||
         result.status !== 200
       ) {
-        throw new Error('AGENT_RESPONSE_INVALID')
+        // Status codes only: safe to surface in diagnostics, no body.
+        throw new Error(
+          `AGENT_RESPONSE_INVALID_${observedResponse.status()}_${result.status}`,
+        )
       }
       return {
         body: result.body,
