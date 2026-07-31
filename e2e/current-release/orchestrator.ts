@@ -91,7 +91,12 @@ export async function finalizeCurrentReleaseBrowserRun(
   ) {
     throw new Error('CURRENT_RELEASE_UNRECORDED_FAILURE')
   }
+  // Missing observed pipeline cost fails a clean run closed. With a
+  // primary error it is an expected intermediate state (any failure
+  // between pipeline start and the export that records the cost), so
+  // the truthful partial result and the real error take precedence.
   if (
+    !input.primaryError &&
     input.usage.sourcePipelineCalls === 1 &&
     input.usage.observedPipelineCostUsd <= 0
   ) {

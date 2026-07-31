@@ -273,7 +273,7 @@ describe('current release browser finalization', () => {
     expect(writeResult).not.toHaveBeenCalled()
   })
 
-  it('does not write a partial result after pipeline use until its cost was observed', async () => {
+  it('writes the truthful partial result and rethrows the primary error when the pipeline cost was not yet observed', async () => {
     const writeResult = vi.fn(async () => {})
 
     await expect(
@@ -285,6 +285,35 @@ describe('current release browser finalization', () => {
             status: 'failed',
             durationMs: 10,
             errorCode: 'STUDIO_PROPOSALS_FAILED',
+          },
+        ],
+        modelIds: new Set(),
+        usage: {
+          onboardingGenerationCalls: 9,
+          agentCalls: 8,
+          sourcePipelineCalls: 1,
+          observedPipelineCostUsd: 0,
+        },
+        readJournal: async () => registry(),
+        writeResult,
+        forbiddenValues: [],
+      }),
+    ).rejects.toThrow('STUDIO_PROPOSALS_FAILED')
+
+    expect(writeResult).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails a clean run closed when pipeline cost was never observed', async () => {
+    const writeResult = vi.fn(async () => {})
+
+    await expect(
+      finalizeCurrentReleaseBrowserRun({
+        primaryError: null,
+        scenarios: () => [
+          {
+            name: 'studio.proposals',
+            status: 'passed',
+            durationMs: 10,
           },
         ],
         modelIds: new Set(),
