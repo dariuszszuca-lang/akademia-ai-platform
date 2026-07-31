@@ -547,7 +547,11 @@ export function createScenarioRunner(
 function safeScenarioActionErrorCode(error: unknown): string {
   if (
     error instanceof Error &&
-    SAFE_SCENARIO_ACTION_ERROR_CODES.has(error.message)
+    (SAFE_SCENARIO_ACTION_ERROR_CODES.has(error.message) ||
+      // Agent failure codes are built exclusively from constant
+      // tokens: agent ids from the call matrix, HTTP status digits
+      // and fixed check names. Never from response content.
+      /^AGENT_RESPONSE_INVALID(_[A-Z0-9_]+)?$/.test(error.message))
   ) {
     return error.message
   }

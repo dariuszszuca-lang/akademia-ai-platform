@@ -52,13 +52,18 @@ export async function runAgentScenarios(
             foreignMarkers,
             runtime.profileMarker,
           )
-          if (
-            !summary.nonEmpty ||
-            !summary.usedProfileMarker ||
-            summary.hasGenerationError ||
-            summary.leaksForeignMarker
-          ) {
-            throw new Error('AGENT_RESPONSE_INVALID')
+          const failedChecks = [
+            summary.nonEmpty ? null : 'EMPTY',
+            summary.usedProfileMarker ? null : 'NO_MARKER',
+            summary.hasGenerationError ? 'GENERATION_ERROR' : null,
+            summary.leaksForeignMarker ? 'FOREIGN_LEAK' : null,
+          ].filter((token): token is string => token !== null)
+          if (failedChecks.length > 0) {
+            // Constant tokens only (agent id + check names), no body.
+            throw new Error(
+              `AGENT_RESPONSE_INVALID_${agentId.toUpperCase()}` +
+                `_${failedChecks.join('_')}`,
+            )
           }
         })
       }
@@ -206,9 +211,10 @@ async function callAgent(
         observedResponse.status() !== 200 ||
         result.status !== 200
       ) {
-        // Status codes only: safe to surface in diagnostics, no body.
+        // Constant tokens only (agent id + status codes), no body.
         throw new Error(
-          `AGENT_RESPONSE_INVALID_${observedResponse.status()}_${result.status}`,
+          `AGENT_RESPONSE_INVALID_${data.agentId.toUpperCase()}` +
+            `_${observedResponse.status()}_${result.status}`,
         )
       }
       return {
