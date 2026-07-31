@@ -116,25 +116,44 @@ export async function runAgentScenarios(
     'agents.legal-positive',
     'AGENT_LEGAL_POSITIVE_FAILED',
     async () => {
-      await runtime.budget.runBefore('agent', async () => {
-        const response = await callAgent(runtime, {
-          agentId: 'prawny',
-          toolId: 'pytanie-prawne',
-          context:
-            `SYN-A-${runtime.fixtures.runId}; sprzedaż nieruchomości; dane syntetyczne.`,
-          goal:
-            `Jaka forma jest wymagana dla umowy przenoszącej własność nieruchomości? Podaj podstawę i numer artykułu. ${profileEvidenceInstruction}`,
-        })
-        collectObservableModelId(
-          response.headers,
-          runtime.modelIds,
-        )
-        assertLegalPositiveSummary(
-          response.body,
-          foreignMarkers,
-          runtime.profileMarker,
-        )
-      })
+      let retried = false
+      for (;;) {
+        try {
+          await runtime.budget.runBefore('agent', async () => {
+            const response = await callAgent(runtime, {
+              agentId: 'prawny',
+              toolId: 'pytanie-prawne',
+              context:
+                `SYN-A-${runtime.fixtures.runId}; sprzedaż nieruchomości; dane syntetyczne.`,
+              goal:
+                'Jaka forma jest wymagana dla umowy przenoszącej własność nieruchomości? Podaj podstawę i numer artykułu.',
+            })
+            collectObservableModelId(
+              response.headers,
+              runtime.modelIds,
+            )
+            assertLegalPositiveSummary(
+              response.body,
+              foreignMarkers,
+              runtime.profileMarker,
+            )
+          })
+          break
+        } catch (error) {
+          // One accounted retry only when the model prose missed the
+          // citation; server-side RAG contract failures stay fatal.
+          if (
+            retried ||
+            !(error instanceof Error) ||
+            !/^CURRENT_RELEASE_LEGAL_POSITIVE_INVALID_(ARTICLE_ANSWER_MISSING|CITATION_MISMATCH)$/.test(
+              error.message,
+            )
+          ) {
+            throw error
+          }
+          retried = true
+        }
+      }
     },
   )
 

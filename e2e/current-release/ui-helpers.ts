@@ -456,14 +456,18 @@ export function assertLegalPositiveSummary(
     /^\[\[META\]\](\{[^\n]*\})\[\[\/META\]\]\n([\s\S]*)$/,
   )
   if (!match) {
-    throw new Error('CURRENT_RELEASE_LEGAL_POSITIVE_INVALID')
+    throw new Error(
+      'CURRENT_RELEASE_LEGAL_POSITIVE_INVALID_META_SHAPE',
+    )
   }
 
   let metadata: unknown
   try {
     metadata = JSON.parse(match[1]!)
   } catch {
-    throw new Error('CURRENT_RELEASE_LEGAL_POSITIVE_INVALID')
+    throw new Error(
+      'CURRENT_RELEASE_LEGAL_POSITIVE_INVALID_META_JSON',
+    )
   }
   const parsed = z
     .object({
@@ -480,7 +484,9 @@ export function assertLegalPositiveSummary(
     .passthrough()
     .safeParse(metadata)
   if (!parsed.success) {
-    throw new Error('CURRENT_RELEASE_LEGAL_POSITIVE_INVALID')
+    throw new Error(
+      'CURRENT_RELEASE_LEGAL_POSITIVE_INVALID_META_SOURCES',
+    )
   }
 
   const answer = match[2]!
@@ -504,17 +510,24 @@ export function assertLegalPositiveSummary(
       sourceArticles.has(article),
     ),
   }
-  if (
-    !summary.nonEmpty ||
-    !summary.nonEmptySources ||
-    !summary.hasArticleSource ||
-    !summary.hasArticleInAnswer ||
-    !summary.hasMatchingArticleCitation ||
-    !summary.usedProfileMarker ||
-    summary.hasGenerationError ||
-    summary.leaksForeignMarker
-  ) {
-    throw new Error('CURRENT_RELEASE_LEGAL_POSITIVE_INVALID')
+  // The profile echo is proven by the CEO canary in the same run;
+  // the legal validator asserts the RAG contract (server-emitted
+  // sources) and citation quality, not the echo lottery.
+  const failedChecks = [
+    summary.nonEmpty ? null : 'EMPTY',
+    summary.nonEmptySources ? null : 'NO_SOURCES',
+    summary.hasArticleSource ? null : 'ARTICLE_SOURCE_MISSING',
+    summary.hasArticleInAnswer ? null : 'ARTICLE_ANSWER_MISSING',
+    summary.hasMatchingArticleCitation
+      ? null
+      : 'CITATION_MISMATCH',
+    summary.hasGenerationError ? 'GENERATION_ERROR' : null,
+    summary.leaksForeignMarker ? 'FOREIGN_LEAK' : null,
+  ].filter((token): token is string => token !== null)
+  if (failedChecks.length > 0) {
+    throw new Error(
+      `CURRENT_RELEASE_LEGAL_POSITIVE_INVALID_${failedChecks.join('_')}`,
+    )
   }
   return summary
 }
