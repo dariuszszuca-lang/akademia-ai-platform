@@ -409,6 +409,15 @@ export type SafeAgentBodySummary = {
   leaksForeignMarker: boolean
 }
 
+// Markers are matched after stripping whitespace and markdown
+// punctuation: format-constrained tools may wrap or bold the token
+// (visually intact for the user), and a leaked foreign marker with
+// such formatting still leaks. Marker characters themselves
+// ([A-Z0-9-]) are never stripped, so the full token must appear.
+export function normalizeForMarkerMatch(value: string): string {
+  return value.replace(/[*_`~\s]+/gu, '')
+}
+
 export function summarizeAgentBody(
   body: string,
   foreignMarkers: readonly string[],
@@ -416,12 +425,17 @@ export function summarizeAgentBody(
 ): SafeAgentBodySummary {
   const parsedProfileMarker =
     task8ProfileMarkerSchema.parse(profileMarker)
+  const normalizedBody = normalizeForMarkerMatch(body)
   return {
     nonEmpty: body.trim().length > 0,
-    usedProfileMarker: body.includes(parsedProfileMarker),
+    usedProfileMarker: normalizedBody.includes(
+      normalizeForMarkerMatch(parsedProfileMarker),
+    ),
     hasGenerationError: body.includes('[Błąd generowania'),
     leaksForeignMarker: foreignMarkers.some(
-      (marker) => marker.length > 0 && body.includes(marker),
+      (marker) =>
+        marker.length > 0 &&
+        normalizedBody.includes(normalizeForMarkerMatch(marker)),
     ),
   }
 }

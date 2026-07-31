@@ -111,6 +111,32 @@ describe('current release UI helpers', () => {
     ).not.toContain(profileMarkerA)
   })
 
+  it('matches markers across markdown formatting and line wraps', () => {
+    const wrapped = `**${profileMarkerA.slice(0, 20)}\n${profileMarkerA.slice(20)}**`
+    expect(
+      summarizeAgentBody(
+        `Slajd 1: ${wrapped}\nReszta karuzeli.`,
+        [profileMarkerB],
+        profileMarkerA,
+      ),
+    ).toMatchObject({
+      usedProfileMarker: true,
+      leaksForeignMarker: false,
+    })
+
+    const wrappedForeign = `\`${profileMarkerB.slice(0, 12)}\`\n${profileMarkerB.slice(12)}`
+    expect(
+      summarizeAgentBody(
+        `Treść z obcym znacznikiem: ${wrappedForeign}`,
+        [profileMarkerB],
+        profileMarkerA,
+      ),
+    ).toMatchObject({
+      usedProfileMarker: false,
+      leaksForeignMarker: true,
+    })
+  })
+
   it('detects every actual B marker, not only the path-B prefix', () => {
     const markers = buildForeignUserMarkers({
       runId,

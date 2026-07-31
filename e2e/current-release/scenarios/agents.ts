@@ -7,6 +7,7 @@ import {
   assertLegalPositiveSummary,
   collectObservableModelId,
   isCanonicalProductionPost,
+  normalizeForMarkerMatch,
   persistEphemeralStateBeforeRequest,
   summarizeAgentBody,
   TASK8_MAX_AGENT_CALLS,
@@ -59,7 +60,13 @@ export async function runAgentScenarios(
               )
               const failedChecks = [
                 summary.nonEmpty ? null : 'EMPTY',
-                summary.usedProfileMarker ? null : 'NO_MARKER',
+                summary.usedProfileMarker
+                  ? null
+                  : normalizeForMarkerMatch(
+                        response.body,
+                      ).includes('PROFILE-')
+                    ? 'NO_MARKER_PREFIX'
+                    : 'NO_MARKER_ABSENT',
                 summary.hasGenerationError
                   ? 'GENERATION_ERROR'
                   : null,
@@ -85,7 +92,7 @@ export async function runAgentScenarios(
             if (
               retried ||
               !(error instanceof Error) ||
-              !/^AGENT_RESPONSE_INVALID_[A-Z]+_NO_MARKER$/.test(
+              !/^AGENT_RESPONSE_INVALID_[A-Z]+_NO_MARKER_(PREFIX|ABSENT)$/.test(
                 error.message,
               )
             ) {

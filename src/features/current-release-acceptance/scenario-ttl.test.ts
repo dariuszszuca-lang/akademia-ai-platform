@@ -256,7 +256,7 @@ describe('current release scenario TTL call sites', () => {
       runAgentScenarios(
         createAgentRuntime(persistence, requests),
       ),
-    ).rejects.toThrow('AGENT_RESPONSE_INVALID_CEO_NO_MARKER')
+    ).rejects.toThrow('AGENT_RESPONSE_INVALID_CEO_NO_MARKER_ABSENT')
     expect(requests.count).toBe(2)
     expect(persistence.persisted).toHaveLength(2)
   })
