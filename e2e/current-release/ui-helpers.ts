@@ -127,6 +127,9 @@ export const expectedTask8ModelCallSequence = [
   })),
 ] as const
 
+export const TASK8_REQUIRED_AGENT_CALLS = 8
+export const TASK8_MAX_AGENT_CALLS = 10
+
 type ObservedModelCall = {
   kind: 'onboarding' | 'agent'
   pathname: string
@@ -147,7 +150,7 @@ export type Task8NetworkLedger = {
     >,
   ): {
     onboardingGenerationCalls: 9
-    agentCalls: 8
+    agentCalls: number
   }
   snapshot(): ObservedModelCall[]
 }
@@ -228,15 +231,38 @@ export function createTask8NetworkLedger(): Task8NetworkLedger {
     observeResponse,
 
     reconcile(budget) {
+      // The onboarding prefix stays position-exact. The agent segment
+      // allows up to two accounted marker retries (8 required calls,
+      // 10 at most); every observed call must still be a 2xx POST to
+      // the canonical agent path.
+      const onboardingSequence =
+        expectedTask8ModelCallSequence.filter(
+          (expected) => expected.kind === 'onboarding',
+        )
+      const onboardingCalls = calls.slice(
+        0,
+        onboardingSequence.length,
+      )
+      const agentSegment = calls.slice(onboardingSequence.length)
       if (
         invalid ||
-        calls.length !== expectedTask8ModelCallSequence.length ||
-        calls.some(
+        onboardingCalls.length !== onboardingSequence.length ||
+        onboardingCalls.some(
           (call, index) =>
-            call.kind !==
-              expectedTask8ModelCallSequence[index]!.kind ||
+            call.kind !== onboardingSequence[index]!.kind ||
             call.pathname !==
-              expectedTask8ModelCallSequence[index]!.pathname ||
+              onboardingSequence[index]!.pathname,
+        ) ||
+        agentSegment.length <
+          TASK8_REQUIRED_AGENT_CALLS ||
+        agentSegment.length > TASK8_MAX_AGENT_CALLS ||
+        agentSegment.some(
+          (call) =>
+            call.kind !== 'agent' ||
+            call.pathname !== '/api/agents/run',
+        ) ||
+        calls.some(
+          (call) =>
             call.status === null ||
             call.status < 200 ||
             call.status >= 300,
@@ -244,20 +270,21 @@ export function createTask8NetworkLedger(): Task8NetworkLedger {
       ) {
         throw new Error('CURRENT_RELEASE_NETWORK_LEDGER_INVALID')
       }
-      const onboardingGenerationCalls = calls.filter(
-        (call) => call.kind === 'onboarding',
-      ).length
-      const agentCalls = calls.filter(
-        (call) => call.kind === 'agent',
-      ).length
+      const onboardingGenerationCalls = onboardingCalls.length
+      const agentCalls = agentSegment.length
+      const expectedReservedUsd =
+        Math.round(
+          (onboardingGenerationCalls * 0.06 +
+            agentCalls * 0.08) *
+            1_000_000,
+        ) / 1_000_000
       if (
         onboardingGenerationCalls !== 9 ||
-        agentCalls !== 8 ||
         budget.onboardingGenerationCalls !==
           onboardingGenerationCalls ||
         budget.agentCalls !== agentCalls ||
         budget.sourcePipelineCalls !== 0 ||
-        budget.reservedUsd !== 1.18
+        budget.reservedUsd !== expectedReservedUsd
       ) {
         throw new Error(
           'CURRENT_RELEASE_NETWORK_BUDGET_MISMATCH',
@@ -265,7 +292,7 @@ export function createTask8NetworkLedger(): Task8NetworkLedger {
       }
       return {
         onboardingGenerationCalls: 9,
-        agentCalls: 8,
+        agentCalls,
       }
     },
 

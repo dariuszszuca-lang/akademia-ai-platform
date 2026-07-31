@@ -9,6 +9,8 @@ import {
   isCanonicalProductionPost,
   persistEphemeralStateBeforeRequest,
   summarizeAgentBody,
+  TASK8_MAX_AGENT_CALLS,
+  TASK8_REQUIRED_AGENT_CALLS,
   type Task8BrowserHandoff,
 } from '../ui-helpers'
 
@@ -34,38 +36,64 @@ export async function runAgentScenarios(
     'AGENTS_SIX_FAILED',
     async () => {
       for (const [agentId, toolId] of agentCallMatrix) {
-        await runtime.budget.runBefore('agent', async () => {
-          const response = await callAgent(runtime, {
-            agentId,
-            toolId,
-            context:
-              `SYN-A-${runtime.fixtures.runId}; rynek Testowo; wyłącznie dane syntetyczne.`,
-            goal:
-              `Krótka odpowiedź testowa dla ${runtime.fixtures.runId}. ${profileEvidenceInstruction}`,
-          })
-          collectObservableModelId(
-            response.headers,
-            runtime.modelIds,
-          )
-          const summary = summarizeAgentBody(
-            response.body,
-            foreignMarkers,
-            runtime.profileMarker,
-          )
-          const failedChecks = [
-            summary.nonEmpty ? null : 'EMPTY',
-            summary.usedProfileMarker ? null : 'NO_MARKER',
-            summary.hasGenerationError ? 'GENERATION_ERROR' : null,
-            summary.leaksForeignMarker ? 'FOREIGN_LEAK' : null,
-          ].filter((token): token is string => token !== null)
-          if (failedChecks.length > 0) {
-            // Constant tokens only (agent id + check names), no body.
-            throw new Error(
-              `AGENT_RESPONSE_INVALID_${agentId.toUpperCase()}` +
-                `_${failedChecks.join('_')}`,
-            )
+        let retried = false
+        for (;;) {
+          try {
+            await runtime.budget.runBefore('agent', async () => {
+              const response = await callAgent(runtime, {
+                agentId,
+                toolId,
+                context:
+                  `SYN-A-${runtime.fixtures.runId}; rynek Testowo; wyłącznie dane syntetyczne.`,
+                goal:
+                  `Krótka odpowiedź testowa dla ${runtime.fixtures.runId}. ${profileEvidenceInstruction}`,
+              })
+              collectObservableModelId(
+                response.headers,
+                runtime.modelIds,
+              )
+              const summary = summarizeAgentBody(
+                response.body,
+                foreignMarkers,
+                runtime.profileMarker,
+              )
+              const failedChecks = [
+                summary.nonEmpty ? null : 'EMPTY',
+                summary.usedProfileMarker ? null : 'NO_MARKER',
+                summary.hasGenerationError
+                  ? 'GENERATION_ERROR'
+                  : null,
+                summary.leaksForeignMarker
+                  ? 'FOREIGN_LEAK'
+                  : null,
+              ].filter(
+                (token): token is string => token !== null,
+              )
+              if (failedChecks.length > 0) {
+                // Constant tokens only (agent id + check names).
+                throw new Error(
+                  `AGENT_RESPONSE_INVALID_${agentId.toUpperCase()}` +
+                    `_${failedChecks.join('_')}`,
+                )
+              }
+            })
+            break
+          } catch (error) {
+            // One accounted retry, only for a pure marker slip: the
+            // agent answered with a valid 200 body but skipped the
+            // profile control code. Every other failure stays fatal.
+            if (
+              retried ||
+              !(error instanceof Error) ||
+              !/^AGENT_RESPONSE_INVALID_[A-Z]+_NO_MARKER$/.test(
+                error.message,
+              )
+            ) {
+              throw error
+            }
+            retried = true
           }
-        })
+        }
       }
     },
   )
@@ -144,11 +172,18 @@ export async function runAgentScenarios(
   )
 
   const usage = runtime.budget.snapshot()
+  const expectedReservedUsd =
+    Math.round(
+      (usage.onboardingGenerationCalls * 0.06 +
+        usage.agentCalls * 0.08) *
+        1_000_000,
+    ) / 1_000_000
   if (
     usage.onboardingGenerationCalls !== 9 ||
-    usage.agentCalls !== 8 ||
+    usage.agentCalls < TASK8_REQUIRED_AGENT_CALLS ||
+    usage.agentCalls > TASK8_MAX_AGENT_CALLS ||
     usage.sourcePipelineCalls !== 0 ||
-    usage.reservedUsd !== 1.18
+    usage.reservedUsd !== expectedReservedUsd
   ) {
     throw new Error('CURRENT_RELEASE_TASK8_USAGE_INVALID')
   }

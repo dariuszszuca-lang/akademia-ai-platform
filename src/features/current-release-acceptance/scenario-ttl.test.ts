@@ -73,6 +73,7 @@ type RequestCounter = {
   failNextModelAction: boolean
   ignoreProfileContext?: boolean
   leakForeignProfileContext?: boolean
+  markerSlipsRemaining?: number
   requestPayloads?: string[]
 }
 
@@ -216,13 +217,48 @@ describe('current release scenario TTL call sites', () => {
       ignoreProfileContext: true,
     }
 
+    // One accounted marker retry runs before the failure is fatal.
     await expect(
       runAgentScenarios(
         createAgentRuntime(persistence, requests),
       ),
     ).rejects.toThrow('AGENT_RESPONSE_INVALID')
-    expect(requests.count).toBe(1)
-    expect(persistence.persisted).toHaveLength(1)
+    expect(requests.count).toBe(2)
+    expect(persistence.persisted).toHaveLength(2)
+  })
+
+  it('retries a single marker slip as an accounted ninth call', async () => {
+    const persistence = createPersistenceController(9)
+    persistence.gates.forEach((gate) => gate.resolve())
+    const requests: RequestCounter = {
+      count: 0,
+      failNextModelAction: false,
+      markerSlipsRemaining: 1,
+    }
+
+    await runAgentScenarios(
+      createAgentRuntime(persistence, requests),
+    )
+    expect(requests.count).toBe(9)
+    expect(persistence.persisted).toHaveLength(9)
+  })
+
+  it('does not retry the same agent twice on repeated marker slips', async () => {
+    const persistence = createPersistenceController(8)
+    persistence.gates.forEach((gate) => gate.resolve())
+    const requests: RequestCounter = {
+      count: 0,
+      failNextModelAction: false,
+      markerSlipsRemaining: 2,
+    }
+
+    await expect(
+      runAgentScenarios(
+        createAgentRuntime(persistence, requests),
+      ),
+    ).rejects.toThrow('AGENT_RESPONSE_INVALID_CEO_NO_MARKER')
+    expect(requests.count).toBe(2)
+    expect(persistence.persisted).toHaveLength(2)
   })
 
   it('fails when a real agent call leaks the persisted B profile marker', async () => {
@@ -635,22 +671,30 @@ class FakeAgentPage {
       this.requests.failNextModelAction = false
       throw new Error('model action failed')
     }
+    const slippedMarker =
+      (this.requests.markerSlipsRemaining ?? 0) > 0
+    if (slippedMarker) {
+      this.requests.markerSlipsRemaining! -= 1
+    }
     const observedProfileMarker =
-      this.requests.ignoreProfileContext
+      this.requests.ignoreProfileContext || slippedMarker
         ? ''
         : `${profileMarkerA}${
             this.requests.leakForeignProfileContext
               ? ` ${profileMarkerB}`
               : ''
           } `
-    if (this.requests.count === 7) {
+    // Keyed by request content, not call position, so accounted
+    // marker retries do not shift the legal probe responses.
+    const payload = JSON.stringify(input)
+    if (payload.includes('Jaka forma jest wymagana')) {
       return {
         status: 200,
         body:
           `[[META]]{"sources":[{"art":"158"}]}[[/META]]\n${observedProfileMarker}Forma wynika z art. 158.`,
       }
     }
-    if (this.requests.count === 8) {
+    if (payload.includes('kontrola braku trafienia')) {
       return {
         status: 200,
         body: `${LEGAL_NO_SOURCE_MESSAGE}\n\n${observedProfileMarker}Brak podstawy.`,

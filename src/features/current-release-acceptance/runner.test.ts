@@ -276,7 +276,7 @@ describe('current release execution boundary', () => {
     expect(report.providerCostUsd).toBe(1.29)
     expect(CURRENT_RELEASE_COST_RESERVATIONS).toMatchObject({
       onboardingGenerationCalls: 9,
-      agentCalls: 8,
+      agentCalls: 10,
     })
   })
 
@@ -1218,7 +1218,7 @@ describe('current release execution boundary', () => {
     },
     {
       onboardingGenerationCalls: 9,
-      agentCalls: 9,
+      agentCalls: 11,
       sourcePipelineCalls: 1,
       observedPipelineCostUsd: 0,
     },
@@ -1246,6 +1246,41 @@ describe('current release execution boundary', () => {
       modelIds: [],
       usage,
     } as BrowserExecutionResult
+
+    expect(() => validateBrowserUsage(result, 2)).toThrow(
+      'CURRENT_RELEASE_BROWSER_USAGE_INVALID',
+    )
+  })
+
+  it.each([8, 9, 10])(
+    'accepts a fully passed run with %i accounted agent calls',
+    (agentCalls) => {
+      const result: BrowserExecutionResult = {
+        scenarios: passingScenarios(),
+        modelIds: ['claude-sonnet-4-6'],
+        usage: {
+          onboardingGenerationCalls: 9,
+          agentCalls,
+          sourcePipelineCalls: 1 as const,
+          observedPipelineCostUsd: 0.1,
+        },
+      }
+
+      expect(() => validateBrowserUsage(result, 2)).not.toThrow()
+    },
+  )
+
+  it('rejects a fully passed run with eleven agent calls', () => {
+    const result: BrowserExecutionResult = {
+      scenarios: passingScenarios(),
+      modelIds: ['claude-sonnet-4-6'],
+      usage: {
+        onboardingGenerationCalls: 9,
+        agentCalls: 11,
+        sourcePipelineCalls: 1 as const,
+        observedPipelineCostUsd: 0.1,
+      },
+    }
 
     expect(() => validateBrowserUsage(result, 2)).toThrow(
       'CURRENT_RELEASE_BROWSER_USAGE_INVALID',

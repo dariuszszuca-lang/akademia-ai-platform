@@ -11,7 +11,8 @@ const unitCostsSchema = z
 const childBudgetContractSchema = z
   .object({
     maxUsd: z.number().positive().max(2),
-    stopBeforeUsd: z.number().positive().max(1.5),
+    // Mirrors CURRENT_RELEASE_COST_STOP_USD (marker-retry headroom).
+    stopBeforeUsd: z.number().positive().max(1.7),
     unitCosts: unitCostsSchema,
   })
   .strict()

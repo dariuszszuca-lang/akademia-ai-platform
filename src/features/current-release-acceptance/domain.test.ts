@@ -371,10 +371,10 @@ describe('current release cost guard', () => {
 
   it('rejects cost guard limits outside the accepted contract', () => {
     expect(() =>
-      createAcceptanceCostGuard({ stopBeforeUsd: 1.51, maxUsd: 2 }),
+      createAcceptanceCostGuard({ stopBeforeUsd: 1.71, maxUsd: 2 }),
     ).toThrow('CURRENT_RELEASE_COST_LIMIT_INVALID')
     expect(() =>
-      createAcceptanceCostGuard({ stopBeforeUsd: 1.5, maxUsd: 2.01 }),
+      createAcceptanceCostGuard({ stopBeforeUsd: 1.7, maxUsd: 2.01 }),
     ).toThrow('CURRENT_RELEASE_COST_LIMIT_INVALID')
     expect(() =>
       createAcceptanceCostGuard({ stopBeforeUsd: 0, maxUsd: 2 }),

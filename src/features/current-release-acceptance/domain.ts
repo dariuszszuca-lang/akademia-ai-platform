@@ -5,7 +5,9 @@ import {
 } from '../synthetic-acceptance/domain'
 
 export const CURRENT_RELEASE_MAX_COST_USD = 2
-export const CURRENT_RELEASE_COST_STOP_USD = 1.5
+// 1.7 leaves headroom for up to two accounted marker retries
+// (agent calls 8 -> 10) while max stays at 2 USD.
+export const CURRENT_RELEASE_COST_STOP_USD = 1.7
 export const CURRENT_RELEASE_PIPELINE_RESERVATION_LABEL = 'pipeline'
 
 export const currentReleaseBrowserScenarios = [

@@ -367,6 +367,35 @@ describe('current release UI helpers', () => {
     })
   })
 
+  it('reconciles one accounted marker retry as a ninth agent call', () => {
+    const ledger = createTask8NetworkLedger()
+    const calls = [
+      ...expectedTask8ModelCallSequence,
+      { kind: 'agent', pathname: '/api/agents/run' },
+    ]
+    for (const [index, call] of calls.entries()) {
+      const id = `call-${index}`
+      ledger.observeRequest(
+        id,
+        'POST',
+        `https://akademia-ai-platform.vercel.app${call.pathname}`,
+      )
+      ledger.observeResponse(id, 200)
+    }
+
+    expect(
+      ledger.reconcile({
+        onboardingGenerationCalls: 9,
+        agentCalls: 9,
+        sourcePipelineCalls: 0,
+        reservedUsd: 1.26,
+      }),
+    ).toEqual({
+      onboardingGenerationCalls: 9,
+      agentCalls: 9,
+    })
+  })
+
   it.each([
     'missing',
     'duplicate',
@@ -381,10 +410,12 @@ describe('current release UI helpers', () => {
       calls.splice(1, 0, calls[0]!)
     }
     if (defect === 'extra') {
-      calls.push({
-        kind: 'agent',
-        pathname: '/api/agents/run',
-      })
+      // Three extras exceed even the marker-retry ceiling (10).
+      calls.push(
+        { kind: 'agent', pathname: '/api/agents/run' },
+        { kind: 'agent', pathname: '/api/agents/run' },
+        { kind: 'agent', pathname: '/api/agents/run' },
+      )
     }
     if (defect === 'order') {
       ;[calls[0], calls[1]] = [calls[1]!, calls[0]!]

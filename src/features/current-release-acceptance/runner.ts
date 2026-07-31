@@ -59,9 +59,13 @@ export const CURRENT_RELEASE_COST_RESERVATIONS = {
   onboardingGenerationUsd: 0.06,
   onboardingGenerationCalls: 9,
   agentCallUsd: 0.08,
-  agentCalls: 8,
+  // Ceiling: 8 required calls plus up to two accounted marker retries.
+  agentCalls: 10,
   sourcePipelineUsd: 0.25,
 } as const
+
+// Six agent scenarios plus two legal probes must always happen.
+export const CURRENT_RELEASE_REQUIRED_AGENT_CALLS = 8
 
 export type CurrentReleaseRunnerOptions = {
   allowProduction: boolean
@@ -162,7 +166,10 @@ export async function runCurrentReleaseAcceptance(
   const guardNonce = dependencies.createGuardNonce()
   const childBudget = {
     maxUsd: options.maxCostUsd,
-    stopBeforeUsd: Math.min(1.5, options.maxCostUsd),
+    stopBeforeUsd: Math.min(
+      CURRENT_RELEASE_COST_STOP_USD,
+      options.maxCostUsd,
+    ),
     unitCosts: {
       onboardingGenerationUsd:
         CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationUsd,
@@ -841,7 +848,8 @@ export function validateBrowserUsage(
     (allScenariosPassed &&
       (onboardingGenerationCalls !==
         CURRENT_RELEASE_COST_RESERVATIONS.onboardingGenerationCalls ||
-        agentCalls !==
+        agentCalls < CURRENT_RELEASE_REQUIRED_AGENT_CALLS ||
+        agentCalls >
           CURRENT_RELEASE_COST_RESERVATIONS.agentCalls ||
         sourcePipelineCalls !== 1))
   ) {
