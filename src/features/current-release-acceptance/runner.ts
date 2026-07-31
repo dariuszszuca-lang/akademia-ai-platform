@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   getCurrentReleasePaths,
   prepareCurrentReleaseResultPath,
@@ -469,10 +471,16 @@ export function createDefaultBrowserExecutor(
             maxBuffer: 10 * 1024 * 1024,
           },
         )
-      } catch {
+      } catch (error) {
         browserProcessFailed = true
         // A failing scenario makes Playwright exit nonzero, but afterAll
         // still persists the safe, partial result. Read it below.
+        persistBrowserDiagnostics(
+          expectedPaths,
+          input.runId,
+          describeBrowserProcessError(error),
+          browserResultForbiddenValues(input.childEnv),
+        )
       }
 
       let raw: string
@@ -508,6 +516,52 @@ export function createDefaultBrowserExecutor(
         input.runId,
       )
     }
+  }
+}
+
+function describeBrowserProcessError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error)
+  }
+  const record = error as Error & {
+    stdout?: unknown
+    stderr?: unknown
+  }
+  const stdout =
+    typeof record.stdout === 'string' ? record.stdout : ''
+  const stderr =
+    typeof record.stderr === 'string' ? record.stderr : ''
+  return [
+    `MESSAGE:\n${error.message}`,
+    `STDOUT:\n${stdout}`,
+    `STDERR:\n${stderr}`,
+  ].join('\n\n')
+}
+
+function persistBrowserDiagnostics(
+  paths: CurrentReleasePaths,
+  runId: string,
+  output: string,
+  forbiddenValues: string[],
+): void {
+  // Best effort only: diagnostics may never break the acceptance flow
+  // and may never contain child credentials or the acceptance secret.
+  try {
+    let redacted = output
+    for (const value of forbiddenValues) {
+      redacted = redacted.split(value).join('[REDACTED]')
+    }
+    mkdirSync(paths.reportDirectory, { recursive: true })
+    writeFileSync(
+      join(
+        paths.reportDirectory,
+        `${currentReleaseRunIdSchema.parse(runId)}.browser-output.txt`,
+      ),
+      `${redacted}\n`,
+      { mode: 0o600 },
+    )
+  } catch {
+    // Ignored: the runner surfaces the original browser failure.
   }
 }
 

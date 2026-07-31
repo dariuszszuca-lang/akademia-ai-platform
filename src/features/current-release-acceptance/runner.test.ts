@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -576,6 +576,56 @@ describe('current release execution boundary', () => {
         registry,
       }),
     ).rejects.toThrow('CURRENT_RELEASE_BROWSER_PROCESS_FAILED')
+  })
+
+  it('persists redacted browser output when the process fails', async () => {
+    const workspaceRoot = await mkdtemp(
+      join(tmpdir(), 'release-browser-diagnostics-'),
+    )
+    const paths = getCurrentReleasePaths(workspaceRoot, runId)
+    const registry = createSyntheticCleanupRegistry({
+      runId,
+      startedAt: '2026-07-29T22:00:00.000Z',
+    })
+    const executeBrowser = createDefaultBrowserExecutor(
+      workspaceRoot,
+      {
+        executeFile: () => {
+          const error = new Error(
+            'synthetic playwright process failure',
+          ) as Error & { stdout?: string; stderr?: string }
+          error.stdout = `1) studio.fact timeout with ${acceptanceSecret}`
+          error.stderr = 'synthetic stderr detail'
+          throw error
+        },
+      },
+    )
+
+    await expect(
+      executeBrowser({
+        runId,
+        baseUrl: CURRENT_RELEASE_PRODUCTION_URL,
+        childEnv: {
+          CURRENT_RELEASE_RUN_ID: runId,
+          CURRENT_RELEASE_ACCEPTANCE_SECRET: acceptanceSecret,
+        },
+        costReservations: CURRENT_RELEASE_COST_RESERVATIONS,
+        resultPath: paths.resultPath,
+        registryPath: paths.registryPath,
+        paths,
+        registry,
+      }),
+    ).rejects.toThrow('CURRENT_RELEASE_BROWSER_RESULT_MISSING')
+
+    const diagnosticsPath = join(
+      paths.reportDirectory,
+      `${runId}.browser-output.txt`,
+    )
+    expect(existsSync(diagnosticsPath)).toBe(true)
+    const diagnostics = readFileSync(diagnosticsPath, 'utf8')
+    expect(diagnostics).toContain('studio.fact timeout')
+    expect(diagnostics).toContain('synthetic stderr detail')
+    expect(diagnostics).not.toContain(acceptanceSecret)
   })
 
   it('rejects a runner guard embedded in an otherwise valid browser result', async () => {
