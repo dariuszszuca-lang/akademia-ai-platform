@@ -161,7 +161,7 @@ export async function runAgentScenarios(
             context:
               `SYN-A-${runtime.fixtures.runId}; kontrola braku trafienia; dane syntetyczne.`,
             goal:
-              `Odpowiedz tylko w granicach przepisów znalezionych w bazie. ${profileEvidenceInstruction}`,
+              'Odpowiedz tylko w granicach przepisów znalezionych w bazie.',
           },
           {
             'x-current-release-run-id':

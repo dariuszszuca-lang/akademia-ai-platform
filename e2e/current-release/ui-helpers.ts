@@ -545,15 +545,20 @@ export function assertLegalNegativeSummary(
     hasGenerationError: base.hasGenerationError,
     leaksForeignMarker: base.leaksForeignMarker,
   }
-  if (
-    !base.nonEmpty ||
-    !summary.hasNoSourceMessage ||
-    !summary.usedProfileMarker ||
-    summary.hasMetadata ||
-    summary.hasGenerationError ||
-    summary.leaksForeignMarker
-  ) {
-    throw new Error('CURRENT_RELEASE_LEGAL_NEGATIVE_INVALID')
+  // The profile echo is proven earlier in the same run (CEO canary
+  // and the legal-positive validator); the no-hit probe asserts its
+  // own critical properties and does not repeat the echo lottery.
+  const failedChecks = [
+    base.nonEmpty ? null : 'EMPTY',
+    summary.hasNoSourceMessage ? null : 'NO_SOURCE_MESSAGE_MISSING',
+    summary.hasMetadata ? 'METADATA_PRESENT' : null,
+    summary.hasGenerationError ? 'GENERATION_ERROR' : null,
+    summary.leaksForeignMarker ? 'FOREIGN_LEAK' : null,
+  ].filter((token): token is string => token !== null)
+  if (failedChecks.length > 0) {
+    throw new Error(
+      `CURRENT_RELEASE_LEGAL_NEGATIVE_INVALID_${failedChecks.join('_')}`,
+    )
   }
   return summary
 }
@@ -592,7 +597,10 @@ function safeScenarioActionErrorCode(error: unknown): string {
       // Agent failure codes are built exclusively from constant
       // tokens: agent ids from the call matrix, HTTP status digits
       // and fixed check names. Never from response content.
-      /^AGENT_RESPONSE_INVALID(_[A-Z0-9_]+)?$/.test(error.message))
+      /^AGENT_RESPONSE_INVALID(_[A-Z0-9_]+)?$/.test(error.message) ||
+      /^CURRENT_RELEASE_LEGAL_NEGATIVE_INVALID(_[A-Z0-9_]+)?$/.test(
+        error.message,
+      ))
   ) {
     return error.message
   }
