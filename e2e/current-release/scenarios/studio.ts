@@ -901,18 +901,39 @@ async function decideProposalFromUi<
       exact: true,
     }),
   })
-  await expect(item).toHaveCount(1)
-  await expect(
-    item.getByText(
-      input.proposal.factKey === 'area.usable'
-        ? '83.4'
-        : '750000',
-      { exact: false },
-    ),
-  ).toBeVisible()
-  await expect(
-    item.getByText('Strona 1', { exact: false }),
-  ).toBeVisible()
+  try {
+    await expect(item).toHaveCount(1)
+    await expect(
+      item.getByText(
+        input.proposal.factKey === 'area.usable'
+          ? '83.4'
+          : '750000',
+        { exact: false },
+      ),
+    ).toBeVisible()
+    await expect(
+      item.getByText('Strona 1', { exact: false }),
+    ).toBeVisible()
+  } catch (error) {
+    // Stderr only; the parent runner redacts captured child output.
+    const itemCount = await item.count().catch(() => -1)
+    const listTexts = await pageA
+      .locator('ol > li')
+      .allTextContents()
+      .catch(() => ['<unavailable>'])
+    const snapshot = await pageA
+      .locator('main')
+      .ariaSnapshot()
+      .catch(() => '<unavailable>')
+    console.error(
+      `[proposal-ui-diagnostic] label=${input.proposal.label}`,
+      `matchedItems=${itemCount}`,
+      `listTexts=${JSON.stringify(listTexts)}`,
+      `snapshot:\n${snapshot}`,
+      error,
+    )
+    throw new Error('STUDIO_PROPOSAL_ITEM_NOT_VISIBLE')
+  }
 
   const decisionPath =
     `/api/properties/${input.projectId}/proposals/${input.proposal.id}/decision`

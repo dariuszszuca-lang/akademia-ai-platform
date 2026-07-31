@@ -590,6 +590,13 @@ export function createScenarioRunner(
         normalizeDuration(now() - startedAt),
       )
     } catch (error) {
+      // Raw detail goes to stderr only: the parent runner captures
+      // child output into local diagnostics with every forbidden
+      // value redacted. Thrown codes stay sanitized.
+      console.error(
+        `[scenario-diagnostic] ${parsedName}:`,
+        error,
+      )
       const actionErrorCode = safeScenarioActionErrorCode(error)
       recorder.fail(
         parsedName,
