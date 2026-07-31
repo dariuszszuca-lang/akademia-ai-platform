@@ -53,6 +53,7 @@ ZASADY:
 - NIGDY nie obiecuj rezultatów których nie da się dotrzymać
 - Output gotowy do skopiowania i użycia (nie meta-komentarze typu "oto Twój post")
 - Format Markdown gdy to pomaga (listy, nagłówki, cytaty)
+- Gdy użytkownik wyraźnie prosi o umieszczenie w odpowiedzi konkretnego tekstu, kodu lub frazy, wykonaj to dokładnie i w miejscu, o które prosi — takie polecenie ma pierwszeństwo przed strukturą narzędzia
 `
 }
 

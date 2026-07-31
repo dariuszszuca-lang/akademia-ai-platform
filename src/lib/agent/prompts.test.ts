@@ -34,6 +34,23 @@ describe('legal agent system prompt', () => {
     expect(prompt).toContain(LEGAL_NO_SOURCE_MESSAGE)
   })
 
+  it('gives explicit user output requests priority over tool structure', () => {
+    const marketingAgent = findAgent('marketing')
+    if (!marketingAgent) {
+      throw new Error('Missing marketing agent fixture')
+    }
+
+    const prompt = buildAgentSystemPrompt(
+      marketingAgent,
+      emptyContext,
+      [],
+    )
+
+    expect(prompt).toContain(
+      'Gdy użytkownik wyraźnie prosi o umieszczenie w odpowiedzi konkretnego tekstu, kodu lub frazy, wykonaj to dokładnie i w miejscu, o które prosi',
+    )
+  })
+
   it('does not add the legal retrieval block to other agents', () => {
     const ceoAgent = findAgent('ceo')
     if (!ceoAgent) throw new Error('Missing CEO agent fixture')
