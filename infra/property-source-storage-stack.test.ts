@@ -1,6 +1,9 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { App } from 'aws-cdk-lib'
 import { Match, Template } from 'aws-cdk-lib/assertions'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { parseInfrastructureConfig } from './config'
 import { PropertySourceStorageStack } from './property-source-storage-stack'
 
@@ -15,8 +18,20 @@ const config = parseInfrastructureConfig({
   billingAlertEmail: 'alerts@example.com',
 })
 
+// Synths write into an owned outdir removed afterwards; a bare
+// new App() leaks a cdk.out* directory into the OS tmpdir per synth.
+const outdirRoot = mkdtempSync(join(tmpdir(), 'cdk-test-storage-'))
+let synthCount = 0
+
+afterAll(() => {
+  rmSync(outdirRoot, { recursive: true, force: true })
+})
+
 function buildTemplate(stackConfig = config): Template {
-  const app = new App()
+  synthCount += 1
+  const app = new App({
+    outdir: join(outdirRoot, `synth-${synthCount}`),
+  })
   const stack = new PropertySourceStorageStack(app, 'TestStorage', {
     env: { account: stackConfig.account, region: stackConfig.region },
     config: stackConfig,

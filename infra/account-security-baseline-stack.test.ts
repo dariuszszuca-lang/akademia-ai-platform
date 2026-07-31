@@ -1,10 +1,25 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { App } from 'aws-cdk-lib'
 import { Match, Template } from 'aws-cdk-lib/assertions'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { AccountSecurityBaselineStack } from './account-security-baseline-stack'
 
-function createTemplate(): Template {
-  const app = new App()
+// One synth per file into an owned outdir removed afterwards; a bare
+// new App() leaks a cdk.out* directory into the OS tmpdir per synth
+// and re-synthesizing in each test made the first test hit the
+// vitest timeout on a cold run.
+const outdirRoot = mkdtempSync(join(tmpdir(), 'cdk-test-baseline-'))
+
+afterAll(() => {
+  rmSync(outdirRoot, { recursive: true, force: true })
+})
+
+const cachedTemplate = buildTemplate()
+
+function buildTemplate(): Template {
+  const app = new App({ outdir: join(outdirRoot, 'synth') })
   const stack = new AccountSecurityBaselineStack(
     app,
     'TestAccountSecurityBaseline',
@@ -17,6 +32,10 @@ function createTemplate(): Template {
   )
 
   return Template.fromStack(stack)
+}
+
+function createTemplate(): Template {
+  return cachedTemplate
 }
 
 describe('AccountSecurityBaselineStack retained audit storage', () => {
