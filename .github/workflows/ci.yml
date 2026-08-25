@@ -1,0 +1,39 @@
+name: CI (kontrole)
+
+# Warsztat Next Level S15, Zadanie 5 (fala B). CI jest TYLKO-KONTROLE: lint, typecheck, testy.
+# GitHub Actions sprawdza kod. Nie jest drogą wdrożenia.
+# Wdrożenie: Vercel Git integration (osobny kontrakt Vercel, produkcja z main) oraz infra CDK
+# ręcznie z profilu MFA (npm run infra:cdk) po OK właściciela. Nic z tego nie dzieje się tutaj.
+# Bramka negatywna: infra/ci-guards.test.ts pada, jeśli do workflowów trafi krok wdrożenia
+# (vercel/cdk/aws/db:migrate), jeśli zniknie wymagany krok kontroli, jeśli w repo pojawi się
+# plik/wartość sekretu albo plik poza dozwolonym zakresem.
+# E2E (playwright, current-release:*) i akceptacje syntetyczne wymagają żywych środowisk: poza CI.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read   # minimum; zero uprawnień do zapisu, zero sekretów AWS/Vercel/DB
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node 24 (engines w package.json)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Instalacja zależności
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: "Testy (vitest: src + infra, w tym bramki CI)"
+        run: npm test
