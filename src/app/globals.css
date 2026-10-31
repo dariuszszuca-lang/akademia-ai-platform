@@ -270,7 +270,7 @@ input[type="url"] {
 }
 textarea::placeholder,
 input::placeholder {
-  color: rgba(255, 247, 234, 0.35);
+  color: rgba(28, 33, 39, 0.4);
 }
 
 .eyebrow {
