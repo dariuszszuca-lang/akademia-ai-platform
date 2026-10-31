@@ -48,7 +48,7 @@ function RegisterForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <div className="w-12 h-12 rounded-xl bg-accent text-white font-mono font-bold text-sm flex items-center justify-center mx-auto mb-3">

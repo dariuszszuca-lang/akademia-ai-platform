@@ -7,7 +7,7 @@ export default function OnboardingShell({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen w-full bg-background relative overflow-hidden">
+    <div className="min-h-screen w-full relative overflow-hidden">
       {/* Subtle ambient glow */}
       <div
         className="absolute inset-0 pointer-events-none opacity-50"

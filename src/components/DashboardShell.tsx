@@ -19,7 +19,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-5">
           <div className="relative">
             <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
@@ -38,7 +38,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <a
         href="#main-content"
         className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:not-sr-only focus:rounded-full focus:bg-foreground focus:px-5 focus:py-3 focus:text-sm focus:font-semibold focus:text-background"

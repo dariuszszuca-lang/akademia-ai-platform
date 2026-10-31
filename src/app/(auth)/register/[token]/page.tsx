@@ -69,10 +69,10 @@ export default function InviteRegisterPage() {
 
   if (!isValidToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="flex items-center justify-center gap-2.5 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[var(--accent)] text-white font-extrabold text-sm flex items-center justify-center">
               PI
             </div>
             <span className="text-sm font-bold text-foreground tracking-tight">
@@ -113,11 +113,11 @@ export default function InviteRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-[#0D9488] text-white font-extrabold text-sm flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[var(--accent)] text-white font-extrabold text-sm flex items-center justify-center">
             PI
           </div>
           <span className="text-sm font-bold text-foreground tracking-tight">
@@ -157,7 +157,7 @@ export default function InviteRegisterPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 border border-transparent hover:border-border transition-all"
                     placeholder="Jan Kowalski"
                   />
                 </div>
@@ -175,7 +175,7 @@ export default function InviteRegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 border border-transparent hover:border-border transition-all"
                     placeholder="jan@example.com"
                   />
                 </div>
@@ -194,7 +194,7 @@ export default function InviteRegisterPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 border border-transparent hover:border-border transition-all"
                     placeholder="Min. 8 znaków"
                   />
                   <p className="text-[10px] text-foreground/30 mt-1.5">
@@ -205,7 +205,7 @@ export default function InviteRegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 bg-[#0D9488] hover:bg-[#0B8478] text-white"
+                  className="w-full py-3 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 bg-[var(--accent)] hover:bg-[var(--accent)] text-white"
                 >
                   {loading ? "Rejestracja..." : "Zarejestruj się"}
                 </button>
@@ -260,7 +260,7 @@ export default function InviteRegisterPage() {
                     value={confirmCode}
                     onChange={(e) => setConfirmCode(e.target.value)}
                     required
-                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-[#0D9488]/20 border border-transparent hover:border-border transition-all"
+                    className="w-full bg-slate-light rounded-lg px-4 py-3 text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 border border-transparent hover:border-border transition-all"
                     placeholder="000000"
                     maxLength={6}
                   />
@@ -269,7 +269,7 @@ export default function InviteRegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 bg-[#0D9488] hover:bg-[#0B8478] text-white"
+                  className="w-full py-3 text-sm font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 bg-[var(--accent)] hover:bg-[var(--accent)] text-white"
                 >
                   {loading ? "Weryfikacja..." : "Potwierdź"}
                 </button>
@@ -292,7 +292,7 @@ export default function InviteRegisterPage() {
               </p>
               <button
                 onClick={() => router.push("/login")}
-                className="mt-6 px-8 py-3 text-sm font-semibold rounded-lg transition-all duration-200 bg-[#0D9488] hover:bg-[#0B8478] text-white"
+                className="mt-6 px-8 py-3 text-sm font-semibold rounded-lg transition-all duration-200 bg-[var(--accent)] hover:bg-[var(--accent)] text-white"
               >
                 Zaloguj się
               </button>
