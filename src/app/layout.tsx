@@ -1,25 +1,23 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import { Fraunces } from "next/font/google";
-import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/product";
+import { JetBrains_Mono, Manrope } from "next/font/google";
+import { PLATFORM_DESCRIPTION, PLATFORM_NAME } from "@/lib/product";
 import "./globals.css";
 
-const jakarta = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-jakarta",
-  weight: "100 900",
+const manrope = Manrope({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-sans",
+  display: "swap",
 });
 
-const fraunces = Fraunces({
+const mono = JetBrains_Mono({
   subsets: ["latin", "latin-ext"],
-  variable: "--font-display",
-  axes: ["opsz", "SOFT"],
+  variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: PRODUCT_NAME,
-  description: PRODUCT_DESCRIPTION,
+  title: PLATFORM_NAME,
+  description: PLATFORM_DESCRIPTION,
 };
 
 export default function RootLayout({
@@ -28,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" className={`${jakarta.variable} ${fraunces.variable} h-full dark`}>
+    <html lang="pl" className={`${manrope.variable} ${mono.variable} h-full`}>
       <body className="font-sans antialiased min-h-full flex flex-col bg-background text-foreground">
         {children}
       </body>

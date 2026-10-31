@@ -1,10 +1,10 @@
 /**
- * Plany subskrypcji Property Intelligence Studio.
+ * Plany platformy nieruchomości.
+ *
+ * Ceny: BRAK. Darek ustali je osobno (decyzja 31.10.2026). Pole `price` zostaje puste,
+ * `priceMonthly` = 0 do czasu decyzji. Nie wpisuj tu kwot.
  *
  * Trial: 14 dni od pierwszego logowania, pełne funkcje Pro.
- * Starter: 99 zł/mies, ograniczone.
- * Pro: 199 zł/mies, pełne funkcje + RAG legal + Persona Path A.
- * Agency: 499 zł/mies, nielimitowane, multi-user, white-label.
  */
 
 export type PlanId = 'trial' | 'starter' | 'pro' | 'agency'
@@ -72,7 +72,7 @@ export type PlanDisplay = {
   id: PlanId
   name: string
   price: string
-  priceMonthly: number // zł
+  priceMonthly: number // zł; 0 = cena nieustalona
   description: string
   features: string[]
   highlight?: boolean
@@ -82,51 +82,49 @@ export type PlanDisplay = {
 export const PLAN_DISPLAY: PlanDisplay[] = [
   {
     id: 'starter',
-    name: 'Starter',
-    price: '99 zł',
-    priceMonthly: 99,
-    description: 'Dla agenta porządkującego własne oferty w Studio.',
+    name: 'Start',
+    price: '',
+    priceMonthly: 0,
+    description: 'Dla właściciela albo najemcy z jedną sprawą.',
     features: [
-      '50 wywołań Zespołu AI / dzień',
-      'Portfolio i teczki nieruchomości',
-      '6 specjalistów AI: CEO, Marketing, Wycena, Publikacja, Nieruchomości i Prawny*',
-      'Profil + persony (Path B)',
-      'Bez bazy prawnej (RAG)',
-      'Wsparcie email',
+      'Rejestr cen transakcyjnych',
+      'Protokół z telefonu: wydanie i zwrot',
+      'Księga wieczysta po ludzku',
+      'Spacer 3D z rzutu',
+      'Jedna teczka nieruchomości',
     ],
-    ctaLabel: 'Zacznij Starter →',
+    ctaLabel: 'Wybierz Start',
   },
   {
     id: 'pro',
-    name: 'Pro',
-    price: '199 zł',
-    priceMonthly: 199,
-    description: 'Pełna praca z teczkami i Zespołem AI.',
+    name: 'Agent',
+    price: '',
+    priceMonthly: 0,
+    description: 'Dla agenta z wieloma ofertami.',
     features: [
-      '200 wywołań Zespołu AI / dzień',
-      'Portfolio i Property Truth Engine',
-      'Zespół AI + RAG na Kodeksie cywilnym',
-      'Persona Path A (AI proponuje 3 typy)',
-      'Profil pogłębiony (20 dodatkowych pytań)',
-      'Priorytetowe wsparcie',
+      'Wszystko ze Start',
+      'Property Intelligence Studio bez limitu teczek',
+      'Zespół AI z bazą prawną',
+      'Profil i persony klientów',
+      'Wyniki narzędzi zapisane w teczce',
     ],
     highlight: true,
-    ctaLabel: 'Zacznij Pro →',
+    ctaLabel: 'Wybierz Agent',
   },
   {
     id: 'agency',
-    name: 'Agency',
-    price: '499 zł',
-    priceMonthly: 499,
+    name: 'Biuro',
+    price: '',
+    priceMonthly: 0,
     description: 'Dla biur i zespołów.',
     features: [
-      'Nielimitowane wywołania',
-      'Pełny Zespół AI + Opus dla trudnych spraw prawnych',
-      'Multi-user (do 5 agentów w zespole)',
+      'Wszystko z Agent',
+      'Do 5 osób w zespole',
+      'Wspólne teczki i historia zmian',
       'Własna identyfikacja zespołu',
-      'Dedykowany opiekun',
+      'Opiekun wdrożenia',
     ],
-    ctaLabel: 'Skontaktuj się →',
+    ctaLabel: 'Porozmawiajmy',
   },
 ]
 

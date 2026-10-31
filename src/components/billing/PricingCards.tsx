@@ -67,10 +67,18 @@ export default function PricingCards({
               <p className="text-foreground/45 text-sm mb-5 leading-relaxed">{p.description}</p>
 
               <div className="mb-5">
-                <span className="display-title text-foreground" style={{ fontSize: '42px', lineHeight: 1 }}>
-                  {p.price}
-                </span>
-                <span className="text-foreground/40 text-sm ml-2">/ miesiąc</span>
+                {p.price ? (
+                  <>
+                    <span className="display-title text-foreground" style={{ fontSize: '42px', lineHeight: 1 }}>
+                      {p.price}
+                    </span>
+                    <span className="text-foreground/40 text-sm ml-2">/ miesiąc</span>
+                  </>
+                ) : (
+                  <span className="font-mono text-xs uppercase tracking-[0.12em] text-foreground/45">
+                    cena w przygotowaniu
+                  </span>
+                )}
               </div>
 
               <ul className="space-y-2 mb-6 text-sm text-foreground/75">

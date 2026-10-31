@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  PRODUCT_NAME,
+  PLATFORM_NAME,
   PRODUCT_NAVIGATION,
   isProductPathActive,
 } from "@/lib/product";
@@ -44,12 +44,12 @@ export default function Navbar() {
               href="/start"
               className="flex min-h-11 items-center gap-3 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <div className="soft-ring flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),var(--muted-gold))] text-sm font-extrabold text-white">
-                PI
+              <div className="soft-ring flex h-11 w-11 items-center justify-center rounded-full bg-accent font-mono text-sm font-bold text-white">
+                PN
               </div>
               <div className="hidden min-w-0 sm:block">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/80">
-                  {PRODUCT_NAME}
+                  {PLATFORM_NAME}
                 </p>
               </div>
             </Link>
@@ -85,7 +85,7 @@ export default function Navbar() {
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent),var(--muted-gold))] text-xs font-bold text-white">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">
                     {(user.name || user.email).charAt(0).toUpperCase()}
                   </span>
                   <span className="hidden max-w-[120px] truncate text-sm text-foreground/80 sm:block">

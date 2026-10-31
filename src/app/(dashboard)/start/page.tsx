@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import OnboardingCard from '@/components/onboarding/OnboardingCard'
 import { buildPropertyDashboard } from '@/features/properties/dashboard'
 import { getPropertyService } from '@/features/properties/server-repository'
 import { getServerUserId } from '@/lib/session'
-import PropertyCard from '../nieruchomosci/PropertyCard'
+import { TOOLS, TOOL_STATUS_LABEL, type Tool } from '@/lib/tools'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,216 +21,139 @@ export default async function StartPage() {
     ] as const),
   )
   const dashboard = buildPropertyDashboard(projects, new Map(factEntries))
-  const nextAction = getNextAction(
-    dashboard.conflictingCount,
-    dashboard.missingCount,
-    dashboard.activeCount,
-  )
+
+  const tools = TOOLS.filter((t) => t.id !== 'studio')
+  const studio = TOOLS.find((t) => t.id === 'studio')
 
   return (
-    <div className="animate-fade-in-up space-y-7">
-      <header className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#0d171b] px-5 py-8 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] sm:px-8 lg:px-10 lg:py-10">
-        <div
-          aria-hidden="true"
-          className="absolute -right-20 -top-32 h-80 w-80 rounded-full border border-[#bd9360]/20"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute -right-2 -top-16 h-56 w-56 rounded-full border border-[#2d6b68]/45"
-        />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)] lg:items-end">
-          <div>
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d8b784]">
-              Property Intelligence Studio
-            </p>
-            <h1 className="mt-4 max-w-4xl font-display text-[clamp(2.7rem,7vw,5.35rem)] leading-[0.92] tracking-[-0.04em] text-[#f7f2e7]">
-              Dowody, decyzje
-              <br />
-              <em className="font-normal text-[#79aaa4]">i następny ruch.</em>
-            </h1>
-            <p className="mt-5 max-w-2xl text-sm leading-6 text-[#bdc9c5] sm:text-base">
-              Każda oferta zaczyna się od jednej teczki. Studio pokazuje, co
-              jest potwierdzone, czego brakuje i gdzie potrzebna jest Twoja
-              decyzja.
-            </p>
-          </div>
-
-          <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-5 backdrop-blur-sm sm:p-6">
-            <p className="text-[0.64rem] font-semibold uppercase tracking-[0.2em] text-[#d8b784]">
-              Następne działanie
-            </p>
-            <h2 className="mt-3 font-display text-2xl text-[#f7f2e7]">
-              {nextAction.title}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-[#9fafaa]">
-              {nextAction.description}
-            </p>
-            <Link
-              href={nextAction.href}
-              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[#f7f2e7] px-5 text-sm font-semibold text-[#162026] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#bd9360]"
-            >
-              {nextAction.label} →
-            </Link>
-          </section>
+    <div className="animate-fade-in-up space-y-10">
+      <header className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.6fr)] lg:items-end">
+        <div>
+          <p className="eyebrow">Moje narzędzia</p>
+          <h1 className="mt-3 font-display text-[clamp(2.2rem,5vw,3.6rem)] font-bold leading-[1.02] tracking-[-0.03em] text-foreground">
+            Cztery narzędzia, jedno konto.
+          </h1>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-foreground/60">
+            Sprawdź ceny, zrób protokół, przeczytaj księgę wieczystą i przejdź
+            się po rzucie. Każde narzędzie otwierasz stąd.
+          </p>
         </div>
+        <dl className="grid grid-cols-3 gap-3 rounded-2xl border border-border bg-[color:var(--card-strong)] p-4 font-mono text-xs">
+          <Stat label="narzędzia" value={String(tools.length)} />
+          <Stat label="działa" value={String(tools.filter((t) => t.status === 'dziala').length)} />
+          <Stat label="teczki" value={String(dashboard.activeCount)} />
+        </dl>
       </header>
 
-      <section
-        aria-label="Stan portfolio"
-        className="grid gap-3 sm:grid-cols-3"
-      >
-        <Metric
-          label="Aktywne teczki"
-          value={dashboard.activeCount}
-          tone="teal"
-        />
-        <Metric
-          label="Brakujące fakty"
-          value={dashboard.missingCount}
-          tone="gold"
-        />
-        <Metric
-          label="Konflikty danych"
-          value={dashboard.conflictingCount}
-          tone="alert"
-        />
-      </section>
-
-      <section className="rounded-[2.25rem] bg-[#f2ede3] p-4 text-[#162026] shadow-[0_30px_90px_-48px_rgba(0,0,0,0.75)] sm:p-6 lg:p-8">
-        <div className="mb-6 flex flex-col gap-4 border-b border-[#d9d2c5] pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-[#8b693e]">
-              Ostatnia praca
-            </p>
-            <h2 className="mt-2 font-display text-3xl tracking-[-0.02em]">
-              Teczki, do których wracasz
-            </h2>
-          </div>
-          <Link
-            href="/nieruchomosci"
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-[#285d5a] underline-offset-4 hover:underline"
-          >
-            Całe Portfolio →
-          </Link>
+      <section aria-labelledby="narzedzia" className="space-y-4">
+        <h2 id="narzedzia" className="sr-only">
+          Narzędzia
+        </h2>
+        <div className="stagger-children grid gap-4 md:grid-cols-2">
+          {tools.map((tool, index) => (
+            <ToolCard key={tool.id} tool={tool} index={index + 1} />
+          ))}
         </div>
-
-        {dashboard.recentProjects.length > 0 ? (
-          <div className="stagger-children grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {dashboard.recentProjects.map((project) => (
-              <PropertyCard key={project.id} project={project} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex min-h-64 flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-[#bbb4a7] bg-[#fffdf8]/70 px-6 text-center">
-            <span className="font-display text-4xl text-[#2d6b68]">01</span>
-            <h3 className="mt-4 font-display text-2xl">
-              Zacznij od prawdziwej nieruchomości
-            </h3>
-            <p className="mt-2 max-w-md text-sm leading-6 text-[#66716d]">
-              Załóż pierwszą teczkę i uporządkuj fakty, zanim powstanie opis,
-              rolka lub kampania.
-            </p>
-            <Link
-              href="/nieruchomosci"
-              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[#162026] px-5 text-sm font-semibold text-[#f7f2e7]"
-            >
-              Utwórz pierwszą teczkę →
-            </Link>
-          </div>
-        )}
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
-        <OnboardingCard />
-        <section className="rounded-[2rem] border border-white/10 bg-[#15252a] p-6 text-[#f7f2e7]">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#79aaa4]">
-            Zespół AI
-          </p>
-          <h2 className="mt-3 font-display text-2xl">
-            Specjaliści do konkretnych zadań
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[#aebdb8]">
-            Wybierz agenta do analizy, wyceny, marketingu albo spraw prawnych.
-          </p>
-          <Link
-            href="/agent"
-            className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-[#d8b784] hover:text-[#f0d4aa]"
-          >
-            Otwórz Zespół AI →
-          </Link>
+      {studio && (
+        <section
+          aria-labelledby="studio"
+          className="rounded-2xl border border-border bg-[color:var(--card-strong)] p-6 sm:p-8"
+        >
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(14rem,0.8fr)] lg:items-center">
+            <div>
+              <p className="eyebrow">Produkt dla agentów</p>
+              <h2 id="studio" className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">
+                {studio.name}
+              </h2>
+              <p className="mt-1 text-sm font-semibold text-accent">{studio.lead}</p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-foreground/60">
+                {studio.description}
+              </p>
+              <Link
+                href={studio.href}
+                className="mt-5 inline-flex min-h-11 items-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition-colors hover:bg-foreground/90"
+              >
+                Otwórz Studio
+              </Link>
+            </div>
+            <dl className="grid grid-cols-3 gap-3 font-mono text-xs">
+              <Stat label="teczki" value={String(dashboard.activeCount)} />
+              <Stat label="braki" value={String(dashboard.missingCount)} />
+              <Stat label="konflikty" value={String(dashboard.conflictingCount)} />
+            </dl>
+          </div>
         </section>
-      </div>
+      )}
     </div>
   )
 }
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: number
-  tone: 'teal' | 'gold' | 'alert'
-}) {
-  const styles = {
-    teal: 'border-[#365d59] bg-[#152b2d] text-[#9bc5bf]',
-    gold: 'border-[#5d4b35] bg-[#2b251d] text-[#dfbd8b]',
-    alert: 'border-[#67433c] bg-[#2d201e] text-[#e0a89d]',
-  }
-
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`rounded-[1.5rem] border p-5 ${styles[tone]}`}>
-      <p className="font-mono text-3xl font-semibold">{value}</p>
-      <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] opacity-70">
+    <div className="rounded-xl border border-border bg-background px-3 py-2">
+      <dt className="text-[0.65rem] uppercase tracking-[0.12em] text-foreground/45">
         {label}
-      </p>
+      </dt>
+      <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</dd>
     </div>
   )
 }
 
-function getNextAction(
-  conflictingCount: number,
-  missingCount: number,
-  activeCount: number,
-) {
-  if (conflictingCount > 0) {
-    return {
-      title: 'Wyjaśnij konflikty danych',
-      description: `${conflictingCount} ${
-        conflictingCount === 1 ? 'fakt wymaga' : 'fakty wymagają'
-      } porównania ze źródłami.`,
-      href: '/nieruchomosci',
-      label: 'Przejdź do teczek',
-    }
-  }
+function ToolCard({ tool, index }: { tool: Tool; index: number }) {
+  const label = TOOL_STATUS_LABEL[tool.status]
+  const badge =
+    tool.status === 'dziala'
+      ? 'bg-accent text-white'
+      : tool.status === 'pokaz'
+        ? 'bg-[color:var(--slate-light)] text-foreground/70'
+        : 'border border-border text-foreground/50'
+  const action =
+    tool.status === 'dziala'
+      ? 'Otwórz'
+      : tool.status === 'pokaz'
+        ? 'Zobacz pokaz'
+        : 'Wkrótce'
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <span className="font-mono text-xs text-foreground/40">
+          {String(index).padStart(2, '0')}
+        </span>
+        <span
+          className={`rounded-md px-2 py-0.5 font-mono text-[0.65rem] font-semibold uppercase tracking-[0.1em] ${badge}`}
+        >
+          {label}
+        </span>
+      </div>
+      <h3 className="mt-4 font-display text-xl font-bold tracking-tight text-foreground">
+        {tool.name}
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-accent">{tool.lead}</p>
+      <p className="mt-3 text-sm leading-6 text-foreground/60">{tool.description}</p>
+      <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4">
+        <span className="font-mono text-[0.7rem] text-foreground/45">{tool.audience}</span>
+        <span className="text-sm font-semibold text-foreground">{action}</span>
+      </div>
+    </>
+  )
+  const className =
+    'group block rounded-2xl border border-border bg-[color:var(--card-strong)] p-6 transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-  if (missingCount > 0) {
-    return {
-      title: 'Uzupełnij brakujące fakty',
-      description: `${missingCount} ${
-        missingCount === 1 ? 'informacja czeka' : 'informacje czekają'
-      } na potwierdzenie.`,
-      href: '/nieruchomosci',
-      label: 'Otwórz Portfolio',
-    }
+  if (tool.status === 'wkrotce') {
+    return <div className={className}>{body}</div>
   }
-
-  if (activeCount > 0) {
-    return {
-      title: 'Teczki są gotowe do dalszej pracy',
-      description:
-        'Przejdź do wybranej nieruchomości albo uruchom specjalistę z Zespołu AI.',
-      href: '/agent',
-      label: 'Otwórz Zespół AI',
-    }
+  if (tool.external) {
+    return (
+      <a href={tool.href} target="_blank" rel="noopener noreferrer" className={className}>
+        {body}
+      </a>
+    )
   }
-
-  return {
-    title: 'Załóż pierwszą teczkę',
-    description:
-      'Dodaj prawdziwą nieruchomość i zbuduj dla niej jedno źródło prawdy.',
-    href: '/nieruchomosci',
-    label: 'Otwórz Portfolio',
-  }
+  return (
+    <Link href={tool.href} className={className}>
+      {body}
+    </Link>
+  )
 }

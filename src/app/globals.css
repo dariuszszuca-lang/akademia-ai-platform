@@ -2,28 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Kierunek B „Rzut”, motyw jasny: biel z siatką architektoniczną, grafit, turkus */
 :root {
-  --bg: #f3efe7;
-  --fg: #131614;
-  --card: rgba(255, 252, 247, 0.72);
-  --card-strong: #fbf7ef;
-  --border: rgba(19, 22, 20, 0.1);
-  --slate-light: #ece5d8;
-  --accent: #1e4e53;
-  --accent-light: rgba(30, 78, 83, 0.08);
-  --accent-hover: rgba(30, 78, 83, 0.14);
-  --muted-gold: #b28a52;
-  --rose: #b96d5d;
-  --olive: #576150;
-  --copper: #c0693f;
-  --aqua: #4a9e9a;
-  --plum: #77536f;
-  --section-bg: linear-gradient(135deg, rgba(255, 252, 247, 0.78), rgba(240, 231, 214, 0.58));
-  --section-glow-a: rgba(178, 138, 82, 0.16);
-  --section-glow-b: rgba(30, 78, 83, 0.12);
-  --section-glow-c: rgba(185, 109, 93, 0.1);
-  --shadow-soft: 0 24px 80px -36px rgba(19, 22, 20, 0.28);
-  --shadow-card: 0 16px 40px -28px rgba(19, 22, 20, 0.2);
+  --font-display: var(--font-sans);
+  --bg: #fafbfc;
+  --fg: #1c2127;
+  --card: rgba(255, 255, 255, 0.86);
+  --card-strong: #ffffff;
+  --border: rgba(28, 33, 39, 0.1);
+  --slate-light: #eceff2;
+  --accent: #0f9d8f;
+  --accent-light: rgba(15, 157, 143, 0.08);
+  --accent-hover: rgba(15, 157, 143, 0.14);
+  --muted-gold: #5c6670;
+  --rose: #c0564a;
+  --olive: #4f7a3a;
+  --copper: #b26a00;
+  --aqua: #3fd2c7;
+  --plum: #5f6b8a;
+  --section-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(236, 239, 242, 0.7));
+  --section-glow-a: rgba(63, 210, 199, 0.14);
+  --section-glow-b: rgba(28, 33, 39, 0.06);
+  --section-glow-c: rgba(63, 210, 199, 0.08);
+  --shadow-soft: 0 18px 50px -30px rgba(28, 33, 39, 0.25);
+  --shadow-card: 0 12px 32px -24px rgba(28, 33, 39, 0.18);
 
   /* Motion language - Apple/Linear inspired */
   --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
@@ -65,9 +67,9 @@ body {
   color: var(--fg);
   background: var(--bg);
   background-image:
-    radial-gradient(circle at top left, rgba(178, 138, 82, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(30, 78, 83, 0.12), transparent 26%),
-    linear-gradient(180deg, rgba(255, 252, 247, 0.72), rgba(243, 239, 231, 0.96));
+    linear-gradient(rgba(28, 33, 39, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 33, 39, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
   min-height: 100vh;
 }
 

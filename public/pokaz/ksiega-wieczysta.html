@@ -1,0 +1,264 @@
+<title>Księga wieczysta po ludzku</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Układ: wąska kolumna jak raport; ekran wgrania, potem sygnalizator, cztery działy księgi (urzędowo / po ludzku), pytania do sprzedającego */
+:root{
+  --bg:#EEF1F4; --paper:#FFFFFF; --ink:#16233A; --muted:#5B6678; --line:#D5DBE3; --legal:#F6F4EE; --legal-ink:#3B3A36;
+  --pen:#1E46C8; --pen-soft:#E3EAFD; --ok:#1F7A4D; --ok-soft:#DFF3E8; --warn:#9A5B00; --warn-soft:#FBEBCF; --bad:#B42318; --bad-soft:#FCE3E0;
+  --f-disp:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'Source Sans 3','Segoe UI',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1420; --paper:#162033; --ink:#E7ECF4; --muted:#9AA6B8; --line:#2A3650; --legal:#1B2335; --legal-ink:#C9CED8;
+  --pen:#7FA0FF; --pen-soft:#1E2C52; --ok:#5BD69A; --ok-soft:#173527; --warn:#F2B866; --warn-soft:#3A2A10; --bad:#FF8A7A; --bad-soft:#3D1A17; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1420; --paper:#162033; --ink:#E7ECF4; --muted:#9AA6B8; --line:#2A3650; --legal:#1B2335; --legal-ink:#C9CED8;
+  --pen:#7FA0FF; --pen-soft:#1E2C52; --ok:#5BD69A; --ok-soft:#173527; --warn:#F2B866; --warn-soft:#3A2A10; --bad:#FF8A7A; --bad-soft:#3D1A17; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:22px}
+h1,h2,h3{font-family:var(--f-disp);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1{font-weight:800;font-size:clamp(32px,5.5vw,48px);line-height:1.02}
+h2{font-weight:800;font-size:24px;line-height:1.1}
+h3{font-weight:600;font-size:18px}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--pen)}
+.muted{color:var(--muted)}
+.head{display:grid;gap:12px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:20px;display:grid;gap:14px}
+
+/* wgranie */
+.drop{border:2px dashed var(--pen);border-radius:16px;padding:22px;display:grid;gap:10px;justify-items:center;text-align:center;background:var(--pen-soft)}
+.drop b{font-size:18px}
+.btn{all:unset;cursor:pointer;font-weight:700;padding:13px 20px;border-radius:14px;text-align:center}
+.btn.pri{background:var(--pen);color:var(--paper)}
+.btn.sec{border:1.5px solid var(--line)}
+.btn:focus-visible,.file:focus-within{outline:3px solid var(--ink);outline-offset:3px}
+.file{position:relative;display:inline-block}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.how{display:grid;gap:8px;margin:0;padding:0;list-style:none;counter-reset:h}
+.how li{display:grid;grid-template-columns:30px 1fr;gap:10px;font-size:15.5px}
+.how li::before{counter-increment:h;content:counter(h);font-family:var(--f-mono);font-weight:700;width:26px;height:26px;border-radius:8px;background:var(--pen-soft);color:var(--pen);display:grid;place-items:center;font-size:13px}
+.kw{font-family:var(--f-mono);font-size:14px;background:var(--bg);padding:2px 6px;border-radius:6px}
+.progress{display:grid;gap:8px}
+.progress .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.progress .bar i{display:block;height:100%;width:0;background:var(--pen);transition:width .25s}
+.progress .lbl{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+/* raport */
+.meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.lights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.light{border-radius:16px;padding:14px;display:grid;gap:4px}
+.light b{font-family:var(--f-disp);font-size:34px;line-height:1}
+.light span{font-size:14px;font-weight:600}
+.light.bad{background:var(--bad-soft);color:var(--bad)} .light.warn{background:var(--warn-soft);color:var(--warn)} .light.ok{background:var(--ok-soft);color:var(--ok)}
+.verdict{border-left:4px solid var(--bad);padding:4px 0 4px 14px;font-size:17px}
+.verdict b{display:block;font-family:var(--f-disp);font-size:20px;margin-bottom:4px}
+
+.flags{display:grid;gap:10px}
+.flag{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--paper)}
+.flag .dot{width:14px;height:14px;border-radius:50%;margin-top:5px;justify-self:center}
+.flag.bad .dot{background:var(--bad)} .flag.warn .dot{background:var(--warn)} .flag.ok .dot{background:var(--ok)}
+.flag b{display:block}
+.flag a{font-size:14px;font-weight:600;color:var(--pen)}
+
+/* działy */
+.dzial{background:var(--paper);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.dzial>button{all:unset;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;box-sizing:border-box;padding:16px 18px}
+.dzial>button:focus-visible{outline:3px solid var(--pen);outline-offset:-3px}
+.dzial .nr{font-family:var(--f-mono);font-weight:700;font-size:13px;background:var(--bg);border-radius:8px;padding:5px 8px;white-space:nowrap}
+.dzial .t{display:grid}
+.dzial .t small{color:var(--muted);font-size:14px}
+.pill{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+.dzial .in{padding:0 18px 18px;display:grid;gap:12px}
+.entry{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+@media (max-width:620px){.entry{grid-template-columns:minmax(0,1fr)}}
+.legal{background:var(--legal);color:var(--legal-ink);border-radius:12px;padding:12px;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;min-width:0;overflow-wrap:anywhere}
+.legal .lab,.human .lab{display:block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;opacity:.75}
+.human{border-radius:12px;padding:12px;font-size:15.5px;min-width:0;border:1.5px solid var(--line)}
+.human.bad{border-color:var(--bad);background:var(--bad-soft)} .human.warn{border-color:var(--warn);background:var(--warn-soft)} .human.ok{border-color:var(--ok);background:var(--ok-soft)}
+.human .lab{color:var(--ink)}
+.cmp{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:15px}
+.cmp input{font:inherit;font-family:var(--f-mono);width:90px;padding:8px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink)}
+.cmp input:focus-visible{outline:none;border-color:var(--pen);box-shadow:0 0 0 3px var(--pen-soft)}
+.cmp output{font-weight:700}
+
+/* pytania */
+.qs{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.qs li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;align-items:start}
+.qs input{width:20px;height:20px;accent-color:var(--pen);margin-top:2px}
+.qs label{cursor:pointer}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.note{font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:12px;font-size:15px;max-width:min(460px,calc(100% - 32px));opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.progress .bar i,.toast{transition:none}}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <span class="eyebrow">Makieta do kliknięcia · księga przykładowa, dane zmyślone</span>
+    <h1>Księga wieczysta po ludzku</h1>
+    <p class="muted">Wrzuć wydruk księgi mieszkania, które chcesz kupić. W minutę dowiesz się, kto jest właścicielem, co obciąża mieszkanie i o co zapytać sprzedającego przed podpisaniem umowy.</p>
+  </header>
+  <div id="app"></div>
+  <p class="note">Makieta: nic nie jest wysyłane ani zapisywane. Analiza jest pokazana na zmyślonej księdze. Opisy „po ludzku” i flagi przygotowuje AI, a ostateczną ocenę przed zakupem robi notariusz albo prawnik. To nie jest porada prawna.</p>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const KW={
+  nr:'GD1G/00099999/0', sad:'Sąd Rejonowy Gdańsk-Północ w Gdańsku, III Wydział Ksiąg Wieczystych', stan:'treść aktualna, wydruk z 30.10.2026',
+  dzialy:[
+    {nr:'Dział I-O', t:'Oznaczenie nieruchomości', sub:'Co to za lokal i gdzie jest', st:'ok',
+     wpisy:[
+      {legal:'Lokal mieszkalny nr 7, ul. Przykładowa 12, 80-000 Gdańsk. Kondygnacja: 3. Liczba izb: 3. Pole powierzchni użytkowej: 54,20 m². Pomieszczenie przynależne: piwnica, pow. 3,10 m².',
+       human:'Mieszkanie nr 7 na 3. piętrze, trzy pokoje, <b>54,2 m²</b>, do tego piwnica 3,1 m². Piwnica jest częścią mieszkania i przechodzi na kupującego.', st:'ok', cmp:true}
+     ]},
+    {nr:'Dział I-Sp', t:'Spis praw związanych z własnością', sub:'Udział w budynku i gruncie', st:'ok',
+     wpisy:[
+      {legal:'Udział wynoszący 542/10000 części w nieruchomości wspólnej, którą stanowi grunt oraz części budynku i urządzenia, które nie służą wyłącznie do użytku właścicieli lokali. KW nr GD1G/00011111/1.',
+       human:'Razem z mieszkaniem kupujesz <b>5,42% udziału</b> w gruncie i częściach wspólnych bloku (klatka, dach, piwnice wspólne). Od tego udziału liczy się Twój głos i część kosztów wspólnoty. To standardowy wpis.', st:'ok'}
+     ]},
+    {nr:'Dział II', t:'Własność', sub:'Kto jest właścicielem', st:'warn',
+     wpisy:[
+      {legal:'Właściciel: Jan Przykładowy, s. Adama i Marii, PESEL 7xxxxxxxxxx; Anna Przykładowa, c. Jerzego i Ewy, PESEL 7xxxxxxxxxx; na prawach wspólności ustawowej majątkowej małżeńskiej. Podstawa wpisu: umowa sprzedaży, Rep. A nr 4321/2015, z dnia 12.03.2015 r.',
+       human:'Właścicielami są <b>dwie osoby, małżonkowie</b>. Umowę muszą podpisać oboje, osobiście albo przez pełnomocnika z pełnomocnictwem u notariusza. Kupili mieszkanie w 2015 roku, więc przy sprzedaży zwykle nie zapłacą podatku dochodowego, co ułatwia im szybką transakcję.', st:'warn'}
+     ]},
+    {nr:'Dział III', t:'Prawa, roszczenia i ograniczenia', sub:'Kto jeszcze ma coś do tego mieszkania', st:'bad',
+     wpisy:[
+      {legal:'Służebność osobista mieszkania polegająca na prawie dożywotniego zamieszkiwania w pokoju o pow. 11,40 m² z prawem korzystania z kuchni i łazienki, na rzecz Haliny Przykładowej, c. Józefa i Stefanii.',
+       human:'<b>Pani Halina ma prawo mieszkać w jednym pokoju do końca życia.</b> To prawo nie znika przy sprzedaży: obciąża też nowego właściciela. Jeśli kupisz mieszkanie z tym wpisem, pani Halina może w nim zostać.', st:'bad'},
+      {legal:'Wzmianka o wniosku Dz. Kw. GD1G/12345/26/1, wpływ 21.10.2026 r.',
+       human:'<b>W sądzie leży wniosek, którego jeszcze nie rozpatrzono.</b> Nie wiadomo z wydruku, czego dotyczy: może to być wykreślenie służebności, ale też nowe obciążenie. Trzeba to wyjaśnić przed podpisaniem czegokolwiek.', st:'bad'}
+     ]},
+    {nr:'Dział IV', t:'Hipoteka', sub:'Czy mieszkanie zabezpiecza czyjś kredyt', st:'warn',
+     wpisy:[
+      {legal:'Hipoteka umowna łączna w kwocie 380 000,00 zł na rzecz Bank Przykładowy S.A., zabezpieczająca wierzytelność z tytułu umowy kredytu hipotecznego nr KH/2015/0042.',
+       human:'Mieszkanie zabezpiecza <b>kredyt sprzedających w banku</b>, wpis do 380 000 zł. To częste i do załatwienia: przy zakupie część Twojej zapłaty idzie prosto do banku, a bank wydaje zgodę na wykreślenie hipoteki. Potrzebne jest zaświadczenie z banku o aktualnym zadłużeniu.', st:'warn'}
+     ]}
+  ],
+  pytania:[
+    'Czy pani Halina zrzeknie się służebności u notariusza przed sprzedażą albo przy umowie?',
+    'Czego dotyczy wniosek z 21.10.2026? Proszę o kopię wniosku albo informację z sądu.',
+    'Czy oboje małżonkowie podpiszą umowę osobiście?',
+    'Ile wynosi aktualne zadłużenie kredytu? Proszę o zaświadczenie z banku i promesę zgody na wykreślenie hipoteki.',
+    'Czy ktoś jest zameldowany w mieszkaniu? Proszę o zaświadczenie o braku osób zameldowanych.',
+    'Czy są zaległości wobec wspólnoty albo spółdzielni? Proszę o zaświadczenie.',
+    'Skąd różnica metrażu między ogłoszeniem a księgą?'
+  ],
+  poza:[
+    'zameldowanych osób i lokatorów',
+    'zaległości w opłatach dla wspólnoty, za prąd i gaz',
+    'stanu technicznego mieszkania i budynku',
+    'planów remontów i podwyżek zaliczek we wspólnocie'
+  ]
+};
+const app=document.getElementById('app');
+const S={etap:'start',ogloszenie:56,open:{3:true}};
+const toast=t=>{const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2800)};
+const cnt=k=>KW.dzialy.flatMap(d=>d.wpisy).filter(w=>w.st===k).length;
+
+function start(){return `
+<section class="panel">
+  <div class="drop">
+    <b>Wrzuć wydruk księgi wieczystej</b>
+    <span class="muted" style="font-size:15px">PDF albo zdjęcia stron z treścią księgi</span>
+    <div class="row" style="justify-content:center">
+      <span class="file btn pri">Wybierz plik<input type="file" id="plik" accept="application/pdf,image/*" aria-label="Wybierz wydruk księgi"></span>
+      <button class="btn sec" id="przyklad">Pokaż na przykładowej księdze</button>
+    </div>
+  </div>
+  <h3>Skąd wziąć wydruk? To nic nie kosztuje.</h3>
+  <ol class="how">
+    <li><span>Poproś sprzedającego o numer księgi. Wygląda tak: <span class="kw">GD1G/00012345/6</span>. Często jest w ogłoszeniu.</span></li>
+    <li><span>Wejdź na rządową stronę <a href="https://ekw.ms.gov.pl" target="_blank" rel="noopener">https://ekw.ms.gov.pl</a> i wpisz numer.</span></li>
+    <li><span>Wybierz „Przeglądanie aktualnej treści księgi”, otwórz po kolei działy i zapisz je jako PDF.</span></li>
+  </ol>
+</section>`}
+
+function analiza(){return `
+<section class="panel" aria-live="polite">
+  <h2>Czytam księgę</h2>
+  <div class="progress"><div class="bar"><i id="pb"></i></div><span class="lbl" id="pl">Rozpoznaję działy księgi…</span></div>
+</section>`}
+
+function raport(){
+  const zly=cnt('bad'),uw=cnt('warn'),ok=cnt('ok');
+  return `
+<section class="panel">
+  <div class="meta"><span>Księga <b>${KW.nr}</b></span><span>${KW.sad}</span><span>${KW.stan}</span></div>
+  <div class="lights">
+    <div class="light bad"><b>${zly}</b><span>do wyjaśnienia przed zakupem</span></div>
+    <div class="light warn"><b>${uw}</b><span>do załatwienia, typowe</span></div>
+    <div class="light ok"><b>${ok}</b><span>w porządku</span></div>
+  </div>
+  <div class="verdict"><b>Nie podpisuj jeszcze umowy przedwstępnej</b>W księdze jest dożywotnie prawo mieszkania dla innej osoby i nierozpatrzony wniosek w sądzie. Obie sprawy trzeba wyjaśnić na piśmie, zanim wpłacisz zadatek.</div>
+</section>
+
+<section class="flags" aria-label="Najważniejsze">
+  ${KW.dzialy.flatMap((d,di)=>d.wpisy.map(w=>({d,di,w}))).filter(x=>x.w.st!=='ok').sort((a,b)=>(a.w.st==='bad'?0:1)-(b.w.st==='bad'?0:1)).map(({d,di,w})=>`
+  <div class="flag ${w.st}"><span class="dot" aria-hidden="true"></span><div>${w.human.split('.')[0].replace(/<\/?b>/g,'')}.<br><a href="#d${di}" data-go="${di}">${d.nr}: zobacz wpis</a></div></div>`).join('')}
+</section>
+
+${KW.dzialy.map((d,di)=>`
+<section class="dzial" id="d${di}">
+  <button data-open="${di}" aria-expanded="${!!S.open[di]}"><span class="nr">${d.nr}</span><span class="t"><b>${d.t}</b><small>${d.sub}</small></span><span class="pill ${d.st}">${{ok:'W porządku',warn:'Uwaga',bad:'Do wyjaśnienia'}[d.st]}</span></button>
+  ${S.open[di]?`<div class="in">${d.wpisy.map(w=>`
+    <div class="entry">
+      <div class="legal"><span class="lab">Wpis w księdze</span>${w.legal}</div>
+      <div class="human ${w.st}"><span class="lab">Po ludzku · AI</span>${w.human}</div>
+    </div>
+    ${w.cmp?`<div class="cmp"><label for="ogl">Metraż w ogłoszeniu:</label><input id="ogl" inputmode="decimal" value="${S.ogloszenie}"> m² <output id="roz"></output></div>`:''}`).join('')}
+  </div>`:''}
+</section>`).join('')}
+
+<section class="panel">
+  <h2>O co zapytać sprzedającego</h2>
+  <p class="muted" style="font-size:15px">Lista ułożona z tej księgi. Odhaczaj, gdy dostaniesz odpowiedź na piśmie.</p>
+  <ul class="qs">${KW.pytania.map((q,i)=>`<li><input type="checkbox" id="q${i}"><label for="q${i}">${q}</label></li>`).join('')}</ul>
+  <div class="row">
+    <button class="btn pri" id="wyslij">Wyślij listę sprzedającemu</button>
+    <button class="btn sec" id="notariusz">Przekaż raport notariuszowi</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Czego w księdze nie zobaczysz</h3>
+  <p class="muted" style="font-size:15.5px">Księga mówi o prawach do mieszkania. Nie powie nic o: ${KW.poza.join(', ')}. Dlatego część pytań powyżej dotyczy osobnych zaświadczeń.</p>
+  <button class="btn sec" id="znowu" style="justify-self:start">Sprawdź inną księgę</button>
+</section>`}
+
+function rozn(){
+  const o=document.getElementById('roz'),i=document.getElementById('ogl');if(!o||!i)return;
+  const v=parseFloat(String(i.value).replace(',','.'));if(isNaN(v)){o.textContent='';return}
+  const d=Math.round((v-54.2)*10)/10;
+  o.textContent=Math.abs(d)<0.5?'zgadza się z księgą':`różnica ${d>0?'+':''}${String(d).replace('.',',')} m² względem księgi. Zapytaj, skąd się wzięła.`;
+  o.style.color=Math.abs(d)<0.5?'var(--ok)':'var(--warn)';
+}
+function render(){app.innerHTML=S.etap==='start'?start():S.etap==='analiza'?analiza():raport();if(S.etap==='raport')rozn()}
+function analizuj(){
+  S.etap='analiza';render();
+  const kroki=['Rozpoznaję działy księgi…','Dział II: kto jest właścicielem…','Dział III: prawa i roszczenia…','Dział IV: hipoteki…','Układam pytania do sprzedającego…'];
+  let k=0;const pb=document.getElementById('pb'),pl=document.getElementById('pl');
+  const t=setInterval(()=>{k++;pb.style.width=(k*20)+'%';pl.textContent=kroki[Math.min(k,kroki.length-1)];if(k>=5){clearInterval(t);setTimeout(()=>{S.etap='raport';render();window.scrollTo({top:0,behavior:'smooth'})},350)}},450);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button,a[data-go]');if(!b)return;
+  if(b.id==='przyklad'){analizuj();return}
+  if(b.id==='znowu'){S.etap='start';render();return}
+  if(b.dataset.open!==undefined){const i=+b.dataset.open;S.open[i]=!S.open[i];render();return}
+  if(b.dataset.go!==undefined){e.preventDefault();const i=+b.dataset.go;S.open[i]=true;render();document.getElementById('d'+i).scrollIntoView({behavior:'smooth',block:'start'});return}
+  if(b.id==='wyslij'){toast('W wersji docelowej lista pójdzie mailem albo SMS-em. Tu nic nie wysyłamy.');return}
+  if(b.id==='notariusz'){toast('W wersji docelowej raport trafi do notariusza jako PDF. Tu nic nie wysyłamy.');return}
+});
+document.addEventListener('change',e=>{if(e.target.id==='plik'&&e.target.files.length){toast('Makieta: zamiast Twojego pliku pokazuję księgę przykładową.');analizuj()}});
+document.addEventListener('input',e=>{if(e.target.id==='ogl'){S.ogloszenie=e.target.value;rozn()}});
+render();
+</script>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PLATFORM_NAME,
   PRODUCT_DESCRIPTION,
   PRODUCT_NAME,
   PRODUCT_NAVIGATION,
@@ -9,12 +10,13 @@ import {
 describe('Property Intelligence Studio product contract', () => {
   it('publishes the approved name and navigation', () => {
     expect(PRODUCT_NAME).toBe('Property Intelligence Studio')
+    expect(PLATFORM_NAME).not.toMatch(/AI-Team|Akademia/i)
     expect(PRODUCT_DESCRIPTION).toContain('nieruchomości')
     expect(PRODUCT_NAVIGATION).toEqual([
-      { name: 'Pulpit', href: '/start' },
-      { name: 'Portfolio', href: '/nieruchomosci' },
+      { name: 'Narzędzia', href: '/start' },
+      { name: 'Studio', href: '/nieruchomosci' },
       { name: 'Zespół AI', href: '/agent' },
-      { name: 'Profil', href: '/profil' },
+      { name: 'Plany', href: '/pricing' },
     ])
   })
 

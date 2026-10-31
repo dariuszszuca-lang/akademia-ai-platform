@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { PRODUCT_NAME } from "@/lib/product";
+import { PLATFORM_NAME } from "@/lib/product";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -31,14 +31,14 @@ function LoginForm() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
-          <div className="w-12 h-12 rounded-xl bg-[#0D9488] text-white font-extrabold text-lg flex items-center justify-center mx-auto mb-3">
-            PI
+          <div className="w-12 h-12 rounded-xl bg-accent text-white font-mono font-bold text-sm flex items-center justify-center mx-auto mb-3">
+            PN
           </div>
           <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-            {PRODUCT_NAME}
+            {PLATFORM_NAME}
           </h1>
           <p className="text-foreground/50 text-sm mt-1">
-            Studio pracy agenta nieruchomości
+            Jedno konto do wszystkich narzędzi
           </p>
         </div>
 
@@ -66,7 +66,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => { clearError(); setEmail(e.target.value); }}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition-all"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                 placeholder="twoj@email.pl"
               />
             </div>
@@ -83,14 +83,19 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => { clearError(); setPassword(e.target.value); }}
                 required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[#0D9488]/30 focus:border-[#0D9488] transition-all"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
                 placeholder="••••••••"
               />
+            </div>
+            <div className="text-right -mt-2">
+              <Link href="/haslo" className="text-xs text-foreground/50 hover:text-accent hover:underline">
+                Nie pamiętasz hasła?
+              </Link>
             </div>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-[#0D9488] hover:bg-[#0B8478] text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Logowanie..." : "Zaloguj się"}
             </button>
@@ -98,7 +103,7 @@ function LoginForm() {
 
           <div className="mt-6 text-center text-sm text-foreground/40">
             Nie masz konta?{" "}
-            <Link href="/register" className="text-[#0D9488] font-medium hover:underline">
+            <Link href="/register" className="text-accent font-medium hover:underline">
               Zarejestruj się
             </Link>
           </div>

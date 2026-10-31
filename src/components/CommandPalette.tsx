@@ -21,7 +21,7 @@ const NAV_ITEMS: { label: string; href: string; group: string; hint?: string }[]
             : 'Profil zawodowy i persony',
   })),
   { label: 'Plan i subskrypcja', href: '/settings/subscription', group: 'Nawigacja', hint: 'Aktualny plan, faktury' },
-  { label: 'Cennik', href: '/pricing', group: 'Nawigacja', hint: 'Wybierz plan' },
+  { label: 'Plany', href: '/pricing', group: 'Nawigacja', hint: 'Plany bez cen' },
 ]
 
 const ONBOARDING_ITEMS = [
