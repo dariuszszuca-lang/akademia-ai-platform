@@ -1,5 +1,11 @@
 # CHANGELOG (produkcja)
 
+## [2026-10-31] commit feb6c00, nazwa karta i prostsze słowa
+- Teczka zmieniona na kartę we wszystkich tekstach.
+- Studio: Fakty, Moje karty, Do sprawdzenia zamiast trudnych nazw. Usunięte myślniki w ustawieniach i poleceniu dla Zespołu AI.
+- Zgoda Darka: "tak, razem" (31.10.2026).
+- Ostatni dobry stan przed wdrożeniem: 19696a2.
+
 ## [2026-10-31] commit 0042bba, Studio w nowym wyglądzie
 - Ekrany Studio (lista teczek, teczka, źródła, braki, historia) w motywie kawa z mlekiem.
 - Zgoda Darka: „tak” (31.10.2026).
