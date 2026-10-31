@@ -12,8 +12,8 @@ import {
 import type { AuditRecord } from './repository'
 
 const actionLabels = {
-  'property.created': 'Utworzono teczkę',
-  'property.updated': 'Zmieniono teczkę',
+  'property.created': 'Utworzono kartę',
+  'property.updated': 'Zmieniono kartę',
   'fact.created': 'Dodano fakt',
   'fact.updated': 'Zmieniono fakt',
   'source.registered': 'Zarejestrowano źródło',

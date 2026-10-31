@@ -153,7 +153,7 @@ export default function SettingsClient({
             <div className="min-w-0">
               <p className="text-foreground text-base font-medium">Eksport danych</p>
               <p className="text-foreground/55 text-sm mt-1">
-                Pobierz wszystkie swoje dane jako plik JSON, w tym profil, persony, teczki nieruchomości, fakty i historię zmian.
+                Pobierz wszystkie swoje dane jako plik JSON, w tym profil, persony, karty nieruchomości, fakty i historię zmian.
               </p>
             </div>
             <button

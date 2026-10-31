@@ -19,7 +19,7 @@ export default async function ToolResults({ userId, propertyId }: { userId: stri
       </div>
       {results.length === 0 ? (
         <p className="mt-2 text-sm text-foreground/60">
-          Nic jeszcze nie zapisano. Sprawdź ceny w okolicy, przeczytaj księgę albo zrób protokół i kliknij „Zapisz w teczce”.
+          Nic jeszcze nie zapisano. Sprawdź ceny w okolicy, przeczytaj księgę albo zrób protokół i kliknij „Zapisz na karcie”.
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-border">

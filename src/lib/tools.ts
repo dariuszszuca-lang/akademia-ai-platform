@@ -92,7 +92,7 @@ export const TOOLS: Tool[] = [
   {
     id: 'studio',
     name: 'Property Intelligence Studio',
-    lead: 'Jedna teczka na jedną nieruchomość.',
+    lead: 'Jedna karta na jedną nieruchomość.',
     description:
       'Dokumenty, fakty z dowodami, braki i decyzje w jednym miejscu. Tu trafią wyniki pozostałych narzędzi.',
     href: '/nieruchomosci',

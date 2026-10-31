@@ -88,7 +88,7 @@ export default function OpenIssuesBoard({
               Braki i konflikty
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/60">
-              Jedna kolejka rzeczy, które blokują wiarygodną teczkę.
+              Jedna kolejka rzeczy, które blokują wiarygodną kartę.
               Najpierw rozstrzygnij konflikty, potem uzupełnij brakujące
               fakty.
             </p>
@@ -167,7 +167,7 @@ export default function OpenIssuesBoard({
             Brak otwartych kwestii
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground/60">
-            Teczka nie wymaga teraz wyjaśnień. Nowe braki i konflikty
+            Karta nie wymaga teraz wyjaśnień. Nowe braki i konflikty
             pojawią się tutaj automatycznie.
           </p>
         </div>

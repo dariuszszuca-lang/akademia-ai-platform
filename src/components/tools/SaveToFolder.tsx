@@ -12,7 +12,7 @@ export type SavePayload = {
 }
 
 /**
- * Zapis podsumowania wyniku do teczki nieruchomości.
+ * Zapis podsumowania wyniku na kartę nieruchomości.
  * mode="public": użytkownik bez konta widzi zachętę do rejestracji.
  */
 export default function SaveToFolder({
@@ -49,7 +49,7 @@ export default function SaveToFolder({
       <div className="rounded-xl border border-border bg-[color:var(--card-strong)] p-4 text-sm">
         <p className="font-semibold text-foreground">Chcesz zachować wynik?</p>
         <p className="mt-1 text-foreground/60">
-          Załóż bezpłatne konto. Wyniki trafią do teczki mieszkania razem z innymi narzędziami.
+          Załóż bezpłatne konto. Wyniki trafią na kartę mieszkania razem z innymi narzędziami.
         </p>
         <Link href="/register" className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent px-5 font-semibold text-white">
           Załóż konto
@@ -71,7 +71,7 @@ export default function SaveToFolder({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Nie udało się zapisać.')
       setState('saved')
-      setMessage('Zapisane w teczce.')
+      setMessage('Zapisane na karcie.')
     } catch (e) {
       setState('error')
       setMessage(e instanceof Error ? e.message : 'Nie udało się zapisać.')
@@ -80,23 +80,23 @@ export default function SaveToFolder({
 
   return (
     <div className="rounded-xl border border-border bg-[color:var(--card-strong)] p-4 text-sm">
-      <p className="font-semibold text-foreground">Zapisz w teczce</p>
+      <p className="font-semibold text-foreground">Zapisz na karcie</p>
       <p className="mt-1 text-foreground/60">
         Zapisujemy tylko podsumowanie. Dane osób i zdjęcia zostają na Twoim urządzeniu.
       </p>
       {projects === null ? (
-        <p className="mt-3 text-foreground/50">Wczytuję teczki...</p>
+        <p className="mt-3 text-foreground/50">Wczytuję karty...</p>
       ) : projects.length === 0 ? (
         <p className="mt-3 text-foreground/60">
-          Nie masz jeszcze teczki.{' '}
+          Nie masz jeszcze karty.{' '}
           <Link href="/nieruchomosci" className="font-semibold text-accent hover:underline">
-            Załóż teczkę
+            Załóż kartę
           </Link>
         </p>
       ) : (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label htmlFor="save-folder" className="sr-only">
-            Teczka
+            Karta
           </label>
           <select
             id="save-folder"

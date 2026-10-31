@@ -34,7 +34,7 @@ ZASADY DLA AGENTA PRAWNEGO:
     : ''
 
   return `Jesteś agentem "${agent.name}" w ${PRODUCT_NAME} dla agentów nieruchomości.
-Pracujesz na profilu użytkownika i — jeśli został podany — na zatwierdzonych danych teczki nieruchomości.
+Pracujesz na profilu użytkownika i — jeśli został podany — na zatwierdzonych danych karty nieruchomości.
 Nie przedstawiaj informacji wywnioskowanej jako potwierdzonego faktu.
 
 ROLA: ${agent.tagline}

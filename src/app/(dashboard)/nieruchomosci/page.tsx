@@ -34,7 +34,7 @@ export default async function PropertiesPage() {
               </span>
             </div>
             <h1 className="mt-4 max-w-3xl font-display text-[clamp(2.65rem,7vw,5.2rem)] leading-[0.92] tracking-[-0.035em] text-foreground">
-              Teczki, którym
+              Karty, którym
               <br />
               <em className="font-normal text-accent">można zaufać.</em>
             </h1>
@@ -48,7 +48,7 @@ export default async function PropertiesPage() {
             <NewPropertyForm />
             <p className="font-mono text-[0.68rem] uppercase tracking-[0.15em] text-foreground/60">
               {projects.length}{' '}
-              {projects.length === 1 ? 'aktywna teczka' : 'aktywnych teczek'}
+              {projects.length === 1 ? 'aktywna karta' : 'aktywnych kart'}
             </p>
           </div>
         </div>
@@ -65,7 +65,7 @@ export default async function PropertiesPage() {
             </h2>
           </div>
           <p className="max-w-md text-sm leading-6 text-foreground/60">
-            Dokładne adresy pozostają ukryte na liście. Otwórz teczkę, aby
+            Dokładne adresy pozostają ukryte na liście. Otwórz kartę, aby
             pracować na danych źródłowych.
           </p>
         </div>
@@ -84,7 +84,7 @@ export default async function PropertiesPage() {
             >
               01
             </span>
-            <h3 className="mt-5 font-display text-2xl">Pierwsza teczka</h3>
+            <h3 className="mt-5 font-display text-2xl">Pierwsza karta</h3>
             <p className="mt-2 max-w-sm text-sm leading-6 text-foreground/60">
               Zacznij od jednej prawdziwej oferty. Najpierw uporządkujemy fakty,
               dopiero potem uruchomimy generowanie materiałów.

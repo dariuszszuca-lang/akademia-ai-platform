@@ -40,7 +40,7 @@ function project(
     id,
     organizationId: 'org',
     createdByUserId: 'user',
-    title: `Teczka ${id}`,
+    title: `Karta ${id}`,
     propertyType: 'apartment',
     transactionType: 'sale',
     stage,

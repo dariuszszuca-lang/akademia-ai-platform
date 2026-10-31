@@ -12,7 +12,7 @@ export default function ToolsPage() {
           Wszystko do mieszkania w jednym miejscu.
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-foreground/60">
-          Każde narzędzie działa też osobno, bez konta. Na platformie wyniki zapisujesz w teczce mieszkania.
+          Każde narzędzie działa też osobno, bez konta. Na platformie wyniki zapisujesz na karcie mieszkania.
         </p>
       </header>
       <div className="stagger-children grid gap-4 md:grid-cols-2">

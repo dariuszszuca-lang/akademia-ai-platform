@@ -2,7 +2,7 @@
  * Nazwy produktów platformy.
  *
  * PLATFORM_NAME to nazwa robocza. Darek wybierze docelową (31.10.2026: „coś wymyślimy”).
- * PRODUCT_NAME to Teczka nieruchomości jako produkt: Property Intelligence Studio.
+ * PRODUCT_NAME to Karta nieruchomości jako produkt: Property Intelligence Studio.
  */
 export const PLATFORM_NAME = 'Platforma nieruchomości'
 export const PLATFORM_DESCRIPTION =

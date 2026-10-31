@@ -34,7 +34,7 @@ export default function PropertyWorkspaceTabs({
 
   return (
     <nav
-      aria-label="Sekcje teczki"
+      aria-label="Sekcje karty"
       className="flex gap-1 overflow-x-auto rounded-full border border-border bg-[color:var(--card-strong)] p-1.5 text-sm"
     >
       {links.map((item) => {

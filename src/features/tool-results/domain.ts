@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 /**
- * Wynik narzędzia zapisany w teczce nieruchomości.
+ * Wynik narzędzia zapisany na karcie nieruchomości.
  *
- * Zasada: w teczce zapisujemy tylko podsumowanie (liczby, daty, flagi).
+ * Zasada: na karcie zapisujemy tylko podsumowanie (liczby, daty, flagi).
  * Dane osobowe (imiona, PESEL, treść księgi, zdjęcia) zostają w przeglądarce użytkownika.
  */
 export const TOOL_RESULT_TOOLS = [

@@ -15,7 +15,7 @@ const NAV_ITEMS: { label: string; href: string; group: string; hint?: string }[]
       item.href === '/start'
         ? 'Przegląd pracy'
         : item.href === '/nieruchomosci'
-          ? 'Teczki nieruchomości'
+          ? 'Karty nieruchomości'
           : item.href === '/agent'
             ? 'Narzędzia specjalistyczne'
             : 'Profil zawodowy i persony',
@@ -79,7 +79,7 @@ export default function CommandPalette() {
               <path d="m21 21-4.35-4.35" />
             </svg>
             <Command.Input
-              placeholder="Wyszukaj teczkę, agenta, narzędzie..."
+              placeholder="Wyszukaj kartę, agenta, narzędzie..."
               className="flex-1 bg-transparent text-foreground placeholder:text-foreground/30 text-[15px] focus:outline-none"
             />
             <span className="kbd">esc</span>

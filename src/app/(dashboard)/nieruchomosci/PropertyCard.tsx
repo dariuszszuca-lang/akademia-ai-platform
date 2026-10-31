@@ -59,9 +59,9 @@ export default function PropertyCard({ project }: PropertyCardProps) {
       <Link
         href={`/nieruchomosci/${project.id}`}
         className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent outline-none after:absolute after:inset-0 focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--card-strong)]"
-        aria-label={`Otwórz teczkę: ${project.title}`}
+        aria-label={`Otwórz kartę: ${project.title}`}
       >
-        Otwórz teczkę
+        Otwórz kartę
         <span
           aria-hidden="true"
           className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none"

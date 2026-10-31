@@ -42,7 +42,7 @@ export default async function StartPage() {
         <dl className="grid grid-cols-3 gap-3 rounded-2xl border border-border bg-[color:var(--card-strong)] p-4 font-mono text-xs">
           <Stat label="narzędzia" value={String(tools.length)} />
           <Stat label="działa" value={String(tools.filter((t) => t.status === 'dziala').length)} />
-          <Stat label="teczki" value={String(dashboard.activeCount)} />
+          <Stat label="karty" value={String(dashboard.activeCount)} />
         </dl>
       </header>
 
@@ -80,7 +80,7 @@ export default async function StartPage() {
               </Link>
             </div>
             <dl className="grid grid-cols-3 gap-3 font-mono text-xs">
-              <Stat label="teczki" value={String(dashboard.activeCount)} />
+              <Stat label="karty" value={String(dashboard.activeCount)} />
               <Stat label="braki" value={String(dashboard.missingCount)} />
               <Stat label="konflikty" value={String(dashboard.conflictingCount)} />
             </dl>

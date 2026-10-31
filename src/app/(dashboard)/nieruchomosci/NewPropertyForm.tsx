@@ -51,7 +51,7 @@ export default function NewPropertyForm() {
           : undefined
         setError(
           issue ??
-            'Nie udało się utworzyć teczki. Sprawdź dane i spróbuj ponownie.',
+            'Nie udało się utworzyć karty. Sprawdź dane i spróbuj ponownie.',
         )
         return
       }
@@ -78,7 +78,7 @@ export default function NewPropertyForm() {
         >
           +
         </span>
-        Nowa teczka
+        Nowa karta
       </button>
     )
   }
@@ -97,7 +97,7 @@ export default function NewPropertyForm() {
             id="new-property-title"
             className="mt-2 font-display text-2xl text-foreground"
           >
-            Załóż prywatną teczkę
+            Załóż prywatną kartę
           </h2>
         </div>
         <button
@@ -181,7 +181,7 @@ export default function NewPropertyForm() {
             >
               <option value="hidden">Adres ukryty</option>
               <option value="approximate">Lokalizacja przybliżona</option>
-              <option value="exact">Dokładny adres w teczce</option>
+              <option value="exact">Dokładny adres na karcie</option>
             </select>
           </label>
 
@@ -217,7 +217,7 @@ export default function NewPropertyForm() {
 
         <div className="mt-6 flex flex-col gap-4 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-lg text-xs leading-5 text-foreground/60">
-            Adres i fakty pozostają wewnątrz teczki. Nic nie trafia do materiałów
+            Adres i fakty pozostają wewnątrz karty. Nic nie trafia do materiałów
             publicznych bez świadomego oznaczenia.
           </p>
           <button
@@ -225,7 +225,7 @@ export default function NewPropertyForm() {
             disabled={isSubmitting}
             className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-white outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
           >
-            {isSubmitting ? 'Zakładam teczkę…' : 'Załóż teczkę'}
+            {isSubmitting ? 'Zakładam kartę…' : 'Załóż kartę'}
           </button>
         </div>
 

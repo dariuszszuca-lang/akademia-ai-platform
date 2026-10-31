@@ -18,7 +18,7 @@ export default function PublicProductsPage() {
           Narzędzia do mieszkania. Działają bez konta.
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-foreground/60">
-          Z kontem wyniki zapisujesz w teczce mieszkania i masz wszystko w jednym miejscu.
+          Z kontem wyniki zapisujesz na karcie mieszkania i masz wszystko w jednym miejscu.
         </p>
       </header>
       <div className="grid gap-4 md:grid-cols-2">

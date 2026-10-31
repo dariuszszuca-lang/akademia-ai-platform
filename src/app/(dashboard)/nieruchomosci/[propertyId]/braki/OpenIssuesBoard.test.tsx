@@ -71,6 +71,6 @@ describe('OpenIssuesBoard', () => {
     )
 
     expect(html).toContain('Brak otwartych kwestii')
-    expect(html).toContain('Teczka nie wymaga teraz wyjaśnień')
+    expect(html).toContain('Karta nie wymaga teraz wyjaśnień')
   })
 })

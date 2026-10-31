@@ -35,7 +35,7 @@ export function createToolResultService(deps: {
 
   async function assertOwner(userId: string, propertyId: string) {
     if (!(await deps.ownsProperty(userId, propertyId))) {
-      throw new ToolResultError('not_found', 'Nie ma takiej teczki.')
+      throw new ToolResultError('not_found', 'Nie ma takiej karty.')
     }
   }
 

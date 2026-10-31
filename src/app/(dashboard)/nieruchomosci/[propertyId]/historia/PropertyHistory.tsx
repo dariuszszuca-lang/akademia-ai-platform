@@ -36,7 +36,7 @@ export default function PropertyHistory({
     >
       <header className="border-b border-border px-5 py-6 sm:px-7">
         <p className="font-mono text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
-          Dziennik teczki
+          Dziennik karty
         </p>
         <h2
           id="property-history-title"
@@ -95,7 +95,7 @@ export default function PropertyHistory({
           </h3>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground/60">
             Pierwsze bezpieczne zdarzenie pojawi się tutaj po zmianie
-            teczki, faktu albo źródła.
+            karty, faktu albo źródła.
           </p>
         </div>
       )}
