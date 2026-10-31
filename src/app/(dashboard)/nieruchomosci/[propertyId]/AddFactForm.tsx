@@ -151,7 +151,7 @@ export default function AddFactForm({
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-accent">
             Nowy wpis
           </p>
-          <h3 className="mt-1.5 font-display text-2xl">Dodaj fakt do paszportu</h3>
+          <h3 className="mt-1.5 font-display text-2xl">Dodaj fakt</h3>
         </div>
         <button
           type="button"

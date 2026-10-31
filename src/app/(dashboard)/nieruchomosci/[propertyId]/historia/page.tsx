@@ -66,7 +66,7 @@ export default async function PropertyHistoryPage({
             className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm text-foreground/60 outline-none transition-colors hover:text-foreground focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span aria-hidden="true">←</span>
-            Portfolio
+            Moje karty
           </Link>
 
           <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

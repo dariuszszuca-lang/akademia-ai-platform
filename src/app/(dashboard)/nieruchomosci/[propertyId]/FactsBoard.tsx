@@ -24,7 +24,7 @@ export default function FactsBoard({ facts }: FactsBoardProps) {
     return (
       <div className="flex min-h-56 flex-col items-center justify-center rounded-[1.6rem] border border-dashed border-border bg-background px-6 text-center">
         <span className="font-mono text-xs uppercase tracking-[0.18em] text-accent">
-          Paszport pusty
+          Brak faktów
         </span>
         <h3 className="mt-3 font-display text-2xl">Dodaj pierwszy fakt</h3>
         <p className="mt-2 max-w-md text-sm leading-6 text-foreground/60">

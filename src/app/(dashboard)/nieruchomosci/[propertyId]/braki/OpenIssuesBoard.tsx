@@ -79,7 +79,7 @@ export default function OpenIssuesBoard({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="font-mono text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
-              Stół weryfikacyjny
+              Do sprawdzenia
             </p>
             <h2
               id="open-issues-title"

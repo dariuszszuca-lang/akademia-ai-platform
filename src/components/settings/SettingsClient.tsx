@@ -111,9 +111,9 @@ export default function SettingsClient({
       <section className="space-y-3">
         <h2 className="text-foreground/50 text-xs uppercase tracking-[0.25em]">Konto</h2>
         <div className="rounded-2xl border border-foreground/[0.08] bg-[color:var(--card)] p-6 space-y-4">
-          <Field label="Imię" value={user?.name ?? "—"} />
-          <Field label="Email" value={user?.email ?? "—"} />
-          <Field label="ID użytkownika" value={user?.sub ? `${user.sub.slice(0, 12)}…` : "—"} mono />
+          <Field label="Imię" value={user?.name ?? "brak"} />
+          <Field label="Email" value={user?.email ?? "brak"} />
+          <Field label="ID użytkownika" value={user?.sub ? `${user.sub.slice(0, 12)}…` : "brak"} mono />
           <p className="text-foreground/40 text-xs leading-relaxed pt-2 border-t border-foreground/[0.06]">
             Zmiana imienia i email wymaga kontaktu z supportem (na razie). Hasło można zresetować przez stronę{" "}
             <Link href="/login" className="text-accent hover:text-accent/80 underline underline-offset-2">

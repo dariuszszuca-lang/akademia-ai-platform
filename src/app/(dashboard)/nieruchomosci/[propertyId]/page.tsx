@@ -53,7 +53,7 @@ export default async function PropertyWorkspacePage({
             className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground/60 outline-none hover:text-foreground focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span aria-hidden="true">←</span>
-            Portfolio
+            Moje karty
           </Link>
 
           <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -107,7 +107,7 @@ export default async function PropertyWorkspacePage({
                 Źródło prawdy
               </p>
               <h2 className="mt-2 font-display text-3xl tracking-[-0.02em]">
-                Paszport faktów
+                Fakty
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-foreground/60">
                 Każda informacja ma status, widoczność i historię wersji.
@@ -126,7 +126,7 @@ export default async function PropertyWorkspacePage({
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
               Następny krok
             </p>
-            <h2 className="mt-2 font-display text-2xl">Uzupełnij paszport</h2>
+            <h2 className="mt-2 font-display text-2xl">Uzupełnij fakty</h2>
             <p className="mt-2 text-sm leading-6 text-foreground/60">
               Dodawaj tylko informacje, które mają jasno określony status.
               Dokumenty i propozycje AI znajdziesz w zakładce Źródła.

@@ -58,7 +58,7 @@ export default async function PropertiesPage() {
         <div className="mb-6 flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-accent">
-              Portfolio
+              Moje karty
             </p>
             <h2 className="mt-2 font-display text-3xl tracking-[-0.02em]">
               Twoje nieruchomości
