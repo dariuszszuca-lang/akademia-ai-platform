@@ -224,7 +224,7 @@ body {
 }
 
 .glass-card-hover:hover {
-  border-color: rgba(255, 247, 234, 0.22);
+  border-color: var(--accent);
   box-shadow: var(--shadow-soft);
 }
 
