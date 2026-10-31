@@ -1,5 +1,10 @@
 # CHANGELOG (produkcja)
 
+## [2026-10-31] commit 0042bba, Studio w nowym wyglądzie
+- Ekrany Studio (lista teczek, teczka, źródła, braki, historia) w motywie kawa z mlekiem.
+- Zgoda Darka: „tak” (31.10.2026).
+- Ostatni dobry stan przed wdrożeniem: 15c03a5.
+
 ## [2026-10-31] commit 3bbe0a5, narzędzia platformy
 - Podstrony narzędzi, rejestr cen z wyceną, kopia spacera 3D, umowa najmu okazjonalnego, pełny protokół i księga wieczysta, publiczne strony bez logowania, zapis wyników do teczki.
 - Zgoda Darka: „tak” (31.10.2026). Domena i osobne produkty bez zmian.
