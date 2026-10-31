@@ -122,6 +122,13 @@ export default function Navbar() {
                         Mój profil
                       </Link>
                       <Link
+                        href="/pricing"
+                        className="block px-4 py-2 text-sm text-foreground/80 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                        role="menuitem"
+                      >
+                        Plany
+                      </Link>
+                      <Link
                         href="/settings"
                         className="block px-4 py-2 text-sm text-foreground/80 transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
                         role="menuitem"

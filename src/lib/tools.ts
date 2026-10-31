@@ -13,7 +13,10 @@ export type Tool = {
   name: string
   lead: string
   description: string
+  /** podstrona narzędzia w platformie */
   href: string
+  /** osobna, publiczna strona produktu (bez logowania), jeśli istnieje */
+  standaloneHref?: string
   external: boolean
   status: ToolStatus
   audience: string
@@ -32,20 +35,22 @@ export const TOOLS: Tool[] = [
     lead: 'Za ile naprawdę sprzedano obok.',
     description:
       'Ceny z aktów notarialnych, nie z ogłoszeń. Średnia za metr w okolicy, liczba transakcji, wycena z metrażu.',
-    href: 'https://rejestr-cen-transakcyjnych.pl',
-    external: true,
+    href: '/narzedzia/rejestr-cen',
+    standaloneHref: 'https://rejestr-cen-transakcyjnych.pl',
+    external: false,
     status: 'dziala',
     audience: 'sprzedający, kupujący, agenci',
   },
   {
     id: 'protokol',
     name: 'Protokół z telefonu',
-    lead: 'Wydanie i zwrot mieszkania w 10 minut.',
+    lead: 'Wydanie i zwrot mieszkania z telefonu.',
     description:
-      'Zdjęcia z telefonu, stan liczników, porównanie było i jest, rozliczenie kaucji. Gotowy PDF dla obu stron.',
-    href: 'https://d1uyku9msq0fvh.cloudfront.net/demo/',
-    external: true,
-    status: 'pokaz',
+      'Pokój po pokoju: stan, zdjęcia, liczniki, klucze, podpisy obu stron. Przy zwrocie porównanie z dniem wydania i rozliczenie kaucji.',
+    href: '/narzedzia/protokol',
+    standaloneHref: '/protokol',
+    external: false,
+    status: 'dziala',
     audience: 'wynajmujący, najemcy, zarządcy',
   },
   {
@@ -53,10 +58,11 @@ export const TOOLS: Tool[] = [
     name: 'Księga wieczysta po ludzku',
     lead: 'Co w księdze jest naprawdę ważne.',
     description:
-      'Cztery działy przetłumaczone na zwykły język: właściciel, obciążenia, hipoteki, ostrzeżenia. Przed podpisaniem czegokolwiek.',
+      'Wklej treść księgi z serwisu Ministerstwa Sprawiedliwości. Dostaniesz właścicieli, obciążenia, hipoteki i listę pytań do sprzedającego.',
     href: '/narzedzia/ksiega-wieczysta',
+    standaloneHref: '/ksiega-wieczysta',
     external: false,
-    status: 'pokaz',
+    status: 'dziala',
     audience: 'kupujący, najemcy, agenci',
   },
   {
@@ -65,10 +71,23 @@ export const TOOLS: Tool[] = [
     lead: 'Rzut mieszkania zamienia się w spacer.',
     description:
       'Wgraj rzut z ogłoszenia, przejdź przez pokoje, zobacz metraż i wycenę z rejestru cen.',
-    href: 'https://akademia-ai-nieruchomosci.pl/spacer-3d/',
-    external: true,
+    href: '/narzedzia/spacer-3d',
+    standaloneHref: 'https://akademia-ai-nieruchomosci.pl/spacer-3d/',
+    external: false,
     status: 'dziala',
     audience: 'sprzedający, agenci',
+  },
+  {
+    id: 'umowa-najmu',
+    name: 'Umowa najmu okazjonalnego',
+    lead: 'Umowa z listą załączników i terminów.',
+    description:
+      'Kreator prowadzi przez strony, lokal, czynsz i kaucję. Pilnuje limitów z ustawy i przypomina o zgłoszeniu do urzędu skarbowego.',
+    href: '/narzedzia/umowa-najmu',
+    standaloneHref: '/umowa-najmu-okazjonalnego',
+    external: false,
+    status: 'dziala',
+    audience: 'wynajmujący, najemcy',
   },
   {
     id: 'studio',
@@ -82,3 +101,7 @@ export const TOOLS: Tool[] = [
     audience: 'agenci, biura',
   },
 ]
+
+export function getTool(id: string): Tool | undefined {
+  return TOOLS.find((tool) => tool.id === id)
+}

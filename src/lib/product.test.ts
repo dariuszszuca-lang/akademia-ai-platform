@@ -13,10 +13,10 @@ describe('Property Intelligence Studio product contract', () => {
     expect(PLATFORM_NAME).not.toMatch(/AI-Team|Akademia/i)
     expect(PRODUCT_DESCRIPTION).toContain('nieruchomości')
     expect(PRODUCT_NAVIGATION).toEqual([
-      { name: 'Narzędzia', href: '/start' },
+      { name: 'Pulpit', href: '/start' },
+      { name: 'Narzędzia', href: '/narzedzia' },
       { name: 'Studio', href: '/nieruchomosci' },
       { name: 'Zespół AI', href: '/agent' },
-      { name: 'Plany', href: '/pricing' },
     ])
   })
 

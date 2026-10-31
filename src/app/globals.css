@@ -317,3 +317,12 @@ input::placeholder {
   border-color: rgba(30, 78, 83, 0.2);
   box-shadow: var(--shadow-soft);
 }
+
+/* Druk dokumentów z narzędzi (umowa, protokół): drukujemy tylko obszar dokumentu */
+@media print {
+  body { background: #fff !important; background-image: none !important; }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0 auto auto 0; width: 100%; border: 0 !important; padding: 0 !important; }
+  .no-print { display: none !important; }
+}

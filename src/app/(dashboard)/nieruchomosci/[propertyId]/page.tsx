@@ -12,6 +12,7 @@ import { getServerUserId } from '@/lib/session'
 import AddFactForm from './AddFactForm'
 import FactsBoard from './FactsBoard'
 import PropertyWorkspaceTabs from './PropertyWorkspaceTabs'
+import ToolResults from './ToolResults'
 
 export const dynamic = 'force-dynamic'
 
@@ -206,6 +207,7 @@ export default async function PropertyWorkspacePage({
           </section>
         </aside>
       </div>
+      <ToolResults userId={userId} propertyId={project.id} />
     </div>
   )
 

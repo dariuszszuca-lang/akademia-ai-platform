@@ -14,10 +14,10 @@ export const PRODUCT_DESCRIPTION =
   'Prywatne studio danych, decyzji i materiałów dla agentów nieruchomości.'
 
 export const PRODUCT_NAVIGATION = [
-  { name: 'Narzędzia', href: '/start' },
+  { name: 'Pulpit', href: '/start' },
+  { name: 'Narzędzia', href: '/narzedzia' },
   { name: 'Studio', href: '/nieruchomosci' },
   { name: 'Zespół AI', href: '/agent' },
-  { name: 'Plany', href: '/pricing' },
 ] as const
 
 export function isProductPathActive(pathname: string, href: string) {
