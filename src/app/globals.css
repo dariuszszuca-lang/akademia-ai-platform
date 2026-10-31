@@ -2,30 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Kierunek B „Rzut”, motyw jasny: biel z siatką architektoniczną, grafit, turkus */
+/* Kierunek B „Rzut”, motyw kawa z mlekiem: ciepłe tło z siatką, ciemna kawa, karmel */
 :root {
   --font-display: var(--font-sans);
-  --bg: #fafbfc;
-  --fg: #1c2127;
-  --card: rgba(255, 255, 255, 0.86);
-  --card-strong: #ffffff;
-  --border: rgba(28, 33, 39, 0.1);
-  --slate-light: #eceff2;
-  --accent: #0f9d8f;
-  --accent-light: rgba(15, 157, 143, 0.08);
-  --accent-hover: rgba(15, 157, 143, 0.14);
-  --muted-gold: #5c6670;
+  --bg: #e8dccb;
+  --fg: #2f241a;
+  --card: rgba(246, 238, 226, 0.88);
+  --card-strong: #f6eee2;
+  --border: rgba(70, 48, 28, 0.16);
+  --slate-light: #dccdb8;
+  --accent: #8a5a2c;
+  --accent-light: rgba(138, 90, 44, 0.1);
+  --accent-hover: rgba(138, 90, 44, 0.16);
+  --muted-gold: #6f5a44;
   --rose: #c0564a;
   --olive: #4f7a3a;
   --copper: #b26a00;
-  --aqua: #3fd2c7;
+  --aqua: #b08355;
   --plum: #5f6b8a;
-  --section-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(236, 239, 242, 0.7));
-  --section-glow-a: rgba(63, 210, 199, 0.14);
-  --section-glow-b: rgba(28, 33, 39, 0.06);
-  --section-glow-c: rgba(63, 210, 199, 0.08);
-  --shadow-soft: 0 18px 50px -30px rgba(28, 33, 39, 0.25);
-  --shadow-card: 0 12px 32px -24px rgba(28, 33, 39, 0.18);
+  --section-bg: linear-gradient(135deg, rgba(246, 238, 226, 0.92), rgba(220, 205, 184, 0.7));
+  --section-glow-a: rgba(176, 131, 85, 0.16);
+  --section-glow-b: rgba(70, 48, 28, 0.07);
+  --section-glow-c: rgba(176, 131, 85, 0.09);
+  --shadow-soft: 0 18px 50px -30px rgba(70, 48, 28, 0.35);
+  --shadow-card: 0 12px 32px -24px rgba(70, 48, 28, 0.28);
 
   /* Motion language - Apple/Linear inspired */
   --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
@@ -67,8 +67,8 @@ body {
   color: var(--fg);
   background: var(--bg);
   background-image:
-    linear-gradient(rgba(28, 33, 39, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(28, 33, 39, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(70, 48, 28, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(70, 48, 28, 0.09) 1px, transparent 1px);
   background-size: 24px 24px;
   min-height: 100vh;
 }
@@ -270,7 +270,7 @@ input[type="url"] {
 }
 textarea::placeholder,
 input::placeholder {
-  color: rgba(28, 33, 39, 0.4);
+  color: rgba(70, 48, 28, 0.5);
 }
 
 .eyebrow {
