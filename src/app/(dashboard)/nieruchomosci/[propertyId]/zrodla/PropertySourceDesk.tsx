@@ -43,10 +43,10 @@ const activeSourceStatuses = new Set([
 ])
 
 const statusToneClasses = {
-  neutral: 'border-[#c8d0cc] bg-[#edf0ee] text-[#52615c]',
-  working: 'border-[#86aaa5] bg-[#e2efed] text-[#255f5b]',
-  success: 'border-[#8db29c] bg-[#e2eee6] text-[#2b6241]',
-  warning: 'border-[#d5aa70] bg-[#f5e9d5] text-[#7a541f]',
+  neutral: 'border-accent/30 bg-background text-foreground/60',
+  working: 'border-accent bg-accent/10 text-accent',
+  success: 'border-border bg-[#e2eee6] text-[#2b6241]',
+  warning: 'border-[#d5aa70] bg-[#f5e9d5] text-accent',
   danger: 'border-[#cf9791] bg-[#f5e3e1] text-[#873f39]',
 } as const
 
@@ -138,10 +138,10 @@ export default function PropertySourceDesk({
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-[#15252a] text-[#f7f2e7] shadow-[0_28px_80px_-50px_rgba(0,0,0,0.95)]">
+      <section className="overflow-hidden rounded-[2rem] border border-border bg-[color:var(--card-strong)] text-foreground shadow-[var(--shadow-card)]">
         <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#d8b784]">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
               Bezpieczne źródło prawdy
             </p>
             <h2 className="mt-2 font-display text-2xl tracking-[-0.02em] sm:text-3xl">
@@ -149,14 +149,14 @@ export default function PropertySourceDesk({
                 ? 'Dodaj pierwsze źródło'
                 : 'Dodaj kolejne źródło'}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#aebdb8]">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/60">
               PDF, zdjęcie, DOCX, XLSX, CSV, tekst lub nagranie. Plik trafia do
               prywatnego magazynu, przechodzi kontrolę bezpieczeństwa, a AI
               niczego nie zatwierdzi bez Twojej decyzji.
             </p>
           </div>
 
-          <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-[#f7f2e7] px-5 py-3 text-sm font-semibold text-[#162026] outline-none transition-transform hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-[#d8b784] focus-within:ring-offset-2 focus-within:ring-offset-[#15252a]">
+          <label className="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white outline-none transition-transform hover:-translate-y-0.5 focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2 focus-within:ring-offset-[color:var(--card-strong)]">
             <input
               ref={inputRef}
               type="file"
@@ -179,10 +179,10 @@ export default function PropertySourceDesk({
             aria-live="polite"
             className={`border-t px-5 py-3 text-sm sm:px-6 ${
               uploadState.status === 'error'
-                ? 'border-[#8d4f49]/40 bg-[#5b2c29]/30 text-[#f1c8c3]'
+                ? 'border-[#cf9791] bg-[#f5e3e1] text-[#873f39]'
                 : uploadState.status === 'success'
-                  ? 'border-[#5c8f72]/30 bg-[#2d6244]/20 text-[#cce5d5]'
-                  : 'border-[#79aaa4]/25 bg-[#2d6b68]/15 text-[#cce3df]'
+                  ? 'border-[#b8d2b9] bg-[#e7f1e4] text-[#2f6547]'
+                  : 'border-accent/25 bg-accent/15 text-accent'
             }`}
           >
             {uploadState.message}
@@ -206,7 +206,7 @@ export default function PropertySourceDesk({
         </div>
       ) : null}
 
-      <div className="grid overflow-hidden rounded-[2.25rem] border border-[#d8d1c4] bg-[#f2ede3] text-[#162026] shadow-[0_30px_90px_-48px_rgba(0,0,0,0.75)] xl:min-h-[42rem] xl:grid-cols-[18rem_minmax(0,1fr)_minmax(22rem,0.92fr)]">
+      <div className="grid overflow-hidden rounded-[2.25rem] border border-border bg-background text-foreground shadow-[var(--shadow-card)] xl:min-h-[42rem] xl:grid-cols-[18rem_minmax(0,1fr)_minmax(22rem,0.92fr)]">
         <SourceList
           sources={sources}
           selectedSourceId={selectedSourceId}
@@ -239,21 +239,21 @@ function SourceList({
   onSelect: (sourceId: string) => void
 }) {
   return (
-    <section className="border-b border-[#d8d1c4] bg-[#e8e2d7] p-4 xl:border-b-0 xl:border-r">
+    <section className="border-b border-border bg-background p-4 xl:border-b-0 xl:border-r">
       <div className="flex items-baseline justify-between gap-3 px-1">
         <div>
-          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-[#8b693e]">
+          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-accent">
             Dokumenty i media
           </p>
           <h3 className="mt-1 font-display text-xl">Źródła</h3>
         </div>
-        <span className="font-mono text-xs text-[#6f7975]">
+        <span className="font-mono text-xs text-foreground/60">
           {String(sources.length).padStart(2, '0')}
         </span>
       </div>
 
       {sources.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-[#bbb2a5] bg-[#f7f3eb] p-4 text-sm leading-6 text-[#66716d]">
+        <div className="mt-6 rounded-2xl border border-dashed border-border bg-[color:var(--card-strong)] p-4 text-sm leading-6 text-foreground/60">
           Dodany plik pojawi się tutaj wraz z tekstowym statusem kontroli i
           analizy.
         </div>
@@ -268,10 +268,10 @@ function SourceList({
                   type="button"
                   onClick={() => onSelect(source.id)}
                   aria-pressed={selected}
-                  className={`w-full rounded-2xl border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#2d6b68] ${
+                  className={`w-full rounded-2xl border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
                     selected
-                      ? 'border-[#2d6b68] bg-[#fffdf8]'
-                      : 'border-[#d3ccbf] bg-[#f3eee6] hover:border-[#a99c8a]'
+                      ? 'border-accent bg-[color:var(--card-strong)]'
+                      : 'border-border bg-[#f3eee6] hover:border-accent'
                   }`}
                 >
                   <span className="block truncate text-sm font-semibold">
@@ -283,7 +283,7 @@ function SourceList({
                     >
                       {status.label}
                     </span>
-                    <span className="font-mono text-[0.66rem] text-[#6d7773]">
+                    <span className="font-mono text-[0.66rem] text-foreground/60">
                       {formatFileSize(source.sizeBytes)}
                     </span>
                   </span>
@@ -316,10 +316,10 @@ function SourcePreview({
 
   if (!source) {
     return (
-      <section className="flex min-h-72 items-center justify-center border-b border-[#d8d1c4] bg-[#fffdf8] p-6 text-center xl:border-b-0 xl:border-r">
+      <section className="flex min-h-72 items-center justify-center border-b border-border bg-[color:var(--card-strong)] p-6 text-center xl:border-b-0 xl:border-r">
         <div className="max-w-sm">
           <p className="font-display text-2xl">Podgląd źródła</p>
-          <p className="mt-2 text-sm leading-6 text-[#69736f]">
+          <p className="mt-2 text-sm leading-6 text-foreground/60">
             Wybierz źródło z listy. Podgląd będzie dostępny dopiero po
             bezpiecznym wyniku kontroli pliku.
           </p>
@@ -356,10 +356,10 @@ function SourcePreview({
   }
 
   return (
-    <section className="border-b border-[#d8d1c4] bg-[#fffdf8] p-4 sm:p-6 xl:border-b-0 xl:border-r">
-      <div className="flex flex-col gap-3 border-b border-[#ded8cc] pb-4 sm:flex-row sm:items-start sm:justify-between">
+    <section className="border-b border-border bg-[color:var(--card-strong)] p-4 sm:p-6 xl:border-b-0 xl:border-r">
+      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-[#8b693e]">
+          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-accent">
             Bezpieczny podgląd
           </p>
           <h3 className="mt-1 truncate font-display text-2xl">
@@ -378,7 +378,7 @@ function SourcePreview({
         <Metadata label="Rozmiar" value={formatFileSize(source.sizeBytes)} />
       </dl>
 
-      <div className="mt-5 flex min-h-[22rem] items-center justify-center overflow-hidden rounded-2xl border border-[#ded8cc] bg-[#ebe7df]">
+      <div className="mt-5 flex min-h-[22rem] items-center justify-center overflow-hidden rounded-2xl border border-border bg-background">
         {preview?.sourceId === source.id && embeddable ? (
           <iframe
             src={preview.url}
@@ -389,13 +389,13 @@ function SourcePreview({
         ) : preview?.sourceId === source.id ? (
           <div className="max-w-sm p-6 text-center">
             <p className="font-display text-2xl">Plik gotowy</p>
-            <p className="mt-2 text-sm leading-6 text-[#69736f]">
+            <p className="mt-2 text-sm leading-6 text-foreground/60">
               Ten format otwieramy jako chronione pobranie, bez zamiany na
               aktywny HTML.
             </p>
             <a
               href={preview.url}
-              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[#2d6b68] px-5 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#2d6b68] focus-visible:ring-offset-2"
+              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Pobierz oryginał
             </a>
@@ -405,7 +405,7 @@ function SourcePreview({
             <p className="font-display text-2xl">
               {ready ? 'Źródło jest bezpieczne' : status.label}
             </p>
-            <p className="mt-2 text-sm leading-6 text-[#69736f]">
+            <p className="mt-2 text-sm leading-6 text-foreground/60">
               {ready
                 ? 'Otwórz krótko ważny podgląd. Plik nigdy nie ma publicznego adresu.'
                 : 'Podgląd odblokuje się po zakończeniu kontroli i analizy.'}
@@ -415,7 +415,7 @@ function SourcePreview({
                 type="button"
                 onClick={() => void openPreview()}
                 disabled={loading}
-                className="mt-5 min-h-11 rounded-full bg-[#2d6b68] px-5 text-sm font-semibold text-white outline-none disabled:cursor-wait disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#2d6b68] focus-visible:ring-offset-2"
+                className="mt-5 min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-white outline-none disabled:cursor-wait disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               >
                 {loading ? 'Otwieram…' : 'Otwórz bezpieczny podgląd'}
               </button>
@@ -475,21 +475,21 @@ function ProposalPanel({
   }
 
   return (
-    <section className="bg-[#f2ede3] p-4 sm:p-6">
-      <div className="flex items-baseline justify-between gap-3 border-b border-[#d8d1c4] pb-4">
+    <section className="bg-background p-4 sm:p-6">
+      <div className="flex items-baseline justify-between gap-3 border-b border-border pb-4">
         <div>
-          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-[#8b693e]">
+          <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-accent">
             Decyzja człowieka
           </p>
           <h3 className="mt-1 font-display text-2xl">Propozycje faktów</h3>
         </div>
-        <span className="font-mono text-xs text-[#6f7975]">
+        <span className="font-mono text-xs text-foreground/60">
           {String(proposals.length).padStart(2, '0')}
         </span>
       </div>
 
       {proposals.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-[#bbb2a5] bg-[#f8f4ec] p-5 text-sm leading-6 text-[#66716d]">
+        <div className="mt-5 rounded-2xl border border-dashed border-border bg-[color:var(--card-strong)] p-5 text-sm leading-6 text-foreground/60">
           Gdy analiza znajdzie informacje poparte dowodem, pojawią się tutaj.
           Brak propozycji nigdy nie zostanie uzupełniony domysłem.
         </div>
@@ -508,11 +508,11 @@ function ProposalPanel({
             return (
               <li
                 key={proposal.id}
-                className="rounded-2xl border border-[#d6cec1] bg-[#fffdf8] p-4 shadow-[0_16px_40px_-35px_rgba(22,32,38,0.75)]"
+                className="rounded-2xl border border-border bg-[color:var(--card-strong)] p-4 shadow-[var(--shadow-card)]"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-[#8b693e]">
+                    <p className="text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-accent">
                       {proposal.category}
                     </p>
                     <h4 className="mt-1 font-semibold">{proposal.label}</h4>
@@ -533,16 +533,16 @@ function ProposalPanel({
                 <p className="mt-4 font-display text-2xl">
                   {formatProposalValue(proposal.value)}
                   {proposal.unit ? (
-                    <span className="ml-1 text-base text-[#65706c]">
+                    <span className="ml-1 text-base text-foreground/60">
                       {proposal.unit}
                     </span>
                   ) : null}
                 </p>
 
-                <blockquote className="mt-4 border-l-2 border-[#bd9360] pl-3 text-sm leading-6 text-[#596661]">
+                <blockquote className="mt-4 border-l-2 border-accent pl-3 text-sm leading-6 text-foreground/60">
                   {proposal.evidenceText}
                 </blockquote>
-                <p className="mt-2 font-mono text-[0.66rem] text-[#6f7975]">
+                <p className="mt-2 font-mono text-[0.66rem] text-foreground/60">
                   {formatEvidenceLocator(proposal.evidenceLocator)} · pewność{' '}
                   {Math.round(proposal.confidence * 100)}%
                 </p>
@@ -580,7 +580,7 @@ function ProposalPanel({
                         onChange={(event) =>
                           setCorrectedValue(event.target.value)
                         }
-                        className="mt-1.5 min-h-11 w-full rounded-xl border border-[#bbae9d] bg-white px-3 font-normal outline-none focus:border-[#2d6b68] focus:ring-2 focus:ring-[#2d6b68]/20"
+                        className="mt-1.5 min-h-11 w-full rounded-xl border border-border bg-white px-3 font-normal outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
                         autoFocus
                       />
                     </label>
@@ -593,7 +593,7 @@ function ProposalPanel({
                         }
                         maxLength={1000}
                         rows={2}
-                        className="mt-1.5 w-full rounded-xl border border-[#bbae9d] bg-white px-3 py-2 font-normal outline-none focus:border-[#2d6b68] focus:ring-2 focus:ring-[#2d6b68]/20"
+                        className="mt-1.5 w-full rounded-xl border border-border bg-white px-3 py-2 font-normal outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
                       />
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -615,7 +615,7 @@ function ProposalPanel({
                 ) : null}
 
                 {!isFinal && !isEditing ? (
-                  <div className="mt-4 flex flex-wrap gap-2 border-t border-[#e2dcd1] pt-4">
+                  <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
                     {isConflict ? (
                       <>
                         <DecisionButton
@@ -696,7 +696,7 @@ function ProposalPanel({
                 ) : null}
 
                 {isPending ? (
-                  <p aria-live="polite" className="mt-3 text-sm text-[#52615c]">
+                  <p aria-live="polite" className="mt-3 text-sm text-foreground/60">
                     Zapisuję decyzję…
                   </p>
                 ) : null}
@@ -727,12 +727,12 @@ function DecisionButton({
   return (
     <button
       type={type}
-      className={`min-h-11 rounded-full border px-4 text-xs font-semibold outline-none transition-colors disabled:cursor-wait disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#2d6b68] focus-visible:ring-offset-2 ${
+      className={`min-h-11 rounded-full border px-4 text-xs font-semibold outline-none transition-colors disabled:cursor-wait disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
         primary
-          ? 'border-[#2d6b68] bg-[#2d6b68] text-white hover:bg-[#235956]'
+          ? 'border-accent bg-accent text-white hover:bg-accent'
           : danger
             ? 'border-[#c98e87] bg-[#f8e8e6] text-[#873f39] hover:bg-[#f1d9d6]'
-            : 'border-[#bcb2a4] bg-[#fffdf8] text-[#33423d] hover:bg-[#eee9df]'
+            : 'border-border bg-accent text-foreground/80 hover:bg-background'
       }`}
       {...props}
     >
@@ -743,8 +743,8 @@ function DecisionButton({
 
 function Metadata({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#e0d9cd] bg-[#f7f3eb] p-3">
-      <dt className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-[#7f8884]">
+    <div className="rounded-xl border border-border bg-[color:var(--card-strong)] p-3">
+      <dt className="text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-foreground/60">
         {label}
       </dt>
       <dd className="mt-1 text-sm font-semibold">{value}</dd>

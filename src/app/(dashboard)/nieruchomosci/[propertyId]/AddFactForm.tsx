@@ -19,7 +19,7 @@ type AddFactFormProps = {
 }
 
 const fieldClassName =
-  'mt-2 min-h-11 w-full rounded-xl border border-[#d8d1c4] bg-white px-3.5 text-sm text-[#162026] outline-none transition placeholder:text-[#87908b] focus:border-[#2d6b68] focus:ring-4 focus:ring-[#2d6b68]/10'
+  'mt-2 min-h-11 w-full rounded-xl border border-border bg-white px-3.5 text-sm text-foreground outline-none transition placeholder:text-foreground/60 focus:border-accent focus:ring-4 focus:ring-accent/10'
 
 export default function AddFactForm({
   propertyId,
@@ -133,7 +133,7 @@ export default function AddFactForm({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#173f40] px-5 text-sm font-semibold text-white outline-none transition hover:bg-[#245b59] focus-visible:ring-2 focus-visible:ring-[#2d6b68] focus-visible:ring-offset-2"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-white outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       >
         <span aria-hidden="true">+</span>
         Dodaj fakt
@@ -144,11 +144,11 @@ export default function AddFactForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-[1.6rem] border border-[#d8d1c4] bg-[#f6f0e5] p-5 text-[#162026]"
+      className="rounded-[1.6rem] border border-border bg-[color:var(--card-strong)] p-5 text-foreground"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#8b693e]">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-accent">
             Nowy wpis
           </p>
           <h3 className="mt-1.5 font-display text-2xl">Dodaj fakt do paszportu</h3>
@@ -156,7 +156,7 @@ export default function AddFactForm({
         <button
           type="button"
           onClick={() => setIsOpen(false)}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[#d8d1c4] text-xl text-[#52605c] outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-[#2d6b68]"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-xl text-foreground/60 outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="Zamknij formularz"
         >
           ×
@@ -271,7 +271,7 @@ export default function AddFactForm({
         </label>
       </div>
 
-      <div className="mt-5 flex flex-col gap-4 border-t border-[#d8d1c4] pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-5 flex flex-col gap-4 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p
           role="status"
           aria-live="polite"
@@ -282,7 +282,7 @@ export default function AddFactForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#173f40] px-5 text-sm font-semibold text-white outline-none transition hover:bg-[#245b59] focus-visible:ring-2 focus-visible:ring-[#2d6b68] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-white outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
           {isSubmitting ? 'Zapisuję…' : 'Zapisz fakt'}
         </button>

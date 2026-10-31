@@ -12,22 +12,22 @@ type FactsBoardProps = {
 
 const statusClassNames: Record<string, string> = {
   success: 'border-[#a9c8b5] bg-[#e9f3ec] text-[#2f6547]',
-  info: 'border-[#b9ccd2] bg-[#edf3f5] text-[#3f626c]',
+  info: 'border-accent/30 bg-accent/10 text-accent',
   ai: 'border-[#c9bfda] bg-[#f2eef8] text-[#66517e]',
   danger: 'border-[#ddb6ad] bg-[#f9ece8] text-[#92483b]',
-  warning: 'border-[#dfc59b] bg-[#fbf1dd] text-[#855e22]',
-  neutral: 'border-[#d4d4ce] bg-[#f2f2ee] text-[#626560]',
+  warning: 'border-[#dfc59b] bg-[#fbf1dd] text-accent',
+  neutral: 'border-border bg-background text-foreground/60',
 }
 
 export default function FactsBoard({ facts }: FactsBoardProps) {
   if (facts.length === 0) {
     return (
-      <div className="flex min-h-56 flex-col items-center justify-center rounded-[1.6rem] border border-dashed border-[#c9c2b5] bg-white/45 px-6 text-center">
-        <span className="font-mono text-xs uppercase tracking-[0.18em] text-[#8b693e]">
+      <div className="flex min-h-56 flex-col items-center justify-center rounded-[1.6rem] border border-dashed border-border bg-background px-6 text-center">
+        <span className="font-mono text-xs uppercase tracking-[0.18em] text-accent">
           Paszport pusty
         </span>
         <h3 className="mt-3 font-display text-2xl">Dodaj pierwszy fakt</h3>
-        <p className="mt-2 max-w-md text-sm leading-6 text-[#65706c]">
+        <p className="mt-2 max-w-md text-sm leading-6 text-foreground/60">
           Zacznij od informacji, którą można nazwać, oznaczyć statusem i
           świadomie dopuścić do materiałów.
         </p>
@@ -44,17 +44,17 @@ export default function FactsBoard({ facts }: FactsBoardProps) {
           <div className="mb-3 flex items-center gap-3">
             <h3
               id={`category-${category}`}
-              className="font-display text-xl text-[#162026]"
+              className="font-display text-xl text-foreground"
             >
               {getFactCategoryLabel(category)}
             </h3>
-            <span className="font-mono text-[0.65rem] text-[#7a837f]">
+            <span className="font-mono text-[0.65rem] text-foreground/60">
               {String(categoryFacts.length).padStart(2, '0')}
             </span>
-            <span className="h-px flex-1 bg-[#ded8cc]" />
+            <span className="h-px flex-1 bg-background" />
           </div>
 
-          <div className="divide-y divide-[#e4ded3] overflow-hidden rounded-[1.4rem] border border-[#ded8cc] bg-[#fffdf8]">
+          <div className="divide-y divide-border overflow-hidden rounded-[1.4rem] border border-border bg-[color:var(--card-strong)]">
             {categoryFacts.map((fact) => {
               const status = getFactStatusPresentation(fact.status)
               const value = formatFactValue(
@@ -81,29 +81,29 @@ export default function FactsBoard({ facts }: FactsBoardProps) {
                         </span>
                         {status.label}
                       </span>
-                      <span className="rounded-full border border-[#d8d3c9] px-2.5 py-1 text-[0.65rem] font-medium text-[#69716e]">
+                      <span className="rounded-full border border-border px-2.5 py-1 text-[0.65rem] font-medium text-foreground/60">
                         {getFactVisibilityLabel(fact.visibility)}
                       </span>
                     </div>
-                    <h4 className="mt-3 text-sm font-semibold text-[#263330]">
+                    <h4 className="mt-3 text-sm font-semibold text-foreground">
                       {fact.label}
                     </h4>
-                    <p className="mt-1 font-mono text-[0.65rem] text-[#89908d]">
+                    <p className="mt-1 font-mono text-[0.65rem] text-foreground/60">
                       {fact.key} · wersja {fact.version}
                     </p>
                   </div>
 
                   <div className="min-w-0 sm:text-right">
                     {fact.valueType === 'json' ? (
-                      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-[#eef0eb] p-3 text-left font-mono text-xs leading-5 text-[#33423e]">
+                      <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-background p-3 text-left font-mono text-xs leading-5 text-foreground/80">
                         {value}
                       </pre>
                     ) : (
-                      <p className="break-words font-display text-2xl leading-tight text-[#162026]">
+                      <p className="break-words font-display text-2xl leading-tight text-foreground">
                         {value}
                       </p>
                     )}
-                    <p className="mt-2 text-xs text-[#7b827f]">
+                    <p className="mt-2 text-xs text-foreground/60">
                       {fact.sourceIds.length > 0
                         ? `${fact.sourceIds.length} ${
                             fact.sourceIds.length === 1 ? 'źródło' : 'źródła'

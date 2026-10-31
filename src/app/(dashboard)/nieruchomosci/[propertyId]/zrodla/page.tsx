@@ -56,15 +56,15 @@ export default async function PropertySourcesPage({
 
   return (
     <div className="animate-fade-in-up space-y-6">
-      <header className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#0d171b] px-5 py-6 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] sm:px-8 sm:py-8">
+      <header className="relative overflow-hidden rounded-[2.25rem] border border-border bg-[color:var(--card-strong)] px-5 py-6 shadow-[var(--shadow-card)] sm:px-8 sm:py-8">
         <div
           aria-hidden="true"
-          className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-[#bd9360]/20"
+          className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-accent/20"
         />
         <div className="relative">
           <Link
             href="/nieruchomosci"
-            className="inline-flex min-h-11 items-center gap-2 text-sm text-[#b9c7c2] outline-none hover:text-white focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-[#bd9360]"
+            className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground/60 outline-none hover:text-foreground focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span aria-hidden="true">←</span>
             Portfolio
@@ -73,23 +73,23 @@ export default async function PropertySourcesPage({
           <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="rounded-full border border-[#79aaa4]/30 bg-[#79aaa4]/10 px-3 py-1 text-[0.67rem] font-semibold text-[#b9ddd7]">
+                <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[0.67rem] font-semibold text-accent">
                   {getPropertyStageLabel(project.stage)}
                 </span>
-                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#d8b784]">
+                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-accent">
                   {getPropertyTypeLabel(project.propertyType)} ·{' '}
                   {getTransactionTypeLabel(project.transactionType)}
                 </span>
               </div>
-              <h1 className="mt-4 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.8rem)] leading-[0.95] tracking-[-0.035em] text-[#f7f2e7]">
+              <h1 className="mt-4 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.8rem)] leading-[0.95] tracking-[-0.035em] text-foreground">
                 {project.title}
               </h1>
-              <p className="mt-4 text-sm text-[#b9c7c2]">
+              <p className="mt-4 text-sm text-foreground/60">
                 {[project.city, project.district].filter(Boolean).join(' · ')}
               </p>
             </div>
 
-            <dl className="grid grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+            <dl className="grid grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-2xl border border-border bg-background">
               <Metric label="Źródła" value={sources.length} />
               <Metric
                 label="Gotowe"
@@ -164,12 +164,12 @@ function Metric({
     <div className="min-w-[6.2rem] px-3 py-3 text-center sm:min-w-[7.5rem] sm:px-5">
       <dd
         className={`font-display text-2xl ${
-          alert ? 'text-[#e2b06f]' : 'text-[#f7f2e7]'
+          alert ? 'text-accent' : 'text-foreground'
         }`}
       >
         {value}
       </dd>
-      <dt className="mt-1 text-[0.61rem] uppercase tracking-[0.13em] text-[#8ea09a]">
+      <dt className="mt-1 text-[0.61rem] uppercase tracking-[0.13em] text-foreground/60">
         {label}
       </dt>
     </div>

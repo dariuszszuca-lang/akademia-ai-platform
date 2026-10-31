@@ -35,7 +35,7 @@ export default function PropertyWorkspaceTabs({
   return (
     <nav
       aria-label="Sekcje teczki"
-      className="flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#15252a] p-1.5 text-sm"
+      className="flex gap-1 overflow-x-auto rounded-full border border-border bg-[color:var(--card-strong)] p-1.5 text-sm"
     >
       {links.map((item) => {
         const isActive = item.id === active
@@ -44,10 +44,10 @@ export default function PropertyWorkspaceTabs({
             key={item.id}
             href={item.href}
             aria-current={isActive ? 'page' : undefined}
-            className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-4 py-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#bd9360] ${
+            className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-4 py-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent ${
               isActive
-                ? 'bg-[#f7f2e7] font-semibold text-[#162026]'
-                : 'text-[#aebdb8] hover:bg-white/[0.06] hover:text-white'
+                ? 'bg-[color:var(--card-strong)] font-semibold text-foreground'
+                : 'text-foreground/60 hover:bg-background hover:text-foreground'
             }`}
           >
             {item.label}
@@ -60,7 +60,7 @@ export default function PropertyWorkspaceTabs({
           key={item}
           aria-disabled="true"
           title="Ten moduł powstaje w następnym etapie"
-          className="inline-flex min-h-11 cursor-not-allowed items-center whitespace-nowrap rounded-full px-4 py-2.5 text-[#6f827c]"
+          className="inline-flex min-h-11 cursor-not-allowed items-center whitespace-nowrap rounded-full px-4 py-2.5 text-accent"
         >
           {item}
         </span>

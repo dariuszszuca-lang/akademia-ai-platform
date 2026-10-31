@@ -42,15 +42,15 @@ export default async function PropertyWorkspacePage({
 
   return (
     <div className="animate-fade-in-up space-y-6">
-      <header className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#0d171b] px-5 py-6 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] sm:px-8 sm:py-8">
+      <header className="relative overflow-hidden rounded-[2.25rem] border border-border bg-[color:var(--card-strong)] px-5 py-6 shadow-[var(--shadow-card)] sm:px-8 sm:py-8">
         <div
           aria-hidden="true"
-          className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-[#bd9360]/20"
+          className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-accent/20"
         />
         <div className="relative">
           <Link
             href="/nieruchomosci"
-            className="inline-flex min-h-11 items-center gap-2 text-sm text-[#b9c7c2] outline-none hover:text-white focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-[#bd9360]"
+            className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground/60 outline-none hover:text-foreground focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span aria-hidden="true">←</span>
             Portfolio
@@ -59,24 +59,24 @@ export default async function PropertyWorkspacePage({
           <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="rounded-full border border-[#79aaa4]/30 bg-[#79aaa4]/10 px-3 py-1 text-[0.67rem] font-semibold text-[#b9ddd7]">
+                <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[0.67rem] font-semibold text-accent">
                   {getPropertyStageLabel(project.stage)}
                 </span>
-                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#d8b784]">
+                <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-accent">
                   {getPropertyTypeLabel(project.propertyType)} ·{' '}
                   {getTransactionTypeLabel(project.transactionType)}
                 </span>
               </div>
-              <h1 className="mt-4 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.8rem)] leading-[0.95] tracking-[-0.035em] text-[#f7f2e7]">
+              <h1 className="mt-4 max-w-4xl font-display text-[clamp(2.6rem,6vw,4.8rem)] leading-[0.95] tracking-[-0.035em] text-foreground">
                 {project.title}
               </h1>
-              <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#b9c7c2]">
+              <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-foreground/60">
                 <span>
                   {[project.city, project.district].filter(Boolean).join(' · ')}
                 </span>
                 {project.addressMode === 'exact' && project.address && (
                   <>
-                    <span aria-hidden="true" className="text-[#677873]">
+                    <span aria-hidden="true" className="text-foreground/60">
                       /
                     </span>
                     <span className="inline-flex items-center gap-1.5">
@@ -88,7 +88,7 @@ export default async function PropertyWorkspacePage({
               </p>
             </div>
 
-            <dl className="grid grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+            <dl className="grid grid-cols-3 divide-x divide-white/10 overflow-hidden rounded-2xl border border-border bg-background">
               <Metric label="Fakty" value={facts.length} />
               <Metric label="Potwierdzone" value={confirmedCount} />
               <Metric label="Do wyjaśnienia" value={unresolved.length} alert />
@@ -100,20 +100,20 @@ export default async function PropertyWorkspacePage({
       <PropertyWorkspaceTabs propertyId={project.id} active="facts" />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)]">
-        <main className="rounded-[2.25rem] bg-[#f2ede3] p-4 text-[#162026] shadow-[0_30px_90px_-48px_rgba(0,0,0,0.75)] sm:p-6 lg:p-8">
-          <div className="mb-7 flex flex-col gap-4 border-b border-[#d9d2c5] pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <main className="rounded-[2.25rem] bg-background p-4 text-foreground shadow-[var(--shadow-card)] sm:p-6 lg:p-8">
+          <div className="mb-7 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-[#8b693e]">
+              <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-accent">
                 Źródło prawdy
               </p>
               <h2 className="mt-2 font-display text-3xl tracking-[-0.02em]">
                 Paszport faktów
               </h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[#65706c]">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-foreground/60">
                 Każda informacja ma status, widoczność i historię wersji.
               </p>
             </div>
-            <span className="font-mono text-xs text-[#7a837f]">
+            <span className="font-mono text-xs text-foreground/60">
               {String(facts.length).padStart(2, '0')} wpisów
             </span>
           </div>
@@ -122,12 +122,12 @@ export default async function PropertyWorkspacePage({
         </main>
 
         <aside className="space-y-5">
-          <section className="rounded-[2rem] border border-white/10 bg-[#15252a] p-5 text-[#f7f2e7] sm:p-6">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#d8b784]">
+          <section className="rounded-[2rem] border border-border bg-[color:var(--card-strong)] p-5 text-foreground sm:p-6">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
               Następny krok
             </p>
             <h2 className="mt-2 font-display text-2xl">Uzupełnij paszport</h2>
-            <p className="mt-2 text-sm leading-6 text-[#aebdb8]">
+            <p className="mt-2 text-sm leading-6 text-foreground/60">
               Dodawaj tylko informacje, które mają jasno określony status.
               Dokumenty i propozycje AI znajdziesz w zakładce Źródła.
             </p>
@@ -139,10 +139,10 @@ export default async function PropertyWorkspacePage({
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-[#ded8cc] bg-[#fffdf8] p-5 text-[#162026] sm:p-6">
+          <section className="rounded-[2rem] border border-border bg-[color:var(--card-strong)] p-5 text-foreground sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#8b693e]">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
                   Braki i konflikty
                 </p>
                 <h2 className="mt-2 font-display text-2xl">
@@ -153,7 +153,7 @@ export default async function PropertyWorkspacePage({
                       }`}
                 </h2>
               </div>
-              <span className="flex h-10 min-w-10 items-center justify-center rounded-full bg-[#f3e4ce] font-mono text-sm font-semibold text-[#855e22]">
+              <span className="flex h-10 min-w-10 items-center justify-center rounded-full bg-[#f3e4ce] font-mono text-sm font-semibold text-accent">
                 {unresolved.length}
               </span>
             </div>
@@ -165,11 +165,11 @@ export default async function PropertyWorkspacePage({
                   return (
                     <li
                       key={fact.id}
-                      className="flex items-start gap-3 rounded-xl border border-[#e4ded3] bg-[#f8f4ec] p-3"
+                      className="flex items-start gap-3 rounded-xl border border-border bg-[color:var(--card-strong)] p-3"
                     >
                       <span
                         aria-hidden="true"
-                        className="mt-0.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#f0ddc1] font-mono text-xs text-[#855e22]"
+                        className="mt-0.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#f0ddc1] font-mono text-xs text-accent"
                       >
                         {status.symbol}
                       </span>
@@ -177,7 +177,7 @@ export default async function PropertyWorkspacePage({
                         <span className="block text-sm font-semibold">
                           {fact.label}
                         </span>
-                        <span className="mt-0.5 block text-xs text-[#727a77]">
+                        <span className="mt-0.5 block text-xs text-foreground/60">
                           {status.label}
                         </span>
                       </span>
@@ -186,21 +186,21 @@ export default async function PropertyWorkspacePage({
                 })}
               </ul>
             ) : (
-              <p className="mt-4 text-sm leading-6 text-[#65706c]">
+              <p className="mt-4 text-sm leading-6 text-foreground/60">
                 Gdy oznaczysz fakt jako brakujący lub sprzeczny, pojawi się
                 tutaj jako konkretne zadanie do wyjaśnienia.
               </p>
             )}
           </section>
 
-          <section className="rounded-[2rem] border border-white/10 bg-[#101b1f] p-5 text-[#f7f2e7] sm:p-6">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#79aaa4]">
+          <section className="rounded-[2rem] border border-border bg-[color:var(--card-strong)] p-5 text-foreground sm:p-6">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
               Zasada Studio
             </p>
-            <blockquote className="mt-3 font-display text-xl leading-snug text-[#e6e0d5]">
+            <blockquote className="mt-3 font-display text-xl leading-snug text-foreground">
               Najpierw fakty. Potem kreacja.
             </blockquote>
-            <p className="mt-3 text-xs leading-5 text-[#92a29d]">
+            <p className="mt-3 text-xs leading-5 text-foreground/60">
               Materiały AI nie powinny samodzielnie zmieniać zatwierdzonych
               informacji o nieruchomości.
             </p>
@@ -242,12 +242,12 @@ function Metric({
     <div className="min-w-[6.2rem] px-3 py-3 text-center sm:min-w-[7.5rem] sm:px-5">
       <dd
         className={`font-display text-2xl ${
-          alert && value > 0 ? 'text-[#e2b06f]' : 'text-[#f7f2e7]'
+          alert && value > 0 ? 'text-accent' : 'text-foreground'
         }`}
       >
         {value}
       </dd>
-      <dt className="mt-1 text-[0.59rem] font-semibold uppercase tracking-[0.12em] text-[#879792]">
+      <dt className="mt-1 text-[0.59rem] font-semibold uppercase tracking-[0.12em] text-foreground/60">
         {label}
       </dt>
     </div>

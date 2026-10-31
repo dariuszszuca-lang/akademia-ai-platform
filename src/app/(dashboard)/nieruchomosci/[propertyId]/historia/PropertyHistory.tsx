@@ -18,9 +18,9 @@ const timeFormatter = new Intl.DateTimeFormat('pl-PL', {
 })
 
 const actorClassNames: Record<string, string> = {
-  Użytkownik: 'border-[#b8d2cd] bg-[#e9f2ef] text-[#315f58]',
+  Użytkownik: 'border-accent/30 bg-accent/10 text-accent',
   AI: 'border-[#c9bfda] bg-[#f2eef8] text-[#66517e]',
-  Integracja: 'border-[#c8c5bd] bg-[#f0efeb] text-[#5c625f]',
+  Integracja: 'border-border bg-background text-foreground/60',
 }
 
 export default function PropertyHistory({
@@ -32,19 +32,19 @@ export default function PropertyHistory({
   return (
     <section
       aria-labelledby="property-history-title"
-      className="overflow-hidden rounded-[2rem] border border-[#d8d1c5] bg-[#f4efe5] shadow-[0_24px_70px_-48px_rgba(22,32,38,0.55)]"
+      className="overflow-hidden rounded-[2rem] border border-border bg-[color:var(--card-strong)] shadow-[var(--shadow-card)]"
     >
-      <header className="border-b border-[#d8d1c5] px-5 py-6 sm:px-7">
-        <p className="font-mono text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#8b693e]">
+      <header className="border-b border-border px-5 py-6 sm:px-7">
+        <p className="font-mono text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-accent">
           Dziennik teczki
         </p>
         <h2
           id="property-history-title"
-          className="mt-2 font-display text-3xl tracking-[-0.025em] text-[#162026] sm:text-4xl"
+          className="mt-2 font-display text-3xl tracking-[-0.025em] text-foreground sm:text-4xl"
         >
           Historia zmian
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-[#65706c]">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-foreground/60">
           Bezpieczny zapis działań użytkownika, AI i integracji. Pełne
           wartości faktów oraz treści dokumentów nie są tu powielane.
         </p>
@@ -60,16 +60,16 @@ export default function PropertyHistory({
               <div className="mb-4 flex items-center gap-3">
                 <h3
                   id={`history-day-${group.day}`}
-                  className="font-display text-lg capitalize text-[#263330]"
+                  className="font-display text-lg capitalize text-foreground"
                 >
                   {group.label}
                 </h3>
-                <span className="font-mono text-[0.64rem] text-[#7a837f]">
+                <span className="font-mono text-[0.64rem] text-foreground/60">
                   {String(group.entries.length).padStart(2, '0')}
                 </span>
                 <span
                   aria-hidden="true"
-                  className="h-px flex-1 bg-[#d8d1c5]"
+                  className="h-px flex-1 bg-background"
                 />
               </div>
 
@@ -87,13 +87,13 @@ export default function PropertyHistory({
         </div>
       ) : (
         <div className="px-5 py-14 text-center sm:px-8 sm:py-20">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#d2c4ae] bg-[#f1e8d9] font-mono text-sm font-semibold text-[#715838]">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#d2c4ae] bg-[#f1e8d9] font-mono text-sm font-semibold text-accent">
             00
           </span>
-          <h3 className="mt-5 font-display text-2xl text-[#162026]">
+          <h3 className="mt-5 font-display text-2xl text-foreground">
             Historia jest jeszcze pusta
           </h3>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#65706c]">
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-foreground/60">
             Pierwsze bezpieczne zdarzenie pojawi się tutaj po zmianie
             teczki, faktu albo źródła.
           </p>
@@ -118,23 +118,23 @@ function HistoryEntry({
         <span
           className={`inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-[0.66rem] font-semibold ${
             actorClassNames[entry.actorLabel] ??
-            'border-[#c8c5bd] bg-[#f0efeb] text-[#5c625f]'
+            'border-border bg-background text-foreground/60'
           }`}
         >
           {entry.actorLabel}
         </span>
         <time
           dateTime={entry.createdAt}
-          className="font-mono text-[0.65rem] text-[#747d79]"
+          className="font-mono text-[0.65rem] text-foreground/60"
         >
           {timeFormatter.format(date)}
         </time>
       </div>
-      <p className="mt-2 text-sm font-semibold text-[#263330]">
+      <p className="mt-2 text-sm font-semibold text-foreground">
         {entry.label}
       </p>
       {entry.change ? (
-        <p className="mt-1 text-sm leading-6 text-[#65706c]">
+        <p className="mt-1 text-sm leading-6 text-foreground/60">
           {entry.change}
         </p>
       ) : null}
@@ -142,20 +142,20 @@ function HistoryEntry({
   )
 
   return (
-    <li className="relative flex gap-4 rounded-[1.25rem] border border-[#ddd6ca] bg-[#fffdf8] px-4 py-4 sm:px-5">
+    <li className="relative flex gap-4 rounded-[1.25rem] border border-border bg-[color:var(--card-strong)] px-4 py-4 sm:px-5">
       <span
         aria-hidden="true"
-        className="relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-[#fffdf8] bg-[#9c7b52] ring-1 ring-[#b9a587]"
+        className="relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-[color:var(--card-strong)] bg-accent ring-1 ring-accent"
       />
       {href ? (
         <Link
           href={href}
-          className="flex min-h-11 min-w-0 flex-1 cursor-pointer rounded-lg outline-none transition-colors duration-200 hover:text-[#6f522e] focus-visible:ring-2 focus-visible:ring-[#8b693e] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf8]"
+          className="flex min-h-11 min-w-0 flex-1 cursor-pointer rounded-lg outline-none transition-colors duration-200 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--card-strong)]"
         >
           {body}
           <span
             aria-hidden="true"
-            className="ml-3 self-center text-[#8b693e]"
+            className="ml-3 self-center text-accent"
           >
             →
           </span>

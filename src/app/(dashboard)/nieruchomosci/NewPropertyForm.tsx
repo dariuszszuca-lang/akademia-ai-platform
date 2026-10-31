@@ -4,7 +4,7 @@ import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const fieldClassName =
-  'mt-2 min-h-12 w-full rounded-xl border border-[#d8d1c4] bg-white px-3.5 text-sm text-[#162026] outline-none transition placeholder:text-[#87908b] focus:border-[#2d6b68] focus:ring-4 focus:ring-[#2d6b68]/10'
+  'mt-2 min-h-12 w-full rounded-xl border border-border bg-white px-3.5 text-sm text-foreground outline-none transition placeholder:text-foreground/60 focus:border-accent focus:ring-4 focus:ring-accent/10'
 
 export default function NewPropertyForm() {
   const router = useRouter()
@@ -70,11 +70,11 @@ export default function NewPropertyForm() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-[#f7f2e7] px-5 text-sm font-semibold text-[#162026] shadow-[0_14px_34px_-20px_rgba(0,0,0,0.8)] outline-none transition hover:bg-white focus-visible:ring-2 focus-visible:ring-[#bd9360] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0d171b]"
+        className="inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-[color:var(--card-strong)] px-5 text-sm font-semibold text-foreground shadow-[var(--shadow-card)] outline-none transition hover:bg-white focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--card-strong)]"
       >
         <span
           aria-hidden="true"
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2d6b68] text-base text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-base text-white"
         >
           +
         </span>
@@ -86,16 +86,16 @@ export default function NewPropertyForm() {
   return (
     <section
       aria-labelledby="new-property-title"
-      className="w-full overflow-hidden rounded-[2rem] border border-[#d8d1c4] bg-[#f6f0e5] shadow-[0_32px_80px_-48px_rgba(13,23,27,0.7)]"
+      className="w-full overflow-hidden rounded-[2rem] border border-border bg-[color:var(--card-strong)] shadow-[var(--shadow-card)]"
     >
-      <div className="flex items-start justify-between gap-4 border-b border-[#d8d1c4] px-5 py-5 sm:px-7">
+      <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-5 sm:px-7">
         <div>
-          <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-[#8b693e]">
+          <p className="text-[0.66rem] font-semibold uppercase tracking-[0.2em] text-accent">
             Nowa nieruchomość
           </p>
           <h2
             id="new-property-title"
-            className="mt-2 font-display text-2xl text-[#162026]"
+            className="mt-2 font-display text-2xl text-foreground"
           >
             Załóż prywatną teczkę
           </h2>
@@ -103,7 +103,7 @@ export default function NewPropertyForm() {
         <button
           type="button"
           onClick={() => setIsOpen(false)}
-          className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[#d8d1c4] text-xl text-[#52605c] outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-[#2d6b68]"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border text-xl text-foreground/60 outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="Zamknij formularz"
         >
           ×
@@ -112,7 +112,7 @@ export default function NewPropertyForm() {
 
       <form onSubmit={handleSubmit} className="p-5 sm:p-7">
         <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
-          <label className="text-sm font-semibold text-[#263330] md:col-span-2">
+          <label className="text-sm font-semibold text-foreground md:col-span-2">
             Nazwa robocza
             <input
               name="title"
@@ -124,7 +124,7 @@ export default function NewPropertyForm() {
             />
           </label>
 
-          <label className="text-sm font-semibold text-[#263330]">
+          <label className="text-sm font-semibold text-foreground">
             Typ nieruchomości
             <select
               name="propertyType"
@@ -141,7 +141,7 @@ export default function NewPropertyForm() {
             </select>
           </label>
 
-          <label className="text-sm font-semibold text-[#263330]">
+          <label className="text-sm font-semibold text-foreground">
             Rodzaj procesu
             <select name="transactionType" className={fieldClassName}>
               <option value="sale">Sprzedaż</option>
@@ -149,7 +149,7 @@ export default function NewPropertyForm() {
             </select>
           </label>
 
-          <label className="text-sm font-semibold text-[#263330]">
+          <label className="text-sm font-semibold text-foreground">
             Miasto
             <input
               name="city"
@@ -161,7 +161,7 @@ export default function NewPropertyForm() {
             />
           </label>
 
-          <label className="text-sm font-semibold text-[#263330]">
+          <label className="text-sm font-semibold text-foreground">
             Dzielnica lub obszar
             <input
               name="district"
@@ -171,7 +171,7 @@ export default function NewPropertyForm() {
             />
           </label>
 
-          <label className="text-sm font-semibold text-[#263330]">
+          <label className="text-sm font-semibold text-foreground">
             Prywatność adresu
             <select
               name="addressMode"
@@ -186,7 +186,7 @@ export default function NewPropertyForm() {
           </label>
 
           {addressMode !== 'hidden' && (
-            <label className="text-sm font-semibold text-[#263330]">
+            <label className="text-sm font-semibold text-foreground">
               {addressMode === 'exact' ? 'Dokładny adres' : 'Opis lokalizacji'}
               <input
                 name="address"
@@ -203,7 +203,7 @@ export default function NewPropertyForm() {
           )}
 
           {propertyType === 'plot' && (
-            <label className="text-sm font-semibold text-[#263330]">
+            <label className="text-sm font-semibold text-foreground">
               Identyfikator działki
               <input
                 name="plotIdentifier"
@@ -215,15 +215,15 @@ export default function NewPropertyForm() {
           )}
         </div>
 
-        <div className="mt-6 flex flex-col gap-4 border-t border-[#d8d1c4] pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-lg text-xs leading-5 text-[#65706c]">
+        <div className="mt-6 flex flex-col gap-4 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-lg text-xs leading-5 text-foreground/60">
             Adres i fakty pozostają wewnątrz teczki. Nic nie trafia do materiałów
             publicznych bez świadomego oznaczenia.
           </p>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-[#173f40] px-6 text-sm font-semibold text-white outline-none transition hover:bg-[#245b59] focus-visible:ring-2 focus-visible:ring-[#2d6b68] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-white outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
           >
             {isSubmitting ? 'Zakładam teczkę…' : 'Załóż teczkę'}
           </button>
